@@ -897,7 +897,7 @@ $("theme").addEventListener("change",()=>{S.theme=$("theme").value;applyTheme();
 function keyStatus(msg,bad){const s=$("keyStatus");const k=S.api.key;if(msg){s.textContent=msg;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=k?"✓ Ключ сохранён: "+k.slice(0,7)+"…"+k.slice(-4):"Ключ не задан";}
 $("key").addEventListener("input",()=>{const v=$("key").value.trim();if(v!==S.api.key)keyStatus("Не сохранено — нажми «Сохранить ключ»",true);else keyStatus();});
 $("keyEye").onclick=()=>{const i=$("key");i.type=i.type==="password"?"text":"password";};
-$("keySave").onclick=async()=>{const v=$("key").value.trim().replace(/\s+/g,"");if(!v){keyStatus("Вставь ключ в поле",true);return;}
+$("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-Za-z0-9_\-]{20,}/);const v=(mm?mm[0]:raw).trim().replace(/\s+/g,"");if(!v){keyStatus("Вставь ключ в поле",true);return;}
   S.api.key=v;$("key").value=v;clearTimeout(saveT);
   try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){keyStatus("Не удалось сохранить: "+e.message,true);return;}
   keyStatus("✓ Ключ сохранён. Проверяю…");
