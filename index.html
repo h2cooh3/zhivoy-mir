@@ -847,7 +847,7 @@ function renderHome(){
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
   // готовые миры: грузятся одним нажатием из самого приложения
-  const PRESETS=[{file:"presets/freya.json",world:"Северное побережье",title:"Северное побережье",desc:"Средневековый север. Фрейя, 18 лет, выброшена штормом на берег. Сцена на берегу уже начата."}];
+  const PRESETS=[{file:"presets/south.json",world:"Южное побережье",title:"Южное побережье",desc:"Средневековое южное побережье, конец лета. Плотник Уилл нашёл на берегу Фрейю — северянку, выброшенную штормом. 16 персонажей: деревня, стража, друзья, враги. Сцена на берегу уже начата."}];
   const avail=PRESETS.filter(x=>!S.worlds.some(w=>w.name===x.world));
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
     avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt","нажми, чтобы добавить"));
