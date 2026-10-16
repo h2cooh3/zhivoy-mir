@@ -669,8 +669,8 @@ function back(){if(busy)return;route=stack.pop()||{v:"home"};render();}
 $("backBtn").onclick=back;
 $("editWorldBtn").onclick=()=>{if(route.v==="world")go({v:"worldEdit",id:route.id});};
 function render(){
-  const v=$("view");v.innerHTML="";$("backBtn").hidden=route.v==="home";$("editWorldBtn").hidden=route.v!=="world";
-  ({home:renderHome,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
+  const v=$("view");v.innerHTML="";$("backBtn").hidden=["home","allChars","allChats"].includes(route.v);$("editWorldBtn").hidden=route.v!=="world";
+  ({home:renderHome,allChars:renderAllChars,allChats:renderAllChats,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
   renderNav();
 }
 function curWorldId(){if(route.v==="world"||route.v==="worldEdit")return W(route.id)?route.id:S.lastWorld;if(route.v==="chat"){const c=C(route.id);return c?c.worldId:S.lastWorld;}if(route.v==="scene"||route.v==="sceneEdit"){const x=SC(route.id);return x?x.worldId:S.lastWorld;}if(route.v==="charEdit"){const c=route.draft||C(route.id);return c?c.worldId:S.lastWorld;}return S.lastWorld;}
@@ -682,14 +682,41 @@ const ICONS={
 function renderNav(){
   const n=$("nav");n.innerHTML="";n.hidden=(route.v==="chat"||route.v==="scene");
   if(route.v==="world"&&W(route.id))S.lastWorld=route.id;
-  const wid=curWorldId();const hasW=!!W(wid);
-  const lc=S.lastChat&&((S.lastChat.type==="chat"&&C(S.lastChat.id))||(S.lastChat.type==="scene"&&SC(S.lastChat.id)));
-  const lcName=lc?(S.lastChat.type==="chat"?C(S.lastChat.id).name:(SC(S.lastChat.id).title||"Сцена")):"Последний чат";
-  const items=[["home","Главная",route.v==="home",true],["chars","Персонажи",route.v==="world",hasW],["chat",lcName,false,!!lc]];
-  items.forEach(([k,t,cur,on])=>{const b=el("button");b.innerHTML=ICONS[k];const s=el("span",null,t);s.style.maxWidth="100%";s.style.overflow="hidden";s.style.textOverflow="ellipsis";s.style.whiteSpace="nowrap";b.append(s);
-    b.disabled=!on;b.setAttribute("aria-current",cur);
-    b.onclick=()=>{if(busy)return;stack.length=0;if(k==="home")go({v:"home"},true);else if(k==="chars")go({v:"world",id:wid,tab:"chars"},true);else go(S.lastChat.type==="chat"?{v:"chat",id:S.lastChat.id}:{v:"scene",id:S.lastChat.id},true);};
+  const items=[["chat","Чаты",route.v==="allChats"],["home","Главная",route.v==="home"||route.v==="world"],["chars","Персонажи",route.v==="allChars"]];
+  items.forEach(([k,t,cur])=>{const b=el("button");b.innerHTML=ICONS[k];b.append(el("span",null,t));b.setAttribute("aria-current",cur);
+    b.onclick=()=>{if(busy)return;stack.length=0;if(k==="home")go({v:"home"},true);else if(k==="chars")go({v:"allChars"},true);else go({v:"allChats"},true);};
     n.append(b);});
+}
+function charCard(c,withWorld){
+  const w=W(c.worldId);const card=el("div","card");card.style.position="relative";card.style.cursor="pointer";const im=el("div","img");avatarEl(im,c);const bd=el("div","body");
+  bd.append(el("div","nm",c.name),el("div","ds",c.short||c.state.now||""),el("div","mt",(withWorld&&w?w.name+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ."+(c.chats.length>1?" · "+c.chats.length+" разг.":"")));
+  const del=el("button","btn ghost sm warn","✕");del.title="Удалить персонажа";del.style.position="absolute";del.style.top="6px";del.style.right="6px";del.style.background="var(--panel)";del.onclick=e=>{e.stopPropagation();if(!confirm("Удалить «"+c.name+"» со всеми разговорами?"))return;S.chars=S.chars.filter(x=>x.id!==c.id);S.scenes.forEach(x=>x.charIds=x.charIds.filter(id=>id!==c.id));save();render();};
+  card.append(im,bd,del);card.onclick=()=>go({v:"chat",id:c.id});return card;
+}
+function renderAllChars(){
+  $("hTitle").textContent="Персонажи";const p=el("div","page");
+  const tools=el("div","row between");const q=el("input");q.type="search";q.placeholder="Поиск";q.style.flex="1";
+  const nb=el("button","btn primary","+ Персонаж");nb.onclick=()=>{if(!S.worlds.length){alert("Сначала создай мир на главной.");return;}let wid=S.lastWorld&&W(S.lastWorld)?S.lastWorld:S.worlds[0].id;if(S.worlds.length>1){const ans=prompt("В каком мире? Введи номер:\n"+S.worlds.map((w,i)=>(i+1)+" — "+w.name).join("\n"),String(S.worlds.findIndex(w=>w.id===wid)+1));const i=parseInt(ans)-1;if(!(i>=0&&i<S.worlds.length))return;wid=S.worlds[i].id;}const c=blankChar();c.worldId=wid;go({v:"charEdit",id:c.id,draft:c});};
+  tools.append(q,nb);p.append(tools);
+  const box=el("div");p.append(box);
+  const draw=()=>{box.innerHTML="";const f=q.value.trim().toLowerCase();
+    S.worlds.forEach(w=>{const cs=charsOf(w.id).filter(c=>!f||(c.name+" "+c.short+" "+c.tags.join(" ")).toLowerCase().includes(f)).sort((a,b)=>(b.updated||0)-(a.updated||0));if(!cs.length)return;
+      const hd=el("h2",null,w.name);hd.style.cursor="pointer";hd.onclick=()=>go({v:"world",id:w.id,tab:"chars"});box.append(hd);const g=el("div","grid");cs.forEach(c=>g.append(charCard(c,false)));box.append(g);});
+    if(!S.chars.length)box.append(el("p","note","Персонажей пока нет. Нажми «+ Персонаж» или создай пример мира на главной."));};
+  q.addEventListener("input",draw);draw();$("view").append(p);
+}
+function renderAllChats(){
+  $("hTitle").textContent="Чаты";const p=el("div","page");
+  const items=[];
+  S.chars.forEach(c=>c.chats.forEach(x=>{if(!x.history.length)return;const last=x.history[x.history.length-1];items.push({t:c.updated||0,kind:"chat",c,x,title:c.name+" — "+x.title,sub:last.content.replace(/\*/g,"").slice(0,90),world:(W(c.worldId)||{}).name});}));
+  S.scenes.forEach(x=>{if(!x.history.length)return;const last=x.history[x.history.length-1];items.push({t:x.updated||0,kind:"scene",x,title:"Сцена: "+(x.title||"без названия"),sub:last.content.replace(/\*/g,"").slice(0,90),world:(W(x.worldId)||{}).name});});
+  items.sort((a,b)=>b.t-a.t);
+  if(!items.length)p.append(el("p","note","Разговоров пока нет. Открой персонажа и напиши ему."));
+  const l=el("div","list");items.forEach(it=>{const row=el("div","item");row.style.cursor="pointer";row.style.alignItems="center";
+    const av=el("div","av");av.style.width="40px";av.style.height="40px";av.style.borderRadius="50%";av.style.background="var(--panel2)";av.style.overflow="hidden";av.style.display="flex";av.style.alignItems="center";av.style.justifyContent="center";av.style.flex="none";if(it.c)avatarEl(av,it.c);else av.textContent="▣";
+    const x=el("div","x");x.style.whiteSpace="normal";x.append(el("b",null,it.title),document.createTextNode("\n"+it.sub));const m=el("small",null,(it.world||"")+(it.t?" · "+new Date(it.t).toLocaleDateString("ru"):""));m.style.color="var(--muted)";x.append(document.createTextNode("\n"),m);
+    row.append(av,x);row.onclick=()=>{if(it.kind==="chat"){it.c.activeChat=it.x.id;save();go({v:"chat",id:it.c.id});}else go({v:"scene",id:it.x.id});};l.append(row);});
+  p.append(l);$("view").append(p);
 }
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function toast(t,bad){const s=document.querySelector("#status");if(s){s.textContent=t;s.style.color=bad?"var(--danger)":"";}else if(t){const b=el("div","banner",t);b.style.position="fixed";b.style.left="12px";b.style.right="12px";b.style.bottom="calc(16px + env(safe-area-inset-bottom,0px))";b.style.background="var(--panel)";b.style.zIndex=20;if(!bad){b.style.borderColor="var(--line)";b.style.color="var(--ink)";}document.body.append(b);setTimeout(()=>b.remove(),3500);}}
@@ -772,8 +799,7 @@ function tabChars(w,body){
   const tr=el("div","row");const ib=el("button","btn sm","Загрузить персонажа из файла");ib.onclick=()=>pickFile(f=>importFile(f,w.id));const xb=el("button","btn sm","Сохранить мир в файл");xb.onclick=()=>expWorld(w);tr.append(ib,xb);body.append(tr);
   if(!w.desc.trim()){const b=el("div","banner","Мир пока без описания. Нажми «Изменить мир» вверху — опиши место, правила и время, или придумай их одной кнопкой.");b.style.borderColor="var(--line)";b.style.color="var(--muted)";body.append(b);}
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
-  charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>{const card=el("div","card");card.style.position="relative";card.style.cursor="pointer";const im=el("div","img");avatarEl(im,c);const bd=el("div","body");
-    const del=el("button","btn ghost sm warn","✕");del.title="Удалить персонажа";del.style.position="absolute";del.style.top="6px";del.style.right="6px";del.style.background="var(--panel)";del.onclick=e=>{e.stopPropagation();if(!confirm("Удалить «"+c.name+"» со всеми разговорами?"))return;S.chars=S.chars.filter(x=>x.id!==c.id);S.scenes.forEach(x=>x.charIds=x.charIds.filter(id=>id!==c.id));save();render();};card.append(del);bd.append(el("div","nm",c.name),el("div","ds",c.short||c.state.now||""),el("div","mt",(c.state.mood?c.state.mood+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ."+(c.chats.length>1?" · "+c.chats.length+" разг.":"")+(c.log.length?" · "+c.log.length+" изм.":"")));card.append(im,bd);card.onclick=()=>go({v:"chat",id:c.id});g.append(card);});
+  charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
   if(charsOf(w.id).length)body.append(el("p","note","Нажми на персонажа, чтобы поговорить. Он помнит всё, что было, и меняется от ваших разговоров — и от того, что происходит в мире без тебя (вкладка «Хроника» → «Прошло время»)."));
 }
