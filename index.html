@@ -205,7 +205,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="text" id="cheap">
     </label>
     <div class="row">
-      <label style="flex:1">Температура <input type="number" id="temp" min="0" max="1" step="0.1"></label>
+      <label style="flex:1">Температура <span class="hint">Только для OpenAI и старых моделей; Claude 5.5 её не использует</span><input type="number" id="temp" min="0" max="1" step="0.1"></label>
       <label style="flex:1">Длина ответа, токенов <input type="number" id="maxtok" min="100" step="100"></label>
     </div>
     <label>Объём контекста, символов <span class="hint">Сколько последних сообщений модель видит дословно; старое сжимается в краткое содержание, детали уходят в картотеку</span>
@@ -348,7 +348,7 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   if(A.provider==="anthropic"){
     const sys=[];if(stable)sys.push({type:"text",text:stable,cache_control:{type:"ephemeral"}});if(dynamic)sys.push({type:"text",text:dynamic});
     if(cacheMsgs&&msgs.length>1){const i=msgs.length-2;msgs=msgs.map((m,j)=>j===i?{role:m.role,content:[{type:"text",text:m.content,cache_control:{type:"ephemeral"}}]}:m);}
-    const body={model,max_tokens:mt,temperature:+A.temp,stream,messages:msgs};if(sys.length)body.system=sys;
+    const body={model,max_tokens:mt,stream,messages:msgs};if(sys.length)body.system=sys;if(!/-5-5|-5$|fable|mythos/.test(model))body.temperature=+A.temp;
     const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{"content-type":"application/json","x-api-key":A.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
     if(!res.ok)throw new Error(await errorText(res));
     if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);return (j.content||[]).map(b=>b.text||"").join("");}
