@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111316">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Живой мир">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -201,6 +202,9 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   .chapter{padding:14px;font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){.msg .ops{transition:none}.spin{animation:none}}
+
+/* iPhone: шрифт полей ≥16px, иначе Safari сам увеличивает экран при вводе */
+@media (pointer:coarse){input,textarea,select{font-size:16px!important}}
 </style>
 </head>
 <body>
