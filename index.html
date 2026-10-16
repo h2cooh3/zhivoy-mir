@@ -236,6 +236,14 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="text" id="pname" placeholder="Маратбек">
     </label>
 
+    <h2>Синхронизация между устройствами</h2>
+    <p class="note">Телефон и компьютер хранят данные по отдельности. Чтобы видеть одно и то же, приложение может держать копию в твоём GitHub (приватный гист, который видишь только ты). Нужен токен GitHub с правом на гисты.</p>
+    <label>Токен GitHub <span class="hint">github.com → Settings → Developer settings → Personal access tokens → Fine-grained → Gists: Read and write</span>
+      <div class="row" style="flex-wrap:nowrap"><input type="password" id="ghTok" autocomplete="off" placeholder="github_pat_…" style="flex:1"><button class="btn" id="ghEye" type="button">👁</button></div>
+    </label>
+    <div class="row"><button class="btn primary" id="syncOn" type="button">Включить синхронизацию</button><button class="btn" id="syncNow" type="button">Синхронизировать сейчас</button><button class="btn warn" id="syncOff" type="button">Выключить</button></div>
+    <p class="note" id="syncStatus"></p>
+
     <h2>Сохранения мира</h2>
     <p class="note">Слепок всех миров и персонажей. Пошло не туда — загрузись и попробуй иначе.</p>
     <div class="row"><input type="text" id="snapName" placeholder="Название, например «перед разговором с Бакытом»" style="flex:1"><button class="btn" id="snapBtn">Сохранить</button></div>
@@ -270,7 +278,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -322,14 +330,14 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
   save();
 }
 let saveT;
-function save(){clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
+function save(){S.stamp=Date.now();schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
 window.addEventListener("pagehide",()=>{clearTimeout(saveT);try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");}catch(e){}});
 
 // ---- режим экономии: все лимиты в одном месте
@@ -565,6 +573,46 @@ async function genWorld(w){
   return await askJSON(prompt,3000,"generate");
 }
 
+// ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
+const GH="https://api.github.com";
+const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,persona:S.persona,theme:S.theme,usage:S.usage,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
+async function gh(path,method,body){const r=await fetch(GH+path,{method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
+let pushT=null,pushing=false,pushAgain=false;
+function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>syncPush().catch(e=>syncStatus("Не удалось отправить: "+e.message,true)),4000);}
+async function syncPush(){if(!S.sync.on||!S.sync.token)return;if(pushing){pushAgain=true;return;}pushing=true;
+  try{const content=syncPayload();const files={"zhivoy-mir.json":{content}};
+    if(!S.sync.gistId){const g=await gh("/gists","POST",{description:"Живой мир — синхронизация (не удалять)",public:false,files});S.sync.gistId=g.id;}
+    else await gh("/gists/"+S.sync.gistId,"PATCH",{files});
+    S.sync.pulled=S.stamp;persistQuiet();syncStatus("✓ Отправлено "+new Date().toLocaleTimeString("ru"));}
+  finally{pushing=false;if(pushAgain){pushAgain=false;schedulePush();}}}
+async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)return false;
+  const g=await gh("/gists/"+S.sync.gistId);const f=g.files&&g.files["zhivoy-mir.json"];if(!f)return false;
+  let text=f.content;if(f.truncated){const r=await fetch(f.raw_url,{headers:{"Authorization":"Bearer "+S.sync.token}});text=await r.text();}
+  const d=JSON.parse(text);if(!d||d.kind!=="sync")return false;
+  const remoteStamp=d.stamp||0;
+  if(!force&&remoteStamp<=S.sync.pulled)return false; // ничего нового
+  const localChanged=S.stamp>S.sync.pulled;
+  if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
+  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}
+  fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
+function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
+function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.pulled?new Date(S.sync.pulled).toLocaleString("ru"):"ещё не было"):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
+async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus("Вставь токен GitHub",true);return;}S.sync.token=t;S.sync.on=true;syncStatus("Проверяю…");
+    await gh("/gists?per_page=1");
+    if(!S.sync.gistId){const list=await gh("/gists?per_page=100");const mine=list.find(g=>g.description==="Живой мир — синхронизация (не удалять)"&&g.files&&g.files["zhivoy-mir.json"]);if(mine)S.sync.gistId=mine.id;}
+    if(S.sync.gistId){const hasLocal=S.worlds.length>0;
+      if(!hasLocal){await syncPull(true);syncStatus("✓ Данные загружены из GitHub");stack.length=0;go({v:"home"},true);}
+      else{
+        const useLocal=confirm("В GitHub уже есть копия с другого устройства, и на этом устройстве тоже есть данные.\n\nOK — считать ГЛАВНЫМИ данные ЭТОГО устройства (копия в GitHub будет заменена ими).\nОтмена — загрузить копию из GitHub (данные на этом устройстве будут заменены; перед этим сохранится слепок в «Сохранениях мира»).");
+        if(useLocal){S.stamp=Date.now();await syncPush();syncStatus("✓ Данные этого устройства отправлены в GitHub");}
+        else{await syncPull(true);syncStatus("✓ Данные загружены из GitHub");stack.length=0;go({v:"home"},true);}
+      }}
+    else{S.stamp=Date.now();await syncPush();syncStatus("✓ Хранилище создано, данные отправлены");}
+    persistQuiet();syncStatus();}catch(e){S.sync.on=false;syncStatus("Ошибка: "+e.message,true);}}
+async function syncTick(){if(!S.sync.on||busy)return;try{const changed=await syncPull(false);if(changed){toast("Данные обновлены с другого устройства.");render();}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncTick();});
+setInterval(syncTick,60000);
 // ============ ИМПОРТ / ЭКСПОРТ ============
 function expChar(c){download((c.name||"персонаж")+".json",JSON.stringify({app:"zhivoymir",kind:"char",version:1,char:c},null,1),"application/json");}
 function expWorld(w){const cs=charsOf(w.id),sc=S.scenes.filter(x=>x.worldId===w.id);download((w.name||"мир")+".json",JSON.stringify({app:"zhivoymir",kind:"world",version:1,worlds:[w],chars:cs,scenes:sc},null,1),"application/json");}
@@ -919,13 +967,17 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";}
-function fillSettings(){const A=S.api;$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("pname").value=S.persona.name;
+function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>render());
 [["provider","provider"],["base","base"],["model","model"],["cheap","cheap"],["temp","temp"],["maxtok","maxtok"],["budget","budget"],["every","every"],["pIn","pIn"],["pCache","pCache"],["pOut","pOut"]].forEach(([id,k])=>{$(id).addEventListener("input",()=>{let v=$(id).value;if(k==="temp")v=Math.min(1,Math.max(0,parseFloat(v)||0));if(k==="maxtok")v=Math.max(100,parseInt(v)||1200);if(k==="budget")v=Math.max(5000,parseInt(v)||50000);if(k==="every")v=Math.max(4,parseInt(v)||10);if(k==="provider"){S.api.model=DEF_MODEL[v]||"";S.api.cheap=DEF_CHEAP[v]||"";}S.api[k]=v;save();if(k==="provider")fillSettings();});});
 $("pname").addEventListener("input",()=>{S.persona.name=$("pname").value;save();});
+$("ghEye").onclick=()=>{const i=$("ghTok");i.type=i.type==="password"?"text":"password";};
+$("syncOn").onclick=syncStart;
+$("syncNow").onclick=async()=>{if(!S.sync.on){syncStatus("Сначала включи синхронизацию",true);return;}try{syncStatus("Сверяю…");const ch=await syncPull(false);if(ch){syncStatus("✓ Загружено с другого устройства");stack.length=0;go({v:"home"},true);}else{await syncPush();}}catch(e){syncStatus("Ошибка: "+e.message,true);}};
+$("syncOff").onclick=()=>{if(!confirm("Выключить синхронизацию на этом устройстве? Данные останутся и здесь, и в GitHub."))return;S.sync.on=false;S.sync.token="";persistQuiet();$("ghTok").value="";syncStatus();};
 $("theme").addEventListener("change",()=>{S.theme=$("theme").value;applyTheme();save();});
 function keyStatus(msg,bad){const s=$("keyStatus");const k=S.api.key;if(msg){s.textContent=msg;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=k?"✓ Ключ сохранён: "+k.slice(0,7)+"…"+k.slice(-4):"Ключ не задан";}
 $("key").addEventListener("input",()=>{const v=$("key").value.trim();if(v!==S.api.key)keyStatus("Не сохранено — нажми «Сохранить ключ»",true);else keyStatus();});
@@ -955,7 +1007,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();applyTheme();render();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();applyTheme();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
