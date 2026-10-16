@@ -15,19 +15,19 @@
 /* тёмная тема по умолчанию */
 :root{
   --bg:#111316; --panel:#1B1E22; --panel2:#22262B; --ink:#E8E7E3; --muted:#949AA3; --line:#2F343A;
-  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320;
+  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; --speech:#8FC6FF;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --serif:Georgia,"Times New Roman",serif;
   box-sizing:border-box; color-scheme:dark;
 }
 :root[data-theme="light"]{
   --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6;
+  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8;
   color-scheme:light;
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="auto"]{
     --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6;
+    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8;
     color-scheme:light;
   }
 }
@@ -113,7 +113,9 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg .av img{width:100%;height:100%;object-fit:cover}
 .msg .col{display:flex;flex-direction:column;gap:3px;max-width:86%;min-width:0}
 .msg .b{padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word;background:var(--panel);border:1px solid var(--line)}
-.msg .b em{color:var(--muted)}
+.msg .b .nar{color:var(--ink)}
+.msg .b .say{color:var(--speech);font-weight:500}
+.msg .b,.chapter,.item .x{user-select:text;-webkit-user-select:text}
 .msg.user{flex-direction:row-reverse}
 .msg.user .col{align-items:flex-end}
 .msg.user .b{background:var(--me);border-color:transparent}
@@ -134,8 +136,14 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .divider{max-width:760px;width:100%;margin:0 auto;font-size:12px;color:var(--muted);text-align:center;border-top:1px dashed var(--line);padding-top:6px}
 .compose{border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
 .compose .inner{position:relative;z-index:2}
-.compose .inner{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
-.compose textarea{flex:1;min-height:46px;max-height:200px}
+.compose .inner{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:6px 6px 6px 14px}
+.compose textarea{flex:1;min-height:24px;max-height:40vh;border:0;background:none;padding:6px 0;resize:none;line-height:1.4;outline:none;font-size:16px}
+.compose textarea:focus{outline:none}
+.compose .send,.compose .stopb{width:40px;height:40px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;flex:none;padding:0}
+.compose .send{background:var(--accent);color:var(--accent-ink)}
+.compose .send:disabled{opacity:.4}
+.compose .stopb{background:var(--danger);color:#fff}
+.compose .send svg,.compose .stopb svg{display:block}
 .status{max-width:760px;margin:6px auto 0;font-size:12px;color:var(--muted);min-height:1em}
 .chat aside{border-left:1px solid var(--line);padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:12px;background:var(--panel2)}
 .chat aside textarea{min-height:70px;font-size:13px}
@@ -730,10 +738,19 @@ function nearBottom(s){return s.scrollHeight-s.scrollTop-s.clientHeight<120;}
 function stickScroll(s,atB,st){if(atB)s.scrollTop=s.scrollHeight;else s.scrollTop=st;}
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
-function fmt(e,text){String(text).split(/(\*[^*\n]+\*)/g).forEach(p=>{if(/^\*[^*\n]+\*$/.test(p)){const m=el("em",null,p.slice(1,-1));e.append(m);}else e.append(document.createTextNode(p));});}
+function fmt(e,text){
+  // *описание* — обычный текст; «реплика», “реплика”, "реплика" — голубым
+  String(text).split(/(\*[^*\n]+\*)/g).forEach(p=>{
+    if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));return;}
+    p.split(/(«[^»]*»|“[^”]*”|"[^"\n]*")/g).forEach(q=>{if(!q)return;if(/^(«|“|")/.test(q))e.append(el("span","say",q));else e.append(document.createTextNode(q));});
+  });
+}
 function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
   actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
   const c=el("button","cancel","Отмена");c.onclick=close;s.append(c);document.body.append(bg,s);}
+const SEND_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg>';
+const STOP_SVG='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+function autoGrow(ta){const f=()=>{ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,window.innerHeight*0.4)+"px";};ta.addEventListener("input",f);setTimeout(f,0);return f;}
 function withBusy(btn,fn){return async()=>{if(busy)return;busy=true;ctl=new AbortController();const old=btn.textContent;btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+old;try{await fn();}catch(e){const m=friendly(e);if(m)alert(m);}finally{busy=false;ctl=null;btn.disabled=false;btn.textContent=old;}};}
 
 // ---- ГЛАВНАЯ: миры
@@ -926,7 +943,7 @@ function renderChat(){
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(mini,who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
-  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","btn","Стоп");stop.hidden=true;const send=el("button","btn primary","Отправить");inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
+  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){
     stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
@@ -977,7 +994,7 @@ function renderChat(){
     finally{busy=false;ctl=null;c.updated=Date.now();save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else c.history.push({role:"user",content:t});ta.value="";save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else c.history.push({role:"user",content:t});ta.value="";grow();save();run();}
   function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
@@ -999,7 +1016,7 @@ function renderScene(){
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.setup||""));
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
-  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","btn","Стоп");stop.hidden=true;const send=el("button","btn primary","Отправить");inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
+  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;inner.append(ta,stop,send);const grow=autoGrow(ta);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
@@ -1019,7 +1036,7 @@ function renderScene(){
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else x.history.push({role:"user",content:t});}ta.value="";save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else x.history.push({role:"user",content:t});}ta.value="";grow();save();run();}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   drawLog();drawAside();if(!x.history.length)run();
 }
