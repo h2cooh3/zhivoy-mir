@@ -621,6 +621,10 @@ function render(){
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function toast(t,bad){const s=document.querySelector("#status");if(s){s.textContent=t;s.style.color=bad?"var(--danger)":"";}else if(t){const b=el("div","banner",t);b.style.position="fixed";b.style.left="12px";b.style.right="12px";b.style.bottom="calc(16px + env(safe-area-inset-bottom,0px))";b.style.background="var(--panel)";b.style.zIndex=20;if(!bad){b.style.borderColor="var(--line)";b.style.color="var(--ink)";}document.body.append(b);setTimeout(()=>b.remove(),3500);}}
 function avatarEl(e,c){e.innerHTML="";if(c&&c.avatar){const i=document.createElement("img");i.src=c.avatar;i.alt="";e.append(i);}else e.textContent=((c&&c.name)||"?").trim().charAt(0).toUpperCase()||"?";}
+function nearBottom(s){return s.scrollHeight-s.scrollTop-s.clientHeight<120;}
+function stickScroll(s,atB,st){if(atB)s.scrollTop=s.scrollHeight;else s.scrollTop=st;}
+function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
+function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 function fmt(e,text){String(text).split(/(\*[^*\n]+\*)/g).forEach(p=>{if(/^\*[^*\n]+\*$/.test(p)){const m=el("em",null,p.slice(1,-1));e.append(m);}else e.append(document.createTextNode(p));});}
 function withBusy(btn,fn){return async()=>{if(busy)return;busy=true;ctl=new AbortController();const old=btn.textContent;btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+old;try{await fn();}catch(e){const m=friendly(e);if(m)alert(m);}finally{busy=false;ctl=null;btn.disabled=false;btn.textContent=old;}};}
 
@@ -702,16 +706,16 @@ function helperContext(w){
 function tabHelper(w,body){
   body.append(el("p","note","Соавтор — не персонаж, а помощник. Он видит весь мир: персонажей, их состояние и память, хронику, твои разговоры и сцены. Спрашивай что угодно: «что не так с Бакытом», «придумай конфликт между Айгерим и Азаматом», «как Бакыт отреагировал бы, если…», «подскажи, куда вести историю»."));
   const log=el("div","list");log.style.minHeight="200px";
-  const draw=(live)=>{log.innerHTML="";w.helper.forEach((m,i)=>{const it=el("div","item"+(m.role==="user"?" sel":""));it.append(el("div","t",m.role==="user"?"Ты":"Соавтор"));const x=el("div","x");fmt(x,m.content);it.append(x);const d=el("button","btn ghost sm warn","✕");d.onclick=()=>{w.helper.splice(i,1);save();draw();};it.append(d);log.append(it);});
-    if(live!==undefined){const it=el("div","item");it.append(el("div","t","Соавтор"));it.append(el("div","x",live||"…"));log.append(it);}
-    if(!w.helper.length&&live===undefined)log.append(el("p","note","Пока пусто. Напиши вопрос внизу."));log.scrollTop=log.scrollHeight;};
+  const draw=(live)=>{stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";w.helper.forEach((m,i)=>{const it=el("div","item"+(m.role==="user"?" sel":""));it.append(el("div","t",m.role==="user"?"Ты":"Соавтор"));const x=el("div","x");fmt(x,m.content);it.append(x);const d=el("button","btn ghost sm warn","✕");d.onclick=()=>{w.helper.splice(i,1);save();draw();};it.append(d);log.append(it);});
+    if(live!==undefined){const it=el("div","item");it.dataset.live=1;it.append(el("div","t","Соавтор"));it.append(el("div","x",live||"…"));log.append(it);}
+    if(!w.helper.length&&live===undefined)log.append(el("p","note","Пока пусто. Напиши вопрос внизу."));stickScroll(log,atB,st);};
   body.append(log);
   const row=el("div","row");const ta=el("textarea");ta.rows=2;ta.style.flex="1";ta.placeholder="Вопрос соавтору…";const stop=el("button","btn","Стоп");stop.hidden=true;const send=el("button","btn primary","Спросить");row.append(ta,stop,send);body.append(row);
   const r2=el("div","row");const clr=el("button","btn sm ghost warn","Очистить разговор");clr.onclick=()=>{if(confirm("Очистить разговор с соавтором?")){w.helper=[];save();draw();}};
   const cp=el("button","btn sm","Копировать последний ответ");cp.onclick=async()=>{const l=[...w.helper].reverse().find(m=>m.role==="assistant");if(l){try{await navigator.clipboard.writeText(l.content);toast("Скопировано.");}catch(e){}}};r2.append(clr,cp);body.append(r2);
   async function run(){busy=true;ctl=new AbortController();let live="";send.disabled=true;stop.hidden=false;draw("");
     try{const stable="Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей (для этого есть отдельные чаты), а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя.\n\n"+helperContext(w);
-      const text=await callModel({stable,msgs:w.helper.slice(-12),onText:t=>{live=t;draw(t);},signal:ctl.signal,maxTokens:S.api.eco?1200:2500,purpose:"helper",cacheMsgs:true});w.helper.push({role:"assistant",content:text.trim()});}
+      const text=await callModel({stable,msgs:w.helper.slice(-12),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:S.api.eco?1200:2500,purpose:"helper",cacheMsgs:true});w.helper.push({role:"assistant",content:text.trim()});}
     catch(e){if(live)w.helper.push({role:"assistant",content:live});const m=friendly(e);if(m)toast(m,true);}
     finally{busy=false;ctl=null;send.disabled=false;stop.hidden=true;save();draw();}}
   const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;const l=w.helper[w.helper.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else w.helper.push({role:"user",content:t});ta.value="";save();run();};
@@ -808,12 +812,12 @@ function renderChat(){
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","btn","Стоп");stop.hidden=true;const send=el("button","btn primary","Отправить");inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){
-    log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
+    stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
     const last=c.history.length-1;
     c.history.forEach((m,i)=>{if(i===c.sumIdx&&c.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании и картотеке, ниже — модель видит дословно"));log.append(msgEl(m,i,i===last&&m.role==="assistant"));});
-    if(live!==undefined)log.append(msgEl({role:"assistant",content:live||"…"},-1,false));
+    if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1,false);lv.dataset.live=1;log.append(lv);}
     if(lastErr)log.append(el("div","err",lastErr));
-    log.scrollTop=log.scrollHeight;send.disabled=busy;stop.hidden=!busy;eb.disabled=busy;
+    stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;eb.disabled=busy;
   }
   function msgEl(m,i,isLast){
     const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
@@ -850,7 +854,7 @@ function renderChat(){
       const liveLen=c.history.slice(c.sumIdx).reduce((n,m)=>n+m.content.length,0);
       if(liveLen>K().budget&&c.history.length-c.sumIdx>K().keep){toast("Сжимаю старую часть…");await compressHistory(c,c.name,w);drawLog("");}
       const lastUser=[...c.history].reverse().find(m=>m.role==="user");
-      const text=await callModel({stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;drawLog(t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true});
+      const text=await callModel({stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true});
       c.history.push({role:"assistant",content:text.trim()});
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();save();drawLog();toast(usageStr(lastUsage));}
@@ -880,7 +884,7 @@ function renderScene(){
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","btn","Стоп");stop.hidden=true;const send=el("button","btn primary","Отправить");inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
-  function drawLog(live){log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined)log.append(msgEl({role:"assistant",content:live||"…"},-1));if(lastErr)log.append(el("div","err",lastErr));log.scrollTop=log.scrollHeight;send.disabled=busy;stop.hidden=!busy;}
+  function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
     if(i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);}
     else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const ops=el("div","ops");const mk=(t,f)=>{const b=el("button",null,t);b.onclick=f;ops.append(b);};mk("Изменить",()=>{editIdx=i;drawLog();});if(i===x.history.length-1&&m.role==="assistant")mk("↻ Другой вариант",()=>{x.history.pop();save();run();});mk("Удалить",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;save();drawLog();});col.append(ops);}}
@@ -894,7 +898,7 @@ function renderScene(){
   async function run(){busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
       const msgs=x.history.slice(x.sumIdx);const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?"[Герой молчит и наблюдает. Продолжай сцену.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]"});
-      const text=await callModel({stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;drawLog(t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,1200),purpose:"scene",cacheMsgs:true});x.history.push({role:"assistant",content:text.trim()});}
+      const text=await callModel({stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,1200),purpose:"scene",cacheMsgs:true});x.history.push({role:"assistant",content:text.trim()});}
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
