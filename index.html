@@ -290,7 +290,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="row">
       <button class="btn" id="exportBtn">Сохранить в файл</button>
       <button class="btn" id="importBtn">Загрузить из файла</button>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <input type="file" id="importFile" hidden>
     </div>
     <p class="note">«Загрузить» понимает любой файл приложения: полную копию, один мир с персонажами или одного персонажа. Персонажей и миры по отдельности можно сохранить из их экрана.</p>
     <p class="note" id="storeInfo">Данные хранятся на этом устройстве. Ключ в файл не попадает.</p>
@@ -758,7 +758,7 @@ function expAll(){download("zhivoy-mir-"+new Date().toISOString().slice(0,10)+".
 function fixAll(){S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];});S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
 async function importFile(file,targetWorldId){
-  let d;try{d=JSON.parse(await file.text());}catch(e){alert("Это не файл приложения (не JSON).");return;}
+  let d;try{let t=(await file.text()).replace(/^﻿/,"").trim();if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать: это не файл приложения или он обрезан. Нужен файл .json, сохранённый через «Экспорт».");return;}
   const chars=[];let worlds=[],scenes=[],persona=null;
   if(d.char)chars.push(d.char);
   if(Array.isArray(d.chars))chars.push(...d.chars);
@@ -793,7 +793,12 @@ async function importFile(file,targetWorldId){
   else if(dest){stack.length=0;go({v:"world",id:dest,tab:"chars"},true);}
   else render();
 }
-const pickFile=(cb)=>{const i=document.createElement("input");i.type="file";i.accept=".json,application/json";i.onchange=()=>{if(i.files[0])cb(i.files[0]);};i.click();};
+// iPhone: без фильтра типов (иначе файл из Telegram/«Файлов» бывает серым), input в DOM (иначе Safari теряет onchange), плюс вставка текстом
+function chooseFile(cb){const i=document.createElement("input");i.type="file";i.style.display="none";document.body.append(i);i.onchange=()=>{const f=i.files[0];i.remove();if(f)cb(f);};i.click();}
+function pasteImport(cb){$("repTitle").textContent="Вставить данные";const b=$("repBody");b.innerHTML="";b.append(el("p","note","Открой файл мира или персонажа (.json) в любом приложении, скопируй весь текст и вставь сюда."));
+  const ta=el("textarea");ta.rows=10;ta.style.width="100%";ta.placeholder='{"app":"zhivoymir", ...}';b.append(ta);const r=el("div","row");r.style.marginTop="10px";const ok=el("button","btn primary","Загрузить");
+  ok.onclick=()=>{const t=ta.value.trim();if(!t)return;$("rep").close();cb({name:"вставка.json",text:async()=>t});};r.append(ok);b.append(r);$("rep").showModal();setTimeout(()=>ta.focus(),50);}
+const pickFile=(cb)=>sheet([["Выбрать файл",()=>chooseFile(cb)],["Вставить скопированный текст",()=>setTimeout(()=>pasteImport(cb),50)]]);
 // ============ НАВИГАЦИЯ ============
 let route={v:"home"};const stack=[];
 // История браузера: каждый переход — запись, системная «Назад» ведёт на предыдущий экран, а не закрывает приложение
@@ -1243,7 +1248,10 @@ function tabAbout(w,body){
   body.append(kv);
   const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
 }
-function download(name,data,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+function download(name,data,type){
+  if(window.matchMedia&&matchMedia("(pointer:coarse)").matches&&navigator.canShare&&window.File){try{const f=new File([data],name,{type:(type||"").split(";")[0]||"application/octet-stream"});if(navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(e=>{if(e&&e.name!=="AbortError")saveFile(name,data,type);});return;}}catch(e){}}
+  saveFile(name,data,type);}
+function saveFile(name,data,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function showReport(title,r){$("repTitle").textContent=title;const b=$("repBody");b.innerHTML="";const sec=(t,arr,sp)=>{if(!arr||!arr.length)return;if(sp){const d=el("details","sp");d.append(el("summary",null,t+" ("+arr.length+")"));const ul=el("ul");arr.forEach(x=>ul.append(el("li",null,typeof x==="string"?x:x.text||JSON.stringify(x))));d.append(ul);b.append(d);return;}b.append(el("h3",null,t));const ul=el("ul");arr.forEach(x=>ul.append(el("li",null,typeof x==="string"?x:x.text||JSON.stringify(x))));b.append(ul);};
   if(r.newDate)b.append(el("p",null,"Сейчас в мире: "+r.newDate));sec("Что ты узнал",r.news);sec("Что произошло",r.events);sec("Как изменились персонажи",(r.chars||[]).flatMap(c=>(c.log||[]).map(l=>c.name+": "+l)));sec("Скрыто от тебя — спойлер",r.hidden,true);$("rep").showModal();}
 $("repClose").onclick=()=>$("rep").close();
@@ -1445,7 +1453,7 @@ async function drawSnaps(){const l=$("snapList");l.innerHTML="";if(!useIdb){l.ap
   all.forEach(sn=>{const it=el("div","item");it.append(el("div","t",new Date(sn.t).toLocaleString("ru")));it.append(el("div","x",sn.name));const ld=el("button","btn sm","Загрузить");ld.onclick=async()=>{if(!confirm("Загрузить «"+sn.name+"»? Текущее состояние миров заменится. Ключ и настройки останутся."))return;const d=sn.data;S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];S.persona=d.persona||S.persona;save();$("dlg").close();stack.length=0;go({v:"home"},true);};const de=el("button","btn sm ghost warn","✕");de.onclick=async()=>{await idb.del("snaps",sn.id);drawSnaps();};it.append(ld,de);l.append(it);});}
 $("snapBtn").onclick=async()=>{if(!useIdb)return;const name=$("snapName").value.trim()||"Сохранение "+new Date().toLocaleString("ru");await idb.put("snaps",{id:uid(),name,t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});$("snapName").value="";drawSnaps();};
 $("exportBtn").onclick=expAll;
-$("importBtn").onclick=()=>$("importFile").click();
+$("importBtn").onclick=()=>{$("dlg").close();pickFile(f=>importFile(f));};
 $("importFile").onchange=async e=>{const f=e.target.files[0];if(f){$("dlg").close();await importFile(f);}e.target.value="";};
 async function storeInfo(){const e=$("storeInfo");let t=useIdb?"Данные хранятся на этом устройстве (IndexedDB). ":"Запасное хранилище (до ~5 МБ). ";try{if(navigator.storage&&navigator.storage.estimate){const q=await navigator.storage.estimate();t+="Занято "+(q.usage/1048576).toFixed(1)+" МБ. ";}}catch(x){}let p=false;try{p=navigator.storage&&navigator.storage.persisted&&await navigator.storage.persisted();}catch(x){}t+=p?"Защищены от автоочистки. ":"Браузер может удалить данные при нехватке места — делай копии в файл. ";t+="Ключ в файл не попадает.";e.textContent=t;$("persistBtn").hidden=!!p||!(navigator.storage&&navigator.storage.persist);}
 $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e){}storeInfo();};
