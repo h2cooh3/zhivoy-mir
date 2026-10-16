@@ -735,7 +735,7 @@ function charCard(c,withWorld){
   const w=W(c.worldId);const card=el("div","card");card.style.position="relative";card.style.cursor="pointer";const im=el("div","img");avatarEl(im,c);const bd=el("div","body");
   bd.append(el("div","nm",c.name),el("div","ds",c.short||c.state.now||""),el("div","mt",(withWorld&&w?w.name+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ."+(c.chats.length>1?" · "+c.chats.length+" разг.":"")));
   const del=el("button","btn ghost sm warn","✕");del.title="Удалить персонажа";del.style.position="absolute";del.style.top="6px";del.style.right="6px";del.style.background="var(--panel)";del.onclick=e=>{e.stopPropagation();if(!confirm("Удалить «"+c.name+"» со всеми разговорами?"))return;S.chars=S.chars.filter(x=>x.id!==c.id);S.scenes.forEach(x=>x.charIds=x.charIds.filter(id=>id!==c.id));save();render();};
-  const wr=el("button","btn primary sm","💬 Написать");wr.style.margin="0 10px 10px";wr.onclick=e=>{e.stopPropagation();go({v:"chat",id:c.id});};
+  const wr=el("button","btn primary sm");wr.innerHTML=ICONS.chat+"<span>Написать</span>";wr.style.display="flex";wr.style.alignItems="center";wr.style.justifyContent="center";wr.style.gap="6px";wr.querySelector("svg").style.cssText="width:16px;height:16px";wr.style.margin="0 10px 10px";wr.onclick=e=>{e.stopPropagation();go({v:"chat",id:c.id});};
   card.append(im,bd,wr,del);card.onclick=()=>go({v:"profile",id:c.id});return card;
 }
 function renderProfile(){
@@ -1122,7 +1122,7 @@ function renderChat(){
   function msgEl(m,i,isLast){
     const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
     const col=el("div","col");
-    if(i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);setTimeout(()=>t.focus(),0);}
+    if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);setTimeout(()=>t.focus(),0);}
     else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";mb.onclick=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить текст",()=>{editIdx=i;drawLog();}]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
     wv.append(av,col);return wv;
   }
@@ -1186,7 +1186,7 @@ function renderScene(){
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
-    if(i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);}
+    if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);}
     else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();save();run();}]);acts.push(["Изменить текст",()=>{editIdx=i;drawLog();}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
