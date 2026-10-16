@@ -142,8 +142,8 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 #sideToggle{display:none}
 
 nav.bottom{display:flex;justify-content:space-around;align-items:stretch;border-top:1px solid var(--line);background:var(--panel);padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px));flex:none}
-nav.bottom button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;font-size:11px;border-radius:8px;min-width:0}
-nav.bottom button .ic{font-size:20px;line-height:1}
+nav.bottom button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;font-size:11px;border-radius:8px;min-width:0;max-width:33%}
+nav.bottom button svg{display:block}
 nav.bottom button[aria-current="true"]{color:var(--accent);font-weight:600}
 nav.bottom button:disabled{opacity:.35}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(600px,94vw);max-height:90vh}
@@ -284,7 +284,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",lastWorld:"",sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -336,7 +336,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
@@ -674,15 +674,21 @@ function render(){
   renderNav();
 }
 function curWorldId(){if(route.v==="world"||route.v==="worldEdit")return W(route.id)?route.id:S.lastWorld;if(route.v==="chat"){const c=C(route.id);return c?c.worldId:S.lastWorld;}if(route.v==="scene"||route.v==="sceneEdit"){const x=SC(route.id);return x?x.worldId:S.lastWorld;}if(route.v==="charEdit"){const c=route.draft||C(route.id);return c?c.worldId:S.lastWorld;}return S.lastWorld;}
+const ICONS={
+  home:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>',
+  chars:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5c3 0 6 2 6 5.5"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg>'
+};
 function renderNav(){
   const n=$("nav");n.innerHTML="";n.hidden=(route.v==="chat"||route.v==="scene");
-  const wid=curWorldId();const hasW=!!W(wid);if(route.v==="world"&&W(route.id)){S.lastWorld=route.id;}
-  const items=[["home","🏠","Главная"],["chars","👥","Персонажи"],["scenes","🎬","Сцены"],["chron","📜","Хроника"],["helper","✍️","Соавтор"],["story","📖","Истории"],["set","⚙️","Настройки"]];
-  items.forEach(([k,ic,t])=>{const b=el("button");b.append(el("span","ic",ic),el("span",null,t));
-    const isSec=!["home","set"].includes(k);
-    if(isSec&&!hasW)b.disabled=true;
-    const cur=(k==="home"&&route.v==="home")||(isSec&&route.v==="world"&&(route.tab||"chars")===k);b.setAttribute("aria-current",cur);
-    b.onclick=()=>{if(busy)return;if(k==="home"){stack.length=0;go({v:"home"},true);}else if(k==="set"){$("setBtn").click();}else{if(route.v==="world"&&route.id===wid){route.tab=k;const s=document.querySelector("#sec-"+k);if(s)s.scrollIntoView({behavior:"smooth",block:"start"});renderNav();}else{stack.length=0;go({v:"world",id:wid,tab:k},true);}}};
+  if(route.v==="world"&&W(route.id))S.lastWorld=route.id;
+  const wid=curWorldId();const hasW=!!W(wid);
+  const lc=S.lastChat&&((S.lastChat.type==="chat"&&C(S.lastChat.id))||(S.lastChat.type==="scene"&&SC(S.lastChat.id)));
+  const lcName=lc?(S.lastChat.type==="chat"?C(S.lastChat.id).name:(SC(S.lastChat.id).title||"Сцена")):"Последний чат";
+  const items=[["home","Главная",route.v==="home",true],["chars","Персонажи",route.v==="world",hasW],["chat",lcName,false,!!lc]];
+  items.forEach(([k,t,cur,on])=>{const b=el("button");b.innerHTML=ICONS[k];const s=el("span",null,t);s.style.maxWidth="100%";s.style.overflow="hidden";s.style.textOverflow="ellipsis";s.style.whiteSpace="nowrap";b.append(s);
+    b.disabled=!on;b.setAttribute("aria-current",cur);
+    b.onclick=()=>{if(busy)return;stack.length=0;if(k==="home")go({v:"home"},true);else if(k==="chars")go({v:"world",id:wid,tab:"chars"},true);else go(S.lastChat.type==="chat"?{v:"chat",id:S.lastChat.id}:{v:"scene",id:S.lastChat.id},true);};
     n.append(b);});
 }
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
@@ -880,7 +886,7 @@ function renderCharEdit(){
 // ---- ЧАТ С ПЕРСОНАЖЕМ
 let editIdx=-1,lastErr="";
 function renderChat(){
-  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;
+  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
@@ -955,7 +961,7 @@ function renderSceneEdit(){
 }
 // ---- ГРУППОВАЯ СЦЕНА
 function renderScene(){
-  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";
+  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.setup||""));
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
