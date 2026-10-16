@@ -141,6 +141,11 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .loglist small{color:var(--muted)}
 #sideToggle{display:none}
 
+nav.bottom{display:flex;justify-content:space-around;align-items:stretch;border-top:1px solid var(--line);background:var(--panel);padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px));flex:none}
+nav.bottom button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;font-size:11px;border-radius:8px;min-width:0}
+nav.bottom button .ic{font-size:20px;line-height:1}
+nav.bottom button[aria-current="true"]{color:var(--accent);font-weight:600}
+nav.bottom button:disabled{opacity:.35}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(600px,94vw);max-height:90vh}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog .in{padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:90vh}
@@ -181,6 +186,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   <button class="btn" id="setBtn">Настройки</button>
 </header>
 <div id="view"></div>
+<nav class="bottom" id="nav"></nav>
 
 <dialog id="dlg">
   <div class="in">
@@ -278,7 +284,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",lastWorld:"",sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -330,7 +336,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
@@ -665,6 +671,19 @@ $("editWorldBtn").onclick=()=>{if(route.v==="world")go({v:"worldEdit",id:route.i
 function render(){
   const v=$("view");v.innerHTML="";$("backBtn").hidden=route.v==="home";$("editWorldBtn").hidden=route.v!=="world";
   ({home:renderHome,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
+  renderNav();
+}
+function curWorldId(){if(route.v==="world"||route.v==="worldEdit")return W(route.id)?route.id:S.lastWorld;if(route.v==="chat"){const c=C(route.id);return c?c.worldId:S.lastWorld;}if(route.v==="scene"||route.v==="sceneEdit"){const x=SC(route.id);return x?x.worldId:S.lastWorld;}if(route.v==="charEdit"){const c=route.draft||C(route.id);return c?c.worldId:S.lastWorld;}return S.lastWorld;}
+function renderNav(){
+  const n=$("nav");n.innerHTML="";n.hidden=(route.v==="chat"||route.v==="scene");
+  const wid=curWorldId();const hasW=!!W(wid);if(route.v==="world"&&W(route.id)){S.lastWorld=route.id;}
+  const items=[["home","🏠","Главная"],["chars","👥","Персонажи"],["scenes","🎬","Сцены"],["chron","📜","Хроника"],["helper","✍️","Соавтор"],["story","📖","Истории"],["set","⚙️","Настройки"]];
+  items.forEach(([k,ic,t])=>{const b=el("button");b.append(el("span","ic",ic),el("span",null,t));
+    const isSec=!["home","set"].includes(k);
+    if(isSec&&!hasW)b.disabled=true;
+    const cur=(k==="home"&&route.v==="home")||(isSec&&route.v==="world"&&(route.tab||"chars")===k);b.setAttribute("aria-current",cur);
+    b.onclick=()=>{if(busy)return;if(k==="home"){stack.length=0;go({v:"home"},true);}else if(k==="set"){$("setBtn").click();}else{if(route.v==="world"&&route.id===wid){route.tab=k;const s=document.querySelector("#sec-"+k);if(s)s.scrollIntoView({behavior:"smooth",block:"start"});renderNav();}else{stack.length=0;go({v:"world",id:wid,tab:k},true);}}};
+    n.append(b);});
 }
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function toast(t,bad){const s=document.querySelector("#status");if(s){s.textContent=t;s.style.color=bad?"var(--danger)":"";}else if(t){const b=el("div","banner",t);b.style.position="fixed";b.style.left="12px";b.style.right="12px";b.style.bottom="calc(16px + env(safe-area-inset-bottom,0px))";b.style.background="var(--panel)";b.style.zIndex=20;if(!bad){b.style.borderColor="var(--line)";b.style.color="var(--ink)";}document.body.append(b);setTimeout(()=>b.remove(),3500);}}
@@ -729,7 +748,7 @@ function makeExample(){
 
 // ---- МИР
 function renderWorld(){
-  const w=W(route.id);if(!w){go({v:"home"},true);return;}
+  const w=W(route.id);if(!w){go({v:"home"},true);return;}S.lastWorld=w.id;
   $("hTitle").textContent=w.name||"Мир";const p=el("div","page");
   const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelper],["story","Истории",tabStory],["about","О мире",tabAbout]];
   const tabs=el("div","tabs");tabs.style.position="sticky";tabs.style.top="0";tabs.style.background="var(--bg)";tabs.style.zIndex="2";
@@ -740,7 +759,7 @@ function renderWorld(){
   // подсветка активного блока при прокрутке
   const btns=[...tabs.querySelectorAll("button")];const mark=k=>btns.forEach(b=>b.setAttribute("aria-selected",b.dataset.sec===k));
   const secs=[...p.querySelectorAll("section[id^=sec-]")];
-  p.addEventListener("scroll",()=>{let cur=secs[0];for(const s of secs){if(s.getBoundingClientRect().top-p.getBoundingClientRect().top<=80)cur=s;}mark(cur.id.slice(4));},{passive:true});
+  p.addEventListener("scroll",()=>{let cur=secs[0];for(const s of secs){if(s.getBoundingClientRect().top-p.getBoundingClientRect().top<=80)cur=s;}const k=cur.id.slice(4);mark(k);if(route.tab!==k){route.tab=k;renderNav();}},{passive:true});
   const want=route.tab&&route.tab!=="chars"?p.querySelector("#sec-"+route.tab):null;if(want)setTimeout(()=>want.scrollIntoView({block:"start"}),0);mark(route.tab||"chars");
 }
 function tabChars(w,body){
