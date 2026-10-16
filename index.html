@@ -455,7 +455,7 @@ function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(B
 function dramaEvery(){const v=parseInt(S.api.drama);return isNaN(v)?2:v;}
 function dramaDue(obj,hist){if(!dramaEvery())return false;if(!obj.drama)return true;return hist.length-(obj.dramaIdx||0)>=dramaEvery();}
 async function dramaturg({w,cast,others,history,summary,drama,kind,anchor}){
-  const last=history.slice(-8);const prev=drama||{};const hist=(prev.hist||[]).slice(-4);
+  const last=history.slice(-8);const prev=drama||{};const hist=(prev.hist||[]).slice(-4);const threads=(prev.threads||[]).slice(-6);
   const brief=c=>"• "+c.name+(c.short?" — "+c.short:"")+(c.state.now?"\n  Сейчас: "+c.state.now:"")+(c.state.mood?"\n  Настроение: "+c.state.mood:"")+(c.state.goals&&c.state.goals.length?"\n  Цели: "+c.state.goals.join("; "):"")+(c.state.relUser?"\n  К герою: "+c.state.relUser+" (доверие "+(c.state.trust??0)+")":"")+(c.state.secrets?"\n  Скрывает: "+c.state.secrets:"");
   const prompt=`Ты — драматург интерактивной истории. Ты НЕ пишешь текст сцены. Ты даёшь рассказчику скрытые указания, чтобы было интересно: напряжение и разрядка сменяют друг друга, сцена движется, у каждого хода есть подтекст, персонажи приходят и уходят по своим причинам.
 
@@ -478,30 +478,39 @@ ${summary?"ЧТО БЫЛО РАНЬШЕ:\n"+summary+"\n":""}
 ${transcript(last,w,kind==="chat"?anchor.name:"Рассказчик").slice(-6000)}
 
 ПРЕДЫДУЩИЕ УКАЗАНИЯ (не повторяйся, развивай): ${hist.length?hist.join(" → "):"это начало"}
+ЧТО НАЗРЕВАЕТ (линии, которые уже посеяны; твисты растут только отсюда): ${threads.length?threads.join("; "):"пока ничего — сначала сей, потом жни"}
 ТЕКУЩЕЕ НАПРЯЖЕНИЕ: ${prev.tension||3}/10, фаза: ${prev.beat||"завязка"}
 
+ГЛАВНЫЙ ЗАКОН — ПРАВДОПОДОБИЕ ВЫШЕ ИНТЕРЕСА. Скучный, но честный ход лучше яркого и глупого. Никто не делает глупостей ради сюжета.
+Перед любым решением мысленно ответь: где сейчас каждый из отсутствующих по правилам мира, времени суток и своим делам (жатва, служба, лавка, дети, море)? Что он потеряет, если бросит своё дело и придёт? Если причины нет — он не приходит. Хозяйка не бросит мельницу в разгар дня, чтобы «поглядеть»; стражник не зайдёт поболтать, когда обходит берег по приказу. Если человек всё-таки приходит не вовремя, у него должна быть причина сильнее его дела — и она станет частью истории.
+То же для действий внутри сцены: никто не выдаёт тайну, не ссорится, не признаётся, не уходит «потому что так интереснее». Только потому, что этого требует его характер, цель или давление обстоятельств прямо сейчас.
+
 ПРАВИЛА ДРАМАТУРГИИ:
-- Кривая: завязка → нарастание → пик → разрядка → затишье → новое нарастание. Не держи напряжение выше 7 дольше трёх ходов; после пика обязательно разрядка. Иногда нужна фаза «затишье»: пусть просто живут, молчат, едят — это тоже драматургия.
-- Напряжение растёт от подтекста, помех, несовпадения желаний, приближения угрозы, а не от криков. Указывай, что ПРИБЛИЖАЕТСЯ, а не что случается.
-- Не раскрывай ничьи секреты раньше времени. Тайна должна пройти путь: намёк → подозрение → почти → правда.
-- Не больше одного входа или ухода за ход, не чаще раза в 3 хода. Активных персонажей кроме героя — не больше трёх; если больше, кого-то уведи.
-- Вход и уход всегда мотивированы жизнью персонажа (его цели и состояние выше), а не нуждами сюжета.
-- Направление — 1–3 фразы: чего каждый хочет в этом ходе, какая мелочь мешает, к чему подводить. Конкретно, без общих слов.
-- Не решай за героя. Не предписывай его реакцию.
-- Следи за темпом перемен персонажей: за один ход не больше одного маленького сдвига, и у сдвига есть цена или откат.
+- Кривая: завязка → нарастание → пик → разрядка → затишье → новое нарастание. Не держи напряжение выше 7 дольше трёх ходов; после пика обязательно разрядка. Фаза «затишье» — полноценный и частый выбор: пусть просто живут, работают, молчат, едят. Если сцена и так живая — не трогай её: direction «ничего не форсировать, дать доиграть».
+- Напряжение растёт из подтекста, помех, несовпадения желаний, приближения угрозы, а не из криков и случайностей. Указывай, что ПРИБЛИЖАЕТСЯ, а не что случается.
+- Твист — это не случайность. Твист — когда то, что уже было посеяно (тайна, долг, слух, письмо, ревность, обещание), прорастает в неудобный момент. Сначала посей (намёк, мелочь, оговорка — и запиши в threads), потом, через несколько ходов, пожни. Внезапный незнакомец, нелепое совпадение, подслушанный разговор «очень кстати» — запрещены.
+- Не раскрывай ничьи секреты раньше времени. Тайна идёт путём: намёк → подозрение → почти → правда, и каждый шаг стоит кому-то усилия.
+- Не больше одного входа или ухода за ход, не чаще раза в 3 хода, и только с ответом на «почему именно сейчас» и «что ему это стоит». Активных персонажей кроме героя — не больше трёх. Чаще никто не приходит, чем приходит.
+- Уход тоже мотивирован: дела, время, обида, страх, дети одни дома.
+- Направление — 1–3 фразы: чего каждый хочет в этом ходе, какая мелочь мешает, к чему подводить. Конкретно, без общих слов. Не решай за героя.
+- Темп перемен в людях: за один ход не больше одного маленького сдвига, и у сдвига есть цена или откат.
+- Мелкое происшествие (event) — только если оно что-то делает со сценой (мешает, прерывает, даёт повод), а не для красоты. Чаще пусто.
 
 Верни JSON:
-{"tension":1,"beat":"завязка|нарастание|пик|разрядка|затишье|поворот",
+{"whereabouts":"одной строкой: где сейчас отсутствующие, кого это исключает",
+ "tension":1,"beat":"завязка|нарастание|пик|разрядка|затишье|поворот",
  "direction":"скрытое указание рассказчику на ближайший ход, 1–3 фразы",
- "event":"мелкое происшествие окружения (звук, погода, прохожий, животное) или пусто",
- "enter":[{"name":"кто входит (из списка «могут появиться»)","how":"как и почему появляется — одной фразой"}],
+ "event":"мелкое происшествие окружения или пусто",
+ "enter":[{"name":"кто входит (из списка «могут появиться»)","why_now":"почему именно сейчас, по его делам","cost":"что он ради этого бросил или чем рискует","how":"как появляется — одной фразой"}],
  "leave":[{"name":"кто уходит","how":"как и почему — одной фразой"}],
+ "threads":["обновлённый список того, что назревает: 2–6 коротких пунктов, прежние сохраняй, отыгранные убирай"],
  "why":"3–7 слов для журнала драматурга"}`;
   const r=await askJSON(prompt,900,"director");
-  const d={tension:Math.max(1,Math.min(10,parseInt(r.tension)||5)),beat:String(r.beat||""),direction:String(r.direction||""),event:String(r.event||""),why:String(r.why||""),hist:[...hist,String(r.why||r.beat||"")].slice(-5),enter:[],leave:[],cue:""};
-  const cues=[];
-  (r.enter||[]).slice(0,1).forEach(e=>{const c=byName(w.id,e.name);if(c&&others.some(o=>o.id===c.id)){d.enter.push(c.id);cues.push("В этом ходе появляется "+c.name+": "+(e.how||""));}});
-  (r.leave||[]).slice(0,1).forEach(e=>{const c=byName(w.id,e.name);if(c&&cast.some(o=>o.id===c.id)&&!(kind==="chat"&&anchor&&c.id===anchor.id)){d.leave.push(c.id);cues.push("В этом ходе уходит "+c.name+": "+(e.how||""));}});
+  const d={tension:Math.max(1,Math.min(10,parseInt(r.tension)||5)),beat:String(r.beat||""),direction:String(r.direction||""),event:String(r.event||""),why:String(r.why||""),hist:[...hist,String(r.why||r.beat||"")].slice(-5),threads:(Array.isArray(r.threads)&&r.threads.length?r.threads:threads).map(String).slice(-6),enter:[],leave:[],cue:""};
+  const cues=[];const sinceMove=prev.lastMove==null?99:(history.length-prev.lastMove);
+  (r.enter||[]).slice(0,1).forEach(e=>{const c=byName(w.id,e.name);const ok=c&&others.some(o=>o.id===c.id)&&sinceMove>=3&&String(e.why_now||"").trim().length>8;if(ok){d.enter.push(c.id);d.lastMove=history.length;cues.push("В этом ходе появляется "+c.name+": "+(e.how||"")+(e.why_now?" (почему сейчас: "+e.why_now+")":"")+(e.cost?" Ему это стоит: "+e.cost:""));}});
+  if(prev.lastMove!=null&&d.lastMove==null)d.lastMove=prev.lastMove;
+  (r.leave||[]).slice(0,1).forEach(e=>{const c=byName(w.id,e.name);if(c&&cast.some(o=>o.id===c.id)&&!(kind==="chat"&&anchor&&c.id===anchor.id)&&!d.enter.length){d.leave.push(c.id);d.lastMove=history.length;cues.push("В этом ходе уходит "+c.name+": "+(e.how||""));}});
   d.cue=cues.join("\n");return d;
 }
 async function dramaForScene(x){const w=W(x.worldId);const cast=x.charIds.map(C).filter(Boolean);const others=charsOf(w.id).filter(c=>!x.charIds.includes(c.id));
@@ -526,14 +535,14 @@ ${worldEvents(w,12)}
 ПЕРСОНАЖИ:
 ${cs.map(charBrief).join("\n")}
 
-Правила: 2–3 персонажа (не больше), герой присутствует. Место из списка мест мира или логичное для него. Завязка — 2–4 предложения: где, когда, кто что делает в момент появления героя; без развязки. Выбирай тех, у кого сейчас есть причина быть вместе и чьи цели сталкиваются. Не повторяй сцены из хроники.
+Правила: 2–3 персонажа (не больше), герой присутствует. Правдоподобие выше интереса: сначала реши, где каждый сейчас находится по времени суток, правилам мира и своим делам, и собирай сцену только там, где эти люди в это время реально могут оказаться вместе (рынок, пристань, поле, часовня, вечер в трактире). Никто не бросает работу ради визита без причины сильнее работы. Место из списка мест мира или логичное для него. Завязка — 2–4 предложения: где, когда, кто что делает в момент появления героя; без развязки, без случайных совпадений. Выбирай тех, у кого сейчас есть причина быть вместе и чьи цели сталкиваются. Не повторяй сцены из хроники.
 
-Верни JSON: {"title":"короткое название","cast":["имя","имя"],"setup":"завязка","tension":3,"beat":"завязка","direction":"скрытое указание рассказчику на первый ход, 1–3 фразы","why":"3–7 слов"}`;
+Верни JSON: {"whereabouts":"где сейчас ключевые персонажи, одной строкой","title":"короткое название","cast":["имя","имя"],"setup":"завязка","tension":3,"beat":"завязка","direction":"скрытое указание рассказчику на первый ход, 1–3 фразы","threads":["1–3 линии, которые эта сцена может посеять"],"why":"3–7 слов"}`;
   const r=await askJSON(prompt,900,"director");
   const x=blankScene();x.worldId=w.id;x.title=String(r.title||"Сцена");x.setup=String(r.setup||"");
   (r.cast||[]).forEach(n=>{const c=byName(w.id,n);if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);});
   if(!x.charIds.length)throw new Error("Драматург не выбрал персонажей.");
-  x.drama={tension:Math.max(1,Math.min(10,parseInt(r.tension)||3)),beat:String(r.beat||"завязка"),direction:String(r.direction||""),event:"",why:String(r.why||""),hist:[String(r.why||"")],enter:[],leave:[],cue:""};x.dramaIdx=0;
+  x.drama={tension:Math.max(1,Math.min(10,parseInt(r.tension)||3)),beat:String(r.beat||"завязка"),direction:String(r.direction||""),event:"",why:String(r.why||""),hist:[String(r.why||"")],threads:(r.threads||[]).map(String).slice(0,3),enter:[],leave:[],cue:""};x.dramaIdx=0;
   S.scenes.push(x);save();return x;}
 
 // ============ РЕЖИССЁР ============
@@ -1317,7 +1326,7 @@ function renderChat(){
     const cm=el("button","btn sm","Сжать историю");cm.onclick=withBusy(cm,async()=>{await compressHistory(c,c.name,w,true);drawLog();drawAside();});r1.append(dir,cm);aside.append(r1);
     aside.append(el("p","note","Итог сцены режиссёр подводит сам каждые "+S.api.every+" сообщений: вытаскивает факты в картотеку, обновляет состояние, отмечает перемены."));
     if(dramaEvery()){const dh=el("h3",null,"Драматург");aside.append(dh);const gs=guestsOf(c);const dd=c.drama;const dv=el("div","block",(dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Ещё не вступал.")+(gs.length?"\nРядом: "+gs.map(g=>g.name).join(", "):""));aside.append(dv);
-      if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")));aside.append(sp2);}
+      if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")+(dd.threads&&dd.threads.length?"\n\nНазревает:\n• "+dd.threads.join("\n• "):"")));aside.append(sp2);}
       const r2=el("div","row");const gb=el("button","btn sm","Кто рядом…");gb.onclick=()=>{const all=charsOf(w.id).filter(o=>o.id!==c.id);sheet(all.map(o=>[((c.guests||[]).includes(o.id)?"✓ ":"")+o.name,()=>{const g=(c.guests||[]).slice();const i=g.indexOf(o.id);if(i>=0)g.splice(i,1);else g.push(o.id);c.guests=g;save();drawAside();}]));};
       const rb=el("button","btn sm","Сбросить драматурга");rb.onclick=()=>{c.drama=null;c.dramaIdx=c.history.length;save();drawAside();};r2.append(gb,rb);aside.append(r2);}
     const lh=el("h3",null,"Как менялся");aside.append(lh);const ll=el("div","loglist");c.log.slice(-12).reverse().forEach(l=>{const d=el("div");d.append(el("small",null,l.t+(l.src?" · "+l.src:"")+(l.impact?" · сила "+l.impact+"/10":"")+"\n"),document.createTextNode(l.text));ll.append(d);});if(!c.log.length)ll.append(el("p","note","Пока без изменений."));aside.append(ll);
@@ -1378,7 +1387,7 @@ function renderScene(){
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
     if(dramaEvery()){const dd=x.drama;aside.append(el("h3",null,"Драматург"));aside.append(el("div","block",dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Вступит перед следующим ходом."));
-      if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")));aside.append(sp2);}
+      if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")+(dd.threads&&dd.threads.length?"\n\nНазревает:\n• "+dd.threads.join("\n• "):"")));aside.append(sp2);}
       const rb=el("button","btn sm","Сбросить драматурга");rb.onclick=()=>{x.drama=null;x.dramaIdx=x.history.length;save();drawAside();};aside.append(rb);}
     const dir=el("button","btn sm","Подвести итоги сцены");dir.onclick=withBusy(dir,async()=>{const r=await directScene(x,true);if(!r){toast("Слишком мало новых сообщений.");return;}const ch=(r.chars||[]).flatMap(u=>(u.log||[]).map(l=>u.name+": "+l));showReport("Итоги сцены",{news:ch.length?ch:["Заметных перемен нет."],events:r.events});});aside.append(dir);
     x.charIds.map(C).filter(Boolean).forEach(c=>{const kv=el("div","kv");kv.append(el("b",null,c.name));kv.append(el("div","block",[c.state.mood,c.state.now,c.state.goals.length?"Цели: "+c.state.goals.join("; "):""].filter(Boolean).join("\n")||"—"));aside.append(kv);});
