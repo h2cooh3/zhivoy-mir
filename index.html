@@ -735,7 +735,8 @@ function charCard(c,withWorld){
   const w=W(c.worldId);const card=el("div","card");card.style.position="relative";card.style.cursor="pointer";const im=el("div","img");avatarEl(im,c);const bd=el("div","body");
   bd.append(el("div","nm",c.name),el("div","ds",c.short||c.state.now||""),el("div","mt",(withWorld&&w?w.name+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ."+(c.chats.length>1?" · "+c.chats.length+" разг.":"")));
   const del=el("button","btn ghost sm warn","✕");del.title="Удалить персонажа";del.style.position="absolute";del.style.top="6px";del.style.right="6px";del.style.background="var(--panel)";del.onclick=e=>{e.stopPropagation();if(!confirm("Удалить «"+c.name+"» со всеми разговорами?"))return;S.chars=S.chars.filter(x=>x.id!==c.id);S.scenes.forEach(x=>x.charIds=x.charIds.filter(id=>id!==c.id));save();render();};
-  card.append(im,bd,del);card.onclick=()=>go({v:"profile",id:c.id});return card;
+  const wr=el("button","btn primary sm","💬 Написать");wr.style.margin="0 10px 10px";wr.onclick=e=>{e.stopPropagation();go({v:"chat",id:c.id});};
+  card.append(im,bd,wr,del);card.onclick=()=>go({v:"profile",id:c.id});return card;
 }
 function renderProfile(){
   const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;
