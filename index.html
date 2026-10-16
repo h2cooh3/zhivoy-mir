@@ -119,11 +119,17 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg.user .b{background:var(--me);border-color:transparent}
 .msg.sys .b{background:var(--sum);border-color:transparent;font-size:13px}
 .msg.old .b{opacity:.55}
-.msg .ops{display:flex;gap:2px;opacity:0;transition:opacity .15s;flex-wrap:wrap}
-.msg:hover .ops,.msg:focus-within .ops{opacity:1}
+.msg .ops{display:none}
+.msg .more{border:0;background:none;color:var(--muted);font-size:16px;padding:0 6px;border-radius:6px;align-self:flex-end;line-height:1.2}
+.msg .more:hover{color:var(--ink);background:var(--panel2)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);border-radius:14px 14px 0 0;padding:8px 10px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:4px;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+.sheet button{border:0;background:none;color:var(--ink);text-align:left;padding:12px 10px;border-radius:8px;font-size:16px}
+.sheet button:hover{background:var(--panel2)}
+.sheet .cancel{color:var(--muted);border-top:1px solid var(--line);margin-top:4px}
+.sheet-bg{position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.35)}
 .msg .ops button{border:0;background:none;color:var(--muted);font-size:12px;padding:2px 6px;border-radius:4px}
 .msg .ops button:hover{color:var(--ink);background:var(--panel2)}
-.msg textarea{min-height:90px;min-width:260px}
+.msg textarea{min-height:90px;min-width:min(260px,80vw);width:100%}
 .err{max-width:760px;margin:0 auto;width:100%;color:var(--danger);font-size:13px}
 .divider{max-width:760px;width:100%;margin:0 auto;font-size:12px;color:var(--muted);text-align:center;border-top:1px dashed var(--line);padding-top:6px}
 .compose{border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
@@ -160,7 +166,6 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   .chat aside{position:fixed;inset:0;z-index:5;display:none;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
   .chat aside.open{display:flex}
   #sideToggle{display:inline-block}
-  .msg .ops{opacity:1}
 }
 @media (max-width:600px){
   body{font-size:16px}
@@ -726,6 +731,9 @@ function stickScroll(s,atB,st){if(atB)s.scrollTop=s.scrollHeight;else s.scrollTo
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 function fmt(e,text){String(text).split(/(\*[^*\n]+\*)/g).forEach(p=>{if(/^\*[^*\n]+\*$/.test(p)){const m=el("em",null,p.slice(1,-1));e.append(m);}else e.append(document.createTextNode(p));});}
+function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
+  actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
+  const c=el("button","cancel","Отмена");c.onclick=close;s.append(c);document.body.append(bg,s);}
 function withBusy(btn,fn){return async()=>{if(busy)return;busy=true;ctl=new AbortController();const old=btn.textContent;btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+old;try{await fn();}catch(e){const m=friendly(e);if(m)alert(m);}finally{busy=false;ctl=null;btn.disabled=false;btn.textContent=old;}};}
 
 // ---- ГЛАВНАЯ: миры
@@ -932,7 +940,7 @@ function renderChat(){
     const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
     const col=el("div","col");
     if(i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const ops=el("div","ops");const mk=(t,f)=>{const x=el("button",null,t);x.onclick=f;ops.append(x);};mk("Изменить",()=>{editIdx=i;drawLog();});if(isLast)mk("↻ Другой вариант",regen);mk("Удалить",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();});col.append(ops);}}
+    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";mb.onclick=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить текст",()=>{editIdx=i;drawLog();}]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -996,7 +1004,7 @@ function renderScene(){
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
     if(i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);}
-    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const ops=el("div","ops");const mk=(t,f)=>{const b=el("button",null,t);b.onclick=f;ops.append(b);};mk("Изменить",()=>{editIdx=i;drawLog();});if(i===x.history.length-1&&m.role==="assistant")mk("↻ Другой вариант",()=>{x.history.pop();save();run();});mk("Удалить",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;save();drawLog();});col.append(ops);}}
+    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();save();run();}]);acts.push(["Изменить текст",()=>{editIdx=i;drawLog();}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
