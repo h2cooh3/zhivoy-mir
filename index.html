@@ -111,7 +111,9 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .chat{display:grid;grid-template-columns:1fr 330px;flex:1;min-height:0}
 .chat main{display:flex;flex-direction:column;min-height:0;min-width:0}
 .bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.bar .mini{width:38px;height:38px;border-radius:50%;background:var(--panel2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none}
+.bar .mini{width:44px;height:44px;border-radius:50%;background:var(--panel2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;font-size:18px;color:var(--muted)}
+.lightbox{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px}
+.lightbox img{max-width:100%;max-height:100%;border-radius:12px}
 .bar .mini img{width:100%;height:100%;object-fit:cover}
 .bar .who{flex:1;min-width:0}
 .bar .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -192,7 +194,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   .card.add{min-height:150px}
   #log{padding:14px 10px}
   .msg .col{max-width:92%}
-  .msg .av{display:none}
+  .msg.user .av{display:none}
+  .msg .av{width:28px;height:28px;font-size:12px}
   dialog{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;margin:0}
   dialog .in{max-height:100%;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
   .chapter{padding:14px;font-size:16px}
@@ -930,7 +933,7 @@ function renderWorldEdit(){
 function renderCharEdit(){
   const c=route.draft||C(route.id);const w=W(c.worldId);$("hTitle").textContent=route.draft?"Новый персонаж":c.name;const p=el("div","page editor");
   const ar=el("div","ava-row");const av=el("div","ava");avatarEl(av,c);const ab=el("button","btn","Загрузить аватар");const ad=el("button","btn ghost","Убрать");const fi=el("input");fi.type="file";fi.accept="image/*";fi.hidden=true;
-  ab.onclick=()=>fi.click();ad.onclick=()=>{c.avatar="";avatarEl(av,c);};fi.onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const Sz=320,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);c.avatar=cv.toDataURL("image/jpeg",0.82);URL.revokeObjectURL(url);avatarEl(av,c);};img.src=url;};
+  ab.onclick=()=>fi.click();ad.onclick=()=>{c.avatar="";avatarEl(av,c);};fi.onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);c.avatar=cv.toDataURL("image/jpeg",0.82);URL.revokeObjectURL(url);avatarEl(av,c);};img.src=url;};
   const rr=el("div","row");rr.append(ab,ad,fi);ar.append(av,rr);p.append(ar);
   const f=(lbl,hint,key,ta,rows,ph)=>{const l=el("label");l.append(document.createTextNode(lbl));if(hint)l.append(el("span","hint",hint));const i=ta?el("textarea"):el("input");if(!ta)i.type="text";if(rows)i.rows=rows;if(ph)i.placeholder=ph;i.value=key==="tags"?c.tags.join(", "):(c[key]||"");i.oninput=()=>{if(key==="tags")c.tags=i.value.split(",").map(t=>t.trim()).filter(Boolean);else c[key]=i.value;};l.append(i);p.append(l);return i;};
   const nm=f("Имя","","name");f("Коротко","Одна фраза для карточки, она же идея для генерации","short","",0,"Таксист, 52 года. Двадцать лет за рулём и ни одного лишнего слова.");
@@ -956,7 +959,7 @@ function renderChat(){
   const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
-  const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
+  const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title=c.avatar?"Открыть фото":"Добавить фото";mini.onclick=()=>{if(c.avatar){const lb=el("div","lightbox");const im=document.createElement("img");im.src=c.avatar;lb.append(im);lb.onclick=()=>lb.remove();document.body.append(lb);}else go({v:"charEdit",id:c.id});};const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(mini,who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
