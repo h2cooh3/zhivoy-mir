@@ -757,7 +757,7 @@ function renderProfile(){
   const nc=el("button","btn","+ Новый разговор");nc.onclick=()=>{const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,t:now()};c.chats.push(x);c.activeChat=x.id;save();go({v:"chat",id:c.id});};
   const ed=el("button","btn","Изменить");ed.onclick=()=>go({v:"charEdit",id:c.id});
   const ai=el("button","btn","Экспорт");ai.onclick=()=>exportChar(c);
-  const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId});
+  const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});
   acts.append(go1,nc,ed,ai,co);p.append(acts);
   // состояние
   const st=c.state;const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
@@ -940,6 +940,19 @@ ${scene?"Последние сообщения сцены:\n"+last:""}
 Требования: персонаж явно взрослый; одетый, без откровенности; укажи внешность, одежду, позу, эмоцию, свет, место, ракурс, стиль (по умолчанию — cinematic, painterly realism). 60-120 слов, одним абзацем, без пояснений.`;
   return (await callModel({msgs:[{role:"user",content:prompt}],maxTokens:400,cheap:true,purpose:"generate",signal:ctl&&ctl.signal})).trim();}
 function forOtherAI(c){exportChar(c);}
+// ============ ОТКАТ РАЗГОВОРА (правка своего сообщения / соавтор) ============
+// Перед каждым твоим сообщением запоминаем состояние персонажа — чтобы при правке вернуть его «как было до этого момента».
+const MAX_SNAPS=30;
+function takeSnap(c){return JSON.stringify({t:Date.now(),state:c.state,facts:c.facts,log:c.log,inertia:c.inertia,summary:c.summary,sumIdx:c.sumIdx,dirIdx:c.dirIdx});}
+function pruneSnaps(h){let n=0;for(let i=h.length-1;i>=0;i--)if(h[i].snap&&++n>MAX_SNAPS)delete h[i].snap;}
+// оставить в активном разговоре сообщения [0..n), вернуть персонажа в состояние того момента
+function rewindChat(c,n){const h=c.history;n=Math.max(0,Math.min(n,h.length));let res="cut";
+  for(let u=Math.min(n,h.length-1);u>=0;u--){const m=h[u];if(m.role!=="user"||!m.snap)continue;let sn;try{sn=JSON.parse(m.snap);}catch(e){break;}
+    const other=c.chats.some(x=>x.id!==c.activeChat&&(x.updated||0)>sn.t);
+    c.summary=sn.summary;c.sumIdx=sn.sumIdx;c.dirIdx=sn.dirIdx;
+    if(!other){c.state=sn.state;c.facts=sn.facts;c.log=sn.log;if(sn.inertia)c.inertia=sn.inertia;res="restored";}else res="other";break;}
+  h.length=n;if(c.sumIdx>n)c.sumIdx=n;if(c.dirIdx>n)c.dirIdx=n;c.updated=Date.now();return res;}
+const rewindNote=r=>r==="restored"?"Персонаж вернулся в состояние того момента.":r==="other"?"Сообщения убраны. Состояние персонажа не откатывал: после этого были другие его разговоры.":"Сообщения убраны (для такого старого места состояние персонажа не сохранено — память и доверие остались текущими).";
 // ============ ЭКСПОРТ: мир / персонаж / разговор ============
 const fnSafe=t=>(t||"файл").replace(/[\\/:*?"<>|]+/g,"").trim().slice(0,60)||"файл";
 function chatText(c,x,limit){const w=W(c.worldId),hn=heroName(w);const h=limit?x.history.slice(-limit):x.history;
@@ -982,11 +995,35 @@ function exportChat(c,x){sheet([
 // ============ ПОМОЩНИК (общий ИИ / соавтор мира) ============
 function worldsBrief(){return S.worlds.map(w=>"• "+w.name+(w.desc?" — "+w.desc.slice(0,200).replace(/\s+/g," "):"")+"\n  Персонажи: "+(charsOf(w.id).map(c=>c.name+(c.short?" ("+c.short.slice(0,80)+")":"")).join("; ")||"нет")).join("\n")||"Миров пока нет.";}
 const BLOCK_RULES='\n\nСОЗДАНИЕ: если пользователь просит придумать персонажа, сначала коротко объясни замысел, а в конце выдай карточку строго в блоке:\n```character\n{"name":"Имя","short":"одна фраза","tags":["тег"],"core":"личность и предыстория 1200-2000 символов: возраст, прошлое с деталями, характер через поведение, чего хочет, чего боится, слабости, манера речи","examples":"4-5 реплик с новой строки","greeting":"первое сообщение при встрече с {{user}}: действие в *звёздочках* и реплика","inertia":5,"state":{"mood":"","now":"","goals":[""],"relUser":"","trust":0,"secrets":""}}\n```\nЕсли просит придумать мир — блок:\n```world\n{"name":"","desc":"описание 600-1200 символов","rules":"правила, каждое с новой строки","places":"места, каждое с новой строки","date":"стартовая дата","hero":"кем может быть герой пользователя"}\n```\nСобытие мира — блок ```event\n{"text":"что произошло","public":true}\n```. Можно несколько блоков. Вне блоков пиши обычным текстом.';
-function parseBlocks(text){const out=[];const re=/```(character|event|world)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;}
-const stripBlocks=t=>t.replace(/```(character|event|world)\s*\n[\s\S]*?```/g,"").trim();
+function parseBlocks(text){const out=[];const re=/```(character|event|world|chatedit)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;}
+const stripBlocks=t=>t.replace(/```(character|event|world|chatedit)\s*\n[\s\S]*?```/g,"").trim();
+// ---- соавтор правит разговор
+function focusChar(w){if(!w)return null;const r=route.char&&C(route.char);if(r&&r.worldId===w.id)return r;return charsOf(w.id).filter(c=>c.history.length).sort((a,b)=>(b.updated||0)-(a.updated||0))[0]||null;}
+function numberedChat(c,w){const h=c.history,hn=heroName(w);let out=[],len=0;
+  for(let i=h.length-1;i>=0&&out.length<40;i--){const t="#"+(i+1)+" "+(h[i].role==="user"?hn:c.name)+": "+h[i].content.trim();if(len+t.length>26000&&out.length)break;out.unshift(t);len+=t.length;}
+  const first=h.length-out.length;return (first>0?"[сообщения #1–#"+first+" — раньше, их суть в кратком содержании"+(c.summary?": "+c.summary.slice(0,1500):"")+"]\n\n":"")+out.join("\n\n");}
+function editRules(c){return `\n\nПРАВКА РАЗГОВОРА. Ниже — разговор героя с ${c.name} с номерами сообщений #N. Если пользователь говорит «не нравится», «нелогично, сделай так», «перепиши ответ», «сотри до утра третьего дня» и т.п. — найди нужные места, в 1–3 фразах скажи, что меняешь, и в конце дай блок:
+\`\`\`chatedit
+{"char":"${c.name}","ops":[{"op":"rewrite","n":12,"text":"полный новый текст сообщения #12"},{"op":"cut","from":15}]}
+\`\`\`
+rewrite — заменить текст сообщения #n целиком (тот же стиль: реплики в «кавычках», действия и описания в *звёздочках*; не ломай логику следующих сообщений). cut — стереть сообщение #from и ВСЁ после него (персонаж вернётся в состояние того момента; используй для «сотри до…», «вернёмся к…»). Можно несколько rewrite и один cut. Номера бери только из списка ниже. Ничего не меняется, пока пользователь не нажмёт «Применить».`;}
+function chatEditCard(b,w,box){const d=b.data||{};const c=(w&&charsOf(w.id).find(x=>x.name===d.char))||focusChar(w);const ops=Array.isArray(d.ops)?d.ops:[];
+  box.append(el("b",null,"Правка разговора"+(c?" с "+c.name:"")));if(!c){box.append(el("div","note","Не нашёл персонажа."));return box;}
+  const h=c.history;const rw=ops.filter(o=>o.op==="rewrite"&&o.n>=1&&o.n<=h.length&&typeof o.text==="string");const cut=ops.find(o=>o.op==="cut"&&o.from>=1&&o.from<=h.length);
+  rw.forEach(o=>box.append(el("div","note","#"+o.n+" переписать: «"+o.text.replace(/\s+/g," ").slice(0,140)+(o.text.length>140?"…":"")+"»")));
+  if(cut)box.append(el("div","note","Стереть с #"+cut.from+" до конца: "+(h.length-cut.from+1)+" сообщ."+(h[cut.from-1]?" (начиная с: «"+h[cut.from-1].content.replace(/\s+/g," ").slice(0,90)+"…»)":"")));
+  if(!rw.length&&!cut){box.append(el("div","note","Нечего применять (номера не совпали с разговором)."));return box;}
+  const btn=el("button","btn sm primary","Применить к разговору");btn.style.marginTop="8px";
+  btn.onclick=async()=>{if(busy)return;if(cut&&!confirm("Стереть "+(c.history.length-cut.from+1)+" сообщ. в разговоре с "+c.name+"? Перед этим сделаю сохранение — его можно вернуть в Настройках."))return;
+    if(useIdb){try{await idb.put("snaps",{id:uid(),name:"До правки соавтора ("+c.name+") "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
+    rw.forEach(o=>{if(c.history[o.n-1])c.history[o.n-1].content=o.text.trim();});let note="Текст исправлен.";
+    if(cut)note=rewindNote(rewindChat(c,cut.from-1));
+    c.updated=Date.now();save();toast(note);btn.textContent="Применено — открыть разговор";btn.onclick=()=>go({v:"chat",id:c.id});};
+  box.append(btn);return box;}
 function pickWorld(cb){if(!S.worlds.length){alert("Сначала создай мир (можно попросить ИИ придумать его).");return;}if(S.worlds.length===1){cb(S.worlds[0]);return;}sheet(S.worlds.map(w=>[w.name,()=>cb(w)]));}
 function addCharFrom(d,w){const c=blankChar();c.worldId=w.id;c.name=String(d.name||"Персонаж");c.short=String(d.short||"");c.tags=Array.isArray(d.tags)?d.tags.map(String):[];c.core=String(d.core||"");c.examples=String(d.examples||"");c.greeting=String(d.greeting||"");if(d.inertia)c.inertia=Math.max(1,Math.min(10,parseInt(d.inertia)||5));if(d.state){const s=d.state;Object.assign(c.state,{mood:s.mood||"",now:s.now||"",goals:Array.isArray(s.goals)?s.goals.map(String):[],relUser:s.relUser||"",trust:typeof s.trust==="number"?s.trust:0,secrets:s.secrets||""});}S.chars.push(c);save();return c;}
 function blockCard(b,w){const box=el("div","block");box.style.marginTop="10px";box.style.borderLeft="3px solid var(--accent)";const d=b.data;
+  if(b.kind==="chatedit")return chatEditCard(b,w,box);
   if(b.kind==="character"){box.append(el("b",null,"Персонаж: "+(d.name||"без имени")),el("div","note",d.short||""));const btn=el("button","btn sm primary",w?"Добавить в мир":"Добавить в мир…");btn.style.marginTop="8px";
     if(w&&charsOf(w.id).some(c=>c.name===d.name)){btn.textContent="Уже есть в мире";btn.disabled=true;}
     btn.onclick=()=>{const doAdd=ww=>{const c=addCharFrom(d,ww);toast("«"+c.name+"» добавлен в «"+ww.name+"».");btn.textContent="Добавлен";btn.disabled=true;};if(w)doAdd(w);else pickWorld(doAdd);};box.append(btn);}
@@ -999,14 +1036,14 @@ function renderAssist(){
   const w=route.world?W(route.world):null;if(route.world&&!w){go({v:"home"},true);return;}
   const hist=w?w.helper:S.ai;$("hTitle").textContent=w?"Соавтор · "+w.name:"ИИ";
   const wrap=el("div","chat");wrap.style.gridTemplateColumns="1fr";const main=el("main");
-  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры":"Обсудить идеи, придумать миры и персонажей"));
+  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?(focusChar(w)?"Видит мир «"+w.name+"». Может править разговор с "+focusChar(w).name:"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры"):"Обсудить идеи, придумать миры и персонажей"));
   const clr=el("button","btn ghost sm","Очистить");clr.onclick=()=>{if(!hist.length)return;if(!confirm("Очистить этот разговор?"))return;hist.length=0;save();draw();};
   bar.append(who,clr);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=w?"Спроси соавтора о мире или персонажах…":"Спроси что угодно или попроси придумать мир, персонажа…";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
   wrap.append(main);$("view").append(wrap);
   // быстрые подсказки на пустом экране
-  const tips=w?["Что слабо в персонажах этого мира?","Придумай нового персонажа, который создаст конфликт","Куда вести историю дальше?","Предложи событие для хроники"]:["Придумай мир для драмы","Придумай персонажа: старик-рыбак с тайной","Как сделать персонажа живым?","Помоги с идеей для сценария"];
+  const tips=w?[...(focusChar(w)?["Перепиши последний ответ "+focusChar(w).name+": он нелогичный","Сотри разговор до начала прошлой сцены"]:[]),"Что слабо в персонажах этого мира?","Придумай нового персонажа, который создаст конфликт","Куда вести историю дальше?","Предложи событие для хроники"]:["Придумай мир для драмы","Придумай персонажа: старик-рыбак с тайной","Как сделать персонажа живым?","Помоги с идеей для сценария"];
   let liveEl=null;
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai"));const col=el("div","col");const bb=el("div","b");fmt(bb,m.role==="assistant"?stripBlocks(m.content):m.content);col.append(bb);
     if(m.role==="assistant")parseBlocks(m.content).forEach(b=>col.append(blockCard(b,w)));
@@ -1021,7 +1058,8 @@ function renderAssist(){
   async function run(){busy=true;ctl=new AbortController();let live="";draw("");
     try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperContext(w))
         :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
-      const text=await callModel({stable,msgs:hist.slice(-16),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});}
+      const fc=focusChar(w);const dynamic=fc?editRules(fc).trim()+"\n\nРАЗГОВОР С "+fc.name.toUpperCase()+" (с номерами):\n"+numberedChat(fc,w):"";
+      const text=await callModel({stable,dynamic,msgs:hist.slice(-16),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});}
     catch(e){if(live)hist.push({role:"assistant",content:live});const m=friendly(e);if(m)toast(m,true);}
     finally{busy=false;ctl=null;save();draw();toast(usageStr(lastUsage));}}
   const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;const l=hist[hist.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else hist.push({role:"user",content:t});ta.value="";grow();save();run();};
@@ -1147,7 +1185,7 @@ function renderChat(){
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title="Профиль персонажа";mini.onclick=()=>go({v:"profile",id:c.id});const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
-  const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId});const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});bar.append(mini,who,ab,ob,eb,sb);main.append(bar);
+  const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});bar.append(mini,who,ab,ob,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
@@ -1157,13 +1195,21 @@ function renderChat(){
     c.history.forEach((m,i)=>{if(i===c.sumIdx&&c.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании и картотеке, ниже — модель видит дословно"));log.append(msgEl(m,i,i===last&&m.role==="assistant"));});
     if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1,false);lv.dataset.live=1;log.append(lv);}
     if(lastErr)log.append(el("div","err",lastErr));
+    if(live===undefined&&!busy&&c.history.length&&c.history[c.history.length-1].role==="user"){const rb=el("button","btn primary sm","Получить ответ "+c.name);rb.style.margin="6px auto";rb.style.display="block";rb.onclick=()=>run();log.append(rb);}
     stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;eb.disabled=busy;
   }
   function msgEl(m,i,isLast){
     const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
     const col=el("div","col");
-    if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;const r=el("div","row");const ok=el("button","btn primary sm","Сохранить");const no=el("button","btn sm","Отмена");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};no.onclick=()=>{editIdx=-1;drawLog();};r.append(no,ok);col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";mb.onclick=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить текст",()=>{editIdx=i;drawLog();}]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
+    if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);
+      const after=c.history.length-1-i;
+      if(m.role==="user"){const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");
+        const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};
+        rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, персонаж ответит заново. Продолжить?"))return;const res=rewindChat(c,i);c.history.push({role:"user",content:v,snap:takeSnap(c)});editIdx=-1;lastErr="";save();toast(rewindNote(res));drawAside();run();};
+        r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента."));}
+      else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
+      col.append(t,r);setTimeout(()=>t.focus(),0);}
+    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";mb.onclick=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push([m.role==="user"?"Изменить и отправить заново":"Изменить текст",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -1178,7 +1224,7 @@ function renderChat(){
     const lh=el("h3",null,"Как менялся");aside.append(lh);const ll=el("div","loglist");c.log.slice(-12).reverse().forEach(l=>{const d=el("div");d.append(el("small",null,l.t+(l.src?" · "+l.src:"")+(l.impact?" · сила "+l.impact+"/10":"")+"\n"),document.createTextNode(l.text));ll.append(d);});if(!c.log.length)ll.append(el("p","note","Пока без изменений."));aside.append(ll);
     const fh=el("div","row between");fh.append(el("h3",null,"Картотека фактов"));aside.append(fh);const ft=el("textarea");ft.value=c.facts.join("\n");ft.rows=6;ft.oninput=()=>{c.facts=ft.value.split("\n").map(t=>t.trim()).filter(Boolean);save();};aside.append(ft);
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=c.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{c.summary=su.value;save();};aside.append(su);
-    const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"assist",world:w.id});};aside.append(hb);
+    const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"assist",world:w.id,char:c.id});};aside.append(hb);
     aside.append(el("h3",null,"Разговоры"));
     const cl2=el("div","list");c.chats.slice().reverse().forEach(x=>{const it=el("div","item"+(x.id===c.activeChat?" sel":""));it.style.cursor="pointer";const t=el("div","x",x.title+(x.desc?"\n"+x.desc:"")+"\n"+x.history.length+" сообщ."+(x.t?" · "+x.t.slice(0,10):""));it.append(t);
       const rn=el("button","btn ghost sm","✎");rn.title="Название и описание";rn.onclick=e=>{e.stopPropagation();const v=prompt("Название разговора:",x.title);if(v&&v.trim())x.title=v.trim();const d=prompt("Описание (о чём разговор, видно в списке чатов):",x.desc||"");if(d!==null)x.desc=d.trim();save();drawAside();};
@@ -1200,7 +1246,7 @@ function renderChat(){
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else c.history.push({role:"user",content:t});ta.value="";grow();save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
   function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
