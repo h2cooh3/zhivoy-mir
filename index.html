@@ -5,22 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Живой мир</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1F3A5F">
+<meta name="theme-color" content="#111316">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Живой мир">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <style>
+/* тёмная тема по умолчанию */
 :root{
+  --bg:#111316; --panel:#1B1E22; --panel2:#22262B; --ink:#E8E7E3; --muted:#949AA3; --line:#2F343A;
+  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --serif:Georgia,"Times New Roman",serif;
+  box-sizing:border-box; color-scheme:dark;
+}
+:root[data-theme="light"]{
   --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
   --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --serif:Georgia,"Times New Roman",serif;
-  box-sizing:border-box;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#111316; --panel:#1B1E22; --panel2:#22262B; --ink:#E8E7E3; --muted:#949AA3; --line:#2F343A;
-    --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; }
+@media (prefers-color-scheme: light){
+  :root[data-theme="auto"]{
+    --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
+    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6;
+    color-scheme:light;
+  }
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{height:100%;margin:0}
@@ -118,6 +127,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .err{max-width:760px;margin:0 auto;width:100%;color:var(--danger);font-size:13px}
 .divider{max-width:760px;width:100%;margin:0 auto;font-size:12px;color:var(--muted);text-align:center;border-top:1px dashed var(--line);padding-top:6px}
 .compose{border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+.compose .inner{position:relative;z-index:2}
 .compose .inner{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
 .compose textarea{flex:1;min-height:46px;max-height:200px}
 .status{max-width:760px;margin:6px auto 0;font-size:12px;color:var(--muted);min-height:1em}
@@ -216,6 +226,11 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="row"><button class="btn warn" id="forget">Удалить ключ</button><button class="btn" id="testBtn">Проверить подключение</button></div>
     <p class="note" id="testOut">Ключ хранится только в этом браузере и уходит напрямую провайдеру. Для Anthropic включено кэширование: неизменная часть промпта (мир, характер) при повторной отправке стоит примерно в 10 раз дешевле.</p>
 
+    <h2>Оформление</h2>
+    <label>Тема
+      <select id="theme"><option value="dark">Тёмная</option><option value="light">Светлая</option><option value="auto">Как в системе</option></select>
+    </label>
+
     <h2>Ты</h2>
     <label>Имя по умолчанию <span class="hint">Подставляется вместо {{user}}; в каждом мире можно задать своего героя отдельно</span>
       <input type="text" id="pname" placeholder="Маратбек">
@@ -255,7 +270,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],history:[],summary:"",sumIdx:0,dirIdx:0,updated:Date.now()});
@@ -295,7 +310,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
@@ -863,13 +878,15 @@ function renderScene(){
 }
 
 // ============ НАСТРОЙКИ ============
-function fillSettings(){const A=S.api;setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("pname").value=S.persona.name;
+function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";}
+function fillSettings(){const A=S.api;$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>render());
 [["provider","provider"],["base","base"],["model","model"],["cheap","cheap"],["temp","temp"],["maxtok","maxtok"],["budget","budget"],["every","every"],["pIn","pIn"],["pCache","pCache"],["pOut","pOut"]].forEach(([id,k])=>{$(id).addEventListener("input",()=>{let v=$(id).value;if(k==="temp")v=Math.min(1,Math.max(0,parseFloat(v)||0));if(k==="maxtok")v=Math.max(100,parseInt(v)||1200);if(k==="budget")v=Math.max(5000,parseInt(v)||50000);if(k==="every")v=Math.max(4,parseInt(v)||10);if(k==="provider"){S.api.model=DEF_MODEL[v]||"";S.api.cheap=DEF_CHEAP[v]||"";}S.api[k]=v;save();if(k==="provider")fillSettings();});});
 $("pname").addEventListener("input",()=>{S.persona.name=$("pname").value;save();});
+$("theme").addEventListener("change",()=>{S.theme=$("theme").value;applyTheme();save();});
 function keyStatus(msg,bad){const s=$("keyStatus");const k=S.api.key;if(msg){s.textContent=msg;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=k?"✓ Ключ сохранён: "+k.slice(0,7)+"…"+k.slice(-4):"Ключ не задан";}
 $("key").addEventListener("input",()=>{const v=$("key").value.trim();if(v!==S.api.key)keyStatus("Не сохранено — нажми «Сохранить ключ»",true);else keyStatus();});
 $("keyEye").onclick=()=>{const i=$("key");i.type=i.type==="password"?"text":"password";};
@@ -897,7 +914,8 @@ async function storeInfo(){const e=$("storeInfo");let t=useIdb?"Данные х�
 $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e){}storeInfo();};
 
 // ============ СТАРТ ============
-(async()=>{await load();render();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+applyTheme();
+(async()=>{await load();applyTheme();render();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
