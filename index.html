@@ -83,6 +83,15 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .wcard .ds{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
 .list{display:flex;flex-direction:column;gap:8px}
+.chatrow{align-items:flex-start;gap:12px}
+.cav{width:48px;height:48px;border-radius:50%;background:var(--panel2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none;font-size:20px;color:var(--muted)}
+.cav img{width:100%;height:100%;object-fit:cover}
+.crow-top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.crow-top b{font-size:16px}
+.crow-title{color:var(--accent);font-size:13px}
+.crow-desc{color:var(--ink);font-size:13px;opacity:.85}
+.crow-sub{color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.crow-meta{color:var(--muted);font-size:12px;margin-top:2px}
 .item{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
 .item .t{font-size:12px;color:var(--muted);flex:none;min-width:70px}
 .item .x{flex:1;white-space:pre-wrap}
@@ -721,14 +730,21 @@ function renderAllChars(){
 function renderAllChats(){
   $("hTitle").textContent="Чаты";const p=el("div","page");
   const items=[];
-  S.chars.forEach(c=>c.chats.forEach(x=>{if(!x.history.length)return;const last=x.history[x.history.length-1];items.push({t:c.updated||0,kind:"chat",c,x,title:c.name+" — "+x.title,sub:last.content.replace(/\*/g,"").slice(0,90),world:(W(c.worldId)||{}).name});}));
-  S.scenes.forEach(x=>{if(!x.history.length)return;const last=x.history[x.history.length-1];items.push({t:x.updated||0,kind:"scene",x,title:"Сцена: "+(x.title||"без названия"),sub:last.content.replace(/\*/g,"").slice(0,90),world:(W(x.worldId)||{}).name});});
+  S.chars.forEach(c=>c.chats.forEach(x=>{const last=x.history[x.history.length-1];items.push({t:x.updated||c.updated||0,kind:"chat",c,x,name:c.name,title:x.title,desc:x.desc||"",sub:last?last.content.replace(/\*/g,"").replace(/\s+/g," ").slice(0,120):"Пустой разговор",world:(W(c.worldId)||{}).name,n:x.history.length});}));
+  S.scenes.forEach(x=>{const last=x.history[x.history.length-1];items.push({t:x.updated||0,kind:"scene",x,name:"Сцена",title:x.title||"без названия",desc:x.setup||"",sub:last?last.content.replace(/\*/g,"").replace(/\s+/g," ").slice(0,120):"Пустая сцена",world:(W(x.worldId)||{}).name,n:x.history.length,who:x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")});});
   items.sort((a,b)=>b.t-a.t);
   if(!items.length)p.append(el("p","note","Разговоров пока нет. Открой персонажа и напиши ему."));
-  const l=el("div","list");items.forEach(it=>{const row=el("div","item");row.style.cursor="pointer";row.style.alignItems="center";
-    const av=el("div","av");av.style.width="40px";av.style.height="40px";av.style.borderRadius="50%";av.style.background="var(--panel2)";av.style.overflow="hidden";av.style.display="flex";av.style.alignItems="center";av.style.justifyContent="center";av.style.flex="none";if(it.c)avatarEl(av,it.c);else av.textContent="▣";
-    const x=el("div","x");x.style.whiteSpace="normal";x.append(el("b",null,it.title),document.createTextNode("\n"+it.sub));const m=el("small",null,(it.world||"")+(it.t?" · "+new Date(it.t).toLocaleDateString("ru"):""));m.style.color="var(--muted)";x.append(document.createTextNode("\n"),m);
-    row.append(av,x);row.onclick=()=>{if(it.kind==="chat"){it.c.activeChat=it.x.id;save();go({v:"chat",id:it.c.id});}else go({v:"scene",id:it.x.id});};l.append(row);});
+  const l=el("div","list");items.forEach(it=>{const row=el("div","item chatrow");row.style.cursor="pointer";
+    const av=el("div","cav");if(it.c)avatarEl(av,it.c);else av.textContent="▣";
+    const x=el("div","x");x.style.whiteSpace="normal";
+    const top=el("div","crow-top");top.append(el("b",null,it.name),el("span","crow-title",it.title));x.append(top);
+    if(it.who)x.append(el("div","crow-desc",it.who));
+    if(it.desc)x.append(el("div","crow-desc",it.desc));
+    x.append(el("div","crow-sub",it.sub));
+    x.append(el("div","crow-meta",(it.world||"")+" · "+it.n+" сообщ."+(it.t?" · "+new Date(it.t).toLocaleDateString("ru"):"")));
+    const mb=el("button","more","⋯");mb.onclick=e=>{e.stopPropagation();if(it.kind==="chat"){sheet([["Переименовать",()=>{const v=prompt("Название разговора:",it.x.title);if(v&&v.trim()){it.x.title=v.trim();save();render();}}],["Описание разговора",()=>{const v=prompt("Коротко, о чём этот разговор (видно в списке):",it.x.desc||"");if(v!==null){it.x.desc=v.trim();save();render();}}],["Удалить разговор",()=>{if(it.c.chats.length<2){alert("Это единственный разговор персонажа. Создай новый, потом удаляй.");return;}if(!confirm("Удалить «"+it.x.title+"»?"))return;it.c.chats=it.c.chats.filter(y=>y.id!==it.x.id);if(it.c.activeChat===it.x.id)it.c.activeChat=it.c.chats[it.c.chats.length-1].id;save();render();},true]]);}
+      else sheet([["Удалить сцену",()=>{if(!confirm("Удалить сцену «"+it.title+"»?"))return;S.scenes=S.scenes.filter(s=>s.id!==it.x.id);save();render();},true]]);};
+    row.append(av,x,mb);row.onclick=()=>{if(it.kind==="chat"){it.c.activeChat=it.x.id;save();go({v:"chat",id:it.c.id});}else go({v:"scene",id:it.x.id});};l.append(row);});
   p.append(l);$("view").append(p);
 }
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
@@ -974,8 +990,8 @@ function renderChat(){
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=c.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{c.summary=su.value;save();};aside.append(su);
     const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"world",id:w.id,tab:"helper"});};aside.append(hb);
     aside.append(el("h3",null,"Разговоры"));
-    const cl2=el("div","list");c.chats.slice().reverse().forEach(x=>{const it=el("div","item"+(x.id===c.activeChat?" sel":""));it.style.cursor="pointer";const t=el("div","x",x.title+"\n"+x.history.length+" сообщ."+(x.t?" · "+x.t.slice(0,10):""));it.append(t);
-      const rn=el("button","btn ghost sm","✎");rn.title="Переименовать";rn.onclick=e=>{e.stopPropagation();const v=prompt("Название разговора:",x.title);if(v&&v.trim()){x.title=v.trim();save();drawAside();}};
+    const cl2=el("div","list");c.chats.slice().reverse().forEach(x=>{const it=el("div","item"+(x.id===c.activeChat?" sel":""));it.style.cursor="pointer";const t=el("div","x",x.title+(x.desc?"\n"+x.desc:"")+"\n"+x.history.length+" сообщ."+(x.t?" · "+x.t.slice(0,10):""));it.append(t);
+      const rn=el("button","btn ghost sm","✎");rn.title="Название и описание";rn.onclick=e=>{e.stopPropagation();const v=prompt("Название разговора:",x.title);if(v&&v.trim())x.title=v.trim();const d=prompt("Описание (о чём разговор, видно в списке чатов):",x.desc||"");if(d!==null)x.desc=d.trim();save();drawAside();};
       const dl=el("button","btn ghost sm warn","✕");dl.onclick=e=>{e.stopPropagation();if(c.chats.length<2){alert("Это единственный разговор. Создай новый, потом удаляй.");return;}if(!confirm("Удалить разговор «"+x.title+"»? Память и состояние персонажа останутся."))return;c.chats=c.chats.filter(y=>y.id!==x.id);if(c.activeChat===x.id)c.activeChat=c.chats[c.chats.length-1].id;save();render();};
       it.append(rn,dl);it.onclick=()=>{if(busy)return;c.activeChat=x.id;editIdx=-1;lastErr="";save();render();};cl2.append(it);});
     aside.append(cl2);
@@ -991,7 +1007,7 @@ function renderChat(){
       const text=await callModel({stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true});
       c.history.push({role:"assistant",content:text.trim()});
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
-    finally{busy=false;ctl=null;c.updated=Date.now();save();drawLog();toast(usageStr(lastUsage));}
+    finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
   }
   function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else c.history.push({role:"user",content:t});ta.value="";grow();save();run();}
