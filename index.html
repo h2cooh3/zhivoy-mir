@@ -167,7 +167,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 #sideToggle{display:none}
 
 nav.bottom{display:flex;justify-content:space-around;align-items:stretch;border-top:1px solid var(--line);background:var(--panel);padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px));flex:none}
-nav.bottom button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;font-size:11px;border-radius:8px;min-width:0;max-width:33%}
+nav.bottom button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;font-size:11px;border-radius:8px;min-width:0;max-width:25%}
 nav.bottom button svg{display:block}
 nav.bottom button[aria-current="true"]{color:var(--accent);font-weight:600}
 nav.bottom button:disabled{opacity:.35}
@@ -309,7 +309,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -361,7 +361,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
@@ -606,7 +606,7 @@ async function genWorld(w){
 
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
-const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,persona:S.persona,theme:S.theme,usage:S.usage,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
+const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
 async function gh(path,method,body){const r=await fetch(GH+path,{method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
 let pushT=null,pushing=false,pushAgain=false;
@@ -625,7 +625,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if(!force&&remoteStamp<=S.sync.pulled)return false; // ничего нового
   const localChanged=S.stamp>S.sync.pulled;
   if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
-  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}
+  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
 function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.pulled?new Date(S.sync.pulled).toLocaleString("ru"):"ещё не было"):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
@@ -713,21 +713,22 @@ $("backBtn").onclick=back;
 $("editWorldBtn").onclick=()=>{if(route.v==="world")go({v:"worldEdit",id:route.id});};
 function render(){
   const v=$("view");v.innerHTML="";$("backBtn").hidden=["home","allChars","allChats"].includes(route.v);$("editWorldBtn").hidden=route.v!=="world";
-  ({home:renderHome,allChars:renderAllChars,allChats:renderAllChats,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
+  ({home:renderHome,assist:renderAssist,allChars:renderAllChars,allChats:renderAllChats,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
   renderNav();
 }
 function curWorldId(){if(route.v==="world"||route.v==="worldEdit")return W(route.id)?route.id:S.lastWorld;if(route.v==="chat"){const c=C(route.id);return c?c.worldId:S.lastWorld;}if(route.v==="scene"||route.v==="sceneEdit"){const x=SC(route.id);return x?x.worldId:S.lastWorld;}if(route.v==="charEdit"){const c=route.draft||C(route.id);return c?c.worldId:S.lastWorld;}return S.lastWorld;}
 const ICONS={
+  ai:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>',
   home:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>',
   chars:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5c3 0 6 2 6 5.5"/></svg>',
   chat:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg>'
 };
 function renderNav(){
-  const n=$("nav");n.innerHTML="";n.hidden=(route.v==="chat"||route.v==="scene");
+  const n=$("nav");n.innerHTML="";n.hidden=(route.v==="chat"||route.v==="scene"||route.v==="assist");
   if(route.v==="world"&&W(route.id))S.lastWorld=route.id;
-  const items=[["chat","Чаты",route.v==="allChats"],["home","Главная",route.v==="home"||route.v==="world"],["chars","Персонажи",route.v==="allChars"]];
+  const items=[["chat","Чаты",route.v==="allChats"],["home","Главная",route.v==="home"||route.v==="world"],["chars","Персонажи",route.v==="allChars"],["ai","ИИ",route.v==="assist"&&!route.world]];
   items.forEach(([k,t,cur])=>{const b=el("button");b.innerHTML=ICONS[k];b.append(el("span",null,t));b.setAttribute("aria-current",cur);
-    b.onclick=()=>{if(busy)return;stack.length=0;if(k==="home")go({v:"home"},true);else if(k==="chars")go({v:"allChars"},true);else go({v:"allChats"},true);};
+    b.onclick=()=>{if(busy)return;stack.length=0;if(k==="home")go({v:"home"},true);else if(k==="chars")go({v:"allChars"},true);else if(k==="ai")go({v:"assist"},true);else go({v:"allChats"},true);};
     n.append(b);});
 }
 function charCard(c,withWorld){
@@ -845,7 +846,7 @@ function makeExample(){
 function renderWorld(){
   const w=W(route.id);if(!w){go({v:"home"},true);return;}S.lastWorld=w.id;
   $("hTitle").textContent=w.name||"Мир";const p=el("div","page");
-  const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelper],["story","Истории",tabStory],["about","О мире",tabAbout]];
+  const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelperEntry],["story","Истории",tabStory],["about","О мире",tabAbout]];
   const tabs=el("div","tabs");tabs.style.position="sticky";tabs.style.top="0";tabs.style.background="var(--bg)";tabs.style.zIndex="2";
   SECTIONS.forEach(([k,t])=>{const b=el("button",null,t);b.dataset.sec=k;b.onclick=()=>{route.tab=k;const s=p.querySelector("#sec-"+k);if(s)s.scrollIntoView({behavior:"smooth",block:"start"});};tabs.append(b);});p.append(tabs);
   SECTIONS.forEach(([k,t,fn])=>{const sec=el("section");sec.id="sec-"+k;sec.style.display="flex";sec.style.flexDirection="column";sec.style.gap="12px";sec.style.scrollMarginTop="48px";sec.style.paddingBottom="18px";sec.style.borderBottom="1px solid var(--line)";
@@ -873,6 +874,60 @@ function helperContext(w){
     "ПЕРСОНАЖИ:\n"+cs.map(c=>"=== "+c.name+" ===\nОснова: "+(k.helperFull?c.core:c.core.slice(0,700))+"\nСостояние: "+JSON.stringify(c.state)+"\nПомнит: "+(c.facts||[]).slice(-(k.helperFull?60:20)).join("; ")+"\nКак менялся: "+(c.log||[]).slice(-(k.helperFull?10:4)).map(l=>l.text).join("; ")).join("\n\n"),
     worldEvents(w,k.helperFull?30:10), chats?"ПОСЛЕДНИЕ РАЗГОВОРЫ:\n"+chats:"", scenes?"ПОСЛЕДНИЕ СЦЕНЫ:\n"+scenes:"",
     w.chapters.length?"НАПИСАННЫЕ ГЛАВЫ (названия): "+w.chapters.map(c=>c.title).join("; "):""].filter(Boolean).join("\n\n");
+}
+// ============ ПОМОЩНИК (общий ИИ / соавтор мира) ============
+function worldsBrief(){return S.worlds.map(w=>"• "+w.name+(w.desc?" — "+w.desc.slice(0,200).replace(/\s+/g," "):"")+"\n  Персонажи: "+(charsOf(w.id).map(c=>c.name+(c.short?" ("+c.short.slice(0,80)+")":"")).join("; ")||"нет")).join("\n")||"Миров пока нет.";}
+const BLOCK_RULES='\n\nСОЗДАНИЕ: если пользователь просит придумать персонажа, сначала коротко объясни замысел, а в конце выдай карточку строго в блоке:\n```character\n{"name":"Имя","short":"одна фраза","tags":["тег"],"core":"личность и предыстория 1200-2000 символов: возраст, прошлое с деталями, характер через поведение, чего хочет, чего боится, слабости, манера речи","examples":"4-5 реплик с новой строки","greeting":"первое сообщение при встрече с {{user}}: действие в *звёздочках* и реплика","inertia":5,"state":{"mood":"","now":"","goals":[""],"relUser":"","trust":0,"secrets":""}}\n```\nЕсли просит придумать мир — блок:\n```world\n{"name":"","desc":"описание 600-1200 символов","rules":"правила, каждое с новой строки","places":"места, каждое с новой строки","date":"стартовая дата","hero":"кем может быть герой пользователя"}\n```\nСобытие мира — блок ```event\n{"text":"что произошло","public":true}\n```. Можно несколько блоков. Вне блоков пиши обычным текстом.';
+function parseBlocks(text){const out=[];const re=/```(character|event|world)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;}
+const stripBlocks=t=>t.replace(/```(character|event|world)\s*\n[\s\S]*?```/g,"").trim();
+function pickWorld(cb){if(!S.worlds.length){alert("Сначала создай мир (можно попросить ИИ придумать его).");return;}if(S.worlds.length===1){cb(S.worlds[0]);return;}sheet(S.worlds.map(w=>[w.name,()=>cb(w)]));}
+function addCharFrom(d,w){const c=blankChar();c.worldId=w.id;c.name=String(d.name||"Персонаж");c.short=String(d.short||"");c.tags=Array.isArray(d.tags)?d.tags.map(String):[];c.core=String(d.core||"");c.examples=String(d.examples||"");c.greeting=String(d.greeting||"");if(d.inertia)c.inertia=Math.max(1,Math.min(10,parseInt(d.inertia)||5));if(d.state){const s=d.state;Object.assign(c.state,{mood:s.mood||"",now:s.now||"",goals:Array.isArray(s.goals)?s.goals.map(String):[],relUser:s.relUser||"",trust:typeof s.trust==="number"?s.trust:0,secrets:s.secrets||""});}S.chars.push(c);save();return c;}
+function blockCard(b,w){const box=el("div","block");box.style.marginTop="10px";box.style.borderLeft="3px solid var(--accent)";const d=b.data;
+  if(b.kind==="character"){box.append(el("b",null,"Персонаж: "+(d.name||"без имени")),el("div","note",d.short||""));const btn=el("button","btn sm primary",w?"Добавить в мир":"Добавить в мир…");btn.style.marginTop="8px";
+    if(w&&charsOf(w.id).some(c=>c.name===d.name)){btn.textContent="Уже есть в мире";btn.disabled=true;}
+    btn.onclick=()=>{const doAdd=ww=>{const c=addCharFrom(d,ww);toast("«"+c.name+"» добавлен в «"+ww.name+"».");btn.textContent="Добавлен";btn.disabled=true;};if(w)doAdd(w);else pickWorld(doAdd);};box.append(btn);}
+  else if(b.kind==="world"){box.append(el("b",null,"Мир: "+(d.name||"без названия")),el("div","note",(d.desc||"").slice(0,160)));const btn=el("button","btn sm primary","Создать мир");btn.style.marginTop="8px";
+    if(S.worlds.some(x=>x.name===d.name)){btn.textContent="Уже создан";btn.disabled=true;}
+    btn.onclick=()=>{const nw=blankWorld();nw.name=String(d.name||"Новый мир");nw.desc=String(d.desc||"");nw.rules=String(d.rules||"");nw.places=String(d.places||"");nw.date=String(d.date||"");if(d.hero)nw.hero.desc=String(d.hero);S.worlds.push(nw);save();toast("Мир «"+nw.name+"» создан.");btn.textContent="Создан";btn.disabled=true;};box.append(btn);}
+  else{box.append(el("b",null,"Событие: "),document.createTextNode(d.text||""));const btn=el("button","btn sm",w?"Добавить в хронику":"Добавить в хронику…");btn.style.marginTop="8px";btn.onclick=()=>{const doAdd=ww=>{ww.events.push({t:now(),date:ww.date,text:String(d.text||""),public:d.public!==false,who:[]});save();btn.textContent="Добавлено";btn.disabled=true;};if(w)doAdd(w);else pickWorld(doAdd);};box.append(btn);}
+  return box;}
+function renderAssist(){
+  const w=route.world?W(route.world):null;if(route.world&&!w){go({v:"home"},true);return;}
+  const hist=w?w.helper:S.ai;$("hTitle").textContent=w?"Соавтор · "+w.name:"ИИ";
+  const wrap=el("div","chat");wrap.style.gridTemplateColumns="1fr";const main=el("main");
+  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры":"Обсудить идеи, придумать миры и персонажей"));
+  const clr=el("button","btn ghost sm","Очистить");clr.onclick=()=>{if(!hist.length)return;if(!confirm("Очистить этот разговор?"))return;hist.length=0;save();draw();};
+  bar.append(who,clr);main.append(bar);
+  const log=el("div");log.id="log";main.append(log);
+  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=w?"Спроси соавтора о мире или персонажах…":"Спроси что угодно или попроси придумать мир, персонажа…";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
+  wrap.append(main);$("view").append(wrap);
+  // быстрые подсказки на пустом экране
+  const tips=w?["Что слабо в персонажах этого мира?","Придумай нового персонажа, который создаст конфликт","Куда вести историю дальше?","Предложи событие для хроники"]:["Придумай мир для драмы","Придумай персонажа: старик-рыбак с тайной","Как сделать персонажа живым?","Помоги с идеей для сценария"];
+  let liveEl=null;
+  function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai"));const col=el("div","col");const bb=el("div","b");fmt(bb,m.role==="assistant"?stripBlocks(m.content):m.content);col.append(bb);
+    if(m.role==="assistant")parseBlocks(m.content).forEach(b=>col.append(blockCard(b,w)));
+    if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>sheet([["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}],...(i===hist.length-1&&m.role==="assistant"?[["↻ Другой вариант",()=>{hist.pop();save();run();}]]:[]),["Удалить",()=>{hist.splice(i,1);save();draw();},true]]);col.append(mb);}
+    wv.append(col);return wv;}
+  function draw(live){liveEl=null;log.innerHTML="";
+    if(!hist.length&&live===undefined){const e=el("div","list");e.style.maxWidth="760px";e.style.margin="0 auto";e.style.width="100%";tips.forEach(t=>{const b=el("button","item",t);b.style.textAlign="left";b.style.cursor="pointer";b.onclick=()=>{ta.value=t;grow();ta.focus();};e.append(b);});log.append(e);}
+    hist.forEach((m,i)=>log.append(msgEl(m,i)));
+    if(live!==undefined){liveEl=msgEl({role:"assistant",content:live||"…"},-1);log.append(liveEl);}
+    log.scrollTop=log.scrollHeight;send.disabled=busy;stop.hidden=!busy;}
+  function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(log.scrollHeight-log.scrollTop-log.clientHeight<160)log.scrollTop=log.scrollHeight;}
+  async function run(){busy=true;ctl=new AbortController();let live="";draw("");
+    try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperContext(w))
+        :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
+      const text=await callModel({stable,msgs:hist.slice(-16),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});}
+    catch(e){if(live)hist.push({role:"assistant",content:live});const m=friendly(e);if(m)toast(m,true);}
+    finally{busy=false;ctl=null;save();draw();toast(usageStr(lastUsage));}}
+  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;const l=hist[hist.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else hist.push({role:"user",content:t});ta.value="";grow();save();run();};
+  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
+  draw();
+}
+function tabHelperEntry(w,body){
+  body.append(el("p","note","Соавтор видит весь мир: персонажей, их память и состояние, хронику и разговоры. С ним можно обсудить персонажей, попросить придумать нового или событие — и добавить одним нажатием."));
+  const last=w.helper[w.helper.length-1];if(last){const q=el("div","block");q.style.whiteSpace="pre-wrap";q.textContent=stripBlocks(last.content).slice(0,240)+(last.content.length>240?"…":"");body.append(q);}
+  const b=el("button","btn primary",w.helper.length?"Продолжить разговор с соавтором":"Открыть соавтора");b.style.alignSelf="flex-start";b.onclick=()=>go({v:"assist",world:w.id});body.append(b);
 }
 function tabHelper(w,body){
   body.append(el("p","note","Соавтор — не персонаж, а помощник. Он видит весь мир: персонажей, их состояние и память, хронику, твои разговоры и сцены. Спрашивай что угодно: «что не так с Бакытом», «придумай конфликт между Айгерим и Азаматом», «как Бакыт отреагировал бы, если…», «подскажи, куда вести историю»."));
@@ -988,7 +1043,7 @@ function renderChat(){
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title=c.avatar?"Открыть фото":"Добавить фото";mini.onclick=()=>{if(c.avatar){const lb=el("div","lightbox");const im=document.createElement("img");im.src=c.avatar;lb.append(im);lb.onclick=()=>lb.remove();document.body.append(lb);}else go({v:"charEdit",id:c.id});};const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
-  const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(mini,who,eb,sb);main.append(bar);
+  const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId});const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(mini,who,ab,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
@@ -1019,7 +1074,7 @@ function renderChat(){
     const lh=el("h3",null,"Как менялся");aside.append(lh);const ll=el("div","loglist");c.log.slice(-12).reverse().forEach(l=>{const d=el("div");d.append(el("small",null,l.t+(l.src?" · "+l.src:"")+(l.impact?" · сила "+l.impact+"/10":"")+"\n"),document.createTextNode(l.text));ll.append(d);});if(!c.log.length)ll.append(el("p","note","Пока без изменений."));aside.append(ll);
     const fh=el("div","row between");fh.append(el("h3",null,"Картотека фактов"));aside.append(fh);const ft=el("textarea");ft.value=c.facts.join("\n");ft.rows=6;ft.oninput=()=>{c.facts=ft.value.split("\n").map(t=>t.trim()).filter(Boolean);save();};aside.append(ft);
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=c.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{c.summary=su.value;save();};aside.append(su);
-    const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"world",id:w.id,tab:"helper"});};aside.append(hb);
+    const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"assist",world:w.id});};aside.append(hb);
     aside.append(el("h3",null,"Разговоры"));
     const cl2=el("div","list");c.chats.slice().reverse().forEach(x=>{const it=el("div","item"+(x.id===c.activeChat?" sel":""));it.style.cursor="pointer";const t=el("div","x",x.title+(x.desc?"\n"+x.desc:"")+"\n"+x.history.length+" сообщ."+(x.t?" · "+x.t.slice(0,10):""));it.append(t);
       const rn=el("button","btn ghost sm","✎");rn.title="Название и описание";rn.onclick=e=>{e.stopPropagation();const v=prompt("Название разговора:",x.title);if(v&&v.trim())x.title=v.trim();const d=prompt("Описание (о чём разговор, видно в списке чатов):",x.desc||"");if(d!==null)x.desc=d.trim();save();drawAside();};
@@ -1113,7 +1168,7 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
   catch(e){keyStatus("Ключ сохранён, но не работает: "+friendly(e),true);}finally{ctl=null;}};
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("usageReset").onclick=()=>{if(!confirm("Обнулить счётчик расхода?"))return;S.usage={calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}};save();drawUsage();};
-const PURPOSE={test:"Проверка ключа",chat:"Разговоры",scene:"Сцены",director:"Режиссёр",time:"Ход времени",memory:"Память (сжатие)",story:"Главы",helper:"Соавтор",generate:"Генерация"};
+const PURPOSE={ai:"ИИ-чат",test:"Проверка ключа",chat:"Разговоры",scene:"Сцены",director:"Режиссёр",time:"Ход времени",memory:"Память (сжатие)",story:"Главы",helper:"Соавтор",generate:"Генерация"};
 function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const tot=g.usd!=null&&g.calls?g.usd:cost(g);const tin=g.inp+g.cacheR+g.cacheW;
   b.append(el("div","block","Всего запросов: "+g.calls+"\nВход: "+tin.toLocaleString("ru")+" токенов, из них из кэша "+g.cacheR.toLocaleString("ru")+" ("+(tin?Math.round(100*g.cacheR/tin):0)+"%)\nВыход: "+g.out.toLocaleString("ru")+" токенов"+(tot!=null?"\nИтого ≈ $"+tot.toFixed(3):"")));
   const rows=Object.entries(g.by).sort((a,b)=>(b[1].inp+b[1].cacheR+b[1].out)-(a[1].inp+a[1].cacheR+a[1].out));if(rows.length){const d=el("div","block",rows.map(([k,u])=>{const c=cost(u);return (PURPOSE[k]||k)+": "+u.calls+" запр., "+(u.inp+u.cacheR+u.cacheW).toLocaleString("ru")+" вход / "+u.out.toLocaleString("ru")+" выход"+(c!=null?" ≈ $"+c.toFixed(3):"");}).join("\n"));b.append(d);}}
