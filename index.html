@@ -683,10 +683,17 @@ function makeExample(){
 function renderWorld(){
   const w=W(route.id);if(!w){go({v:"home"},true);return;}
   $("hTitle").textContent=w.name||"Мир";const p=el("div","page");
-  const tabs=el("div","tabs");[["chars","Персонажи"],["helper","Соавтор"],["scenes","Сцены"],["chron","Хроника"],["story","Истории"],["about","О мире"]].forEach(([k,t])=>{const b=el("button",null,t);b.setAttribute("aria-selected",route.tab===k);b.onclick=()=>{route.tab=k;render();};tabs.append(b);});p.append(tabs);
-  const body=el("div");body.style.display="flex";body.style.flexDirection="column";body.style.gap="12px";p.append(body);
-  ({chars:tabChars,helper:tabHelper,scenes:tabScenes,chron:tabChron,story:tabStory,about:tabAbout})[route.tab||"chars"](w,body);
+  const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelper],["story","Истории",tabStory],["about","О мире",tabAbout]];
+  const tabs=el("div","tabs");tabs.style.position="sticky";tabs.style.top="0";tabs.style.background="var(--bg)";tabs.style.zIndex="2";
+  SECTIONS.forEach(([k,t])=>{const b=el("button",null,t);b.dataset.sec=k;b.onclick=()=>{route.tab=k;const s=p.querySelector("#sec-"+k);if(s)s.scrollIntoView({behavior:"smooth",block:"start"});};tabs.append(b);});p.append(tabs);
+  SECTIONS.forEach(([k,t,fn])=>{const sec=el("section");sec.id="sec-"+k;sec.style.display="flex";sec.style.flexDirection="column";sec.style.gap="12px";sec.style.scrollMarginTop="48px";sec.style.paddingBottom="18px";sec.style.borderBottom="1px solid var(--line)";
+    const hd=el("h2",null,t);hd.style.marginTop="6px";sec.append(hd);fn(w,sec);p.append(sec);});
   $("view").append(p);
+  // подсветка активного блока при прокрутке
+  const btns=[...tabs.querySelectorAll("button")];const mark=k=>btns.forEach(b=>b.setAttribute("aria-selected",b.dataset.sec===k));
+  const secs=[...p.querySelectorAll("section[id^=sec-]")];
+  p.addEventListener("scroll",()=>{let cur=secs[0];for(const s of secs){if(s.getBoundingClientRect().top-p.getBoundingClientRect().top<=80)cur=s;}mark(cur.id.slice(4));},{passive:true});
+  const want=route.tab&&route.tab!=="chars"?p.querySelector("#sec-"+route.tab):null;if(want)setTimeout(()=>want.scrollIntoView({block:"start"}),0);mark(route.tab||"chars");
 }
 function tabChars(w,body){
   const tr=el("div","row");const ib=el("button","btn sm","Загрузить персонажа из файла");ib.onclick=()=>pickFile(f=>importFile(f,w.id));const xb=el("button","btn sm","Сохранить мир в файл");xb.onclick=()=>expWorld(w);tr.append(ib,xb);body.append(tr);
@@ -708,7 +715,7 @@ function helperContext(w){
 }
 function tabHelper(w,body){
   body.append(el("p","note","Соавтор — не персонаж, а помощник. Он видит весь мир: персонажей, их состояние и память, хронику, твои разговоры и сцены. Спрашивай что угодно: «что не так с Бакытом», «придумай конфликт между Айгерим и Азаматом», «как Бакыт отреагировал бы, если…», «подскажи, куда вести историю»."));
-  const log=el("div","list");log.style.minHeight="200px";
+  const log=el("div","list");log.style.minHeight="80px";log.style.maxHeight="60vh";log.style.overflow="auto";
   const draw=(live)=>{stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";w.helper.forEach((m,i)=>{const it=el("div","item"+(m.role==="user"?" sel":""));it.append(el("div","t",m.role==="user"?"Ты":"Соавтор"));const x=el("div","x");fmt(x,m.content);it.append(x);const d=el("button","btn ghost sm warn","✕");d.onclick=()=>{w.helper.splice(i,1);save();draw();};it.append(d);log.append(it);});
     if(live!==undefined){const it=el("div","item");it.dataset.live=1;it.append(el("div","t","Соавтор"));it.append(el("div","x",live||"…"));log.append(it);}
     if(!w.helper.length&&live===undefined)log.append(el("p","note","Пока пусто. Напиши вопрос внизу."));stickScroll(log,atB,st);};
