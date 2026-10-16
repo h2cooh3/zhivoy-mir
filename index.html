@@ -689,8 +689,26 @@ async function importFile(file,targetWorldId){
 const pickFile=(cb)=>{const i=document.createElement("input");i.type="file";i.accept=".json,application/json";i.onchange=()=>{if(i.files[0])cb(i.files[0]);};i.click();};
 // ============ НАВИГАЦИЯ ============
 let route={v:"home"};const stack=[];
-function go(r,replace){if(!replace)stack.push(route);route=r;render();}
-function back(){if(busy)return;route=stack.pop()||{v:"home"};render();}
+// История браузера: каждый переход — запись, системная «Назад» ведёт на предыдущий экран, а не закрывает приложение
+let navDepth=0,popping=false;
+function pushHist(){if(popping)return;navDepth++;try{history.pushState({d:navDepth},"");}catch(e){}}
+function go(r,replace){if(!replace)stack.push(route);route=r;pushHist();render();}
+function back(){if(busy)return;route=stack.pop()||{v:"home"};popping=true;try{history.back();}catch(e){}setTimeout(()=>{popping=false;},50);render();}
+window.addEventListener("popstate",()=>{
+  if(popping)return; // наш собственный history.back()
+  // открытые окна закрываем первыми
+  const lb=document.querySelector(".lightbox");if(lb){lb.remove();pushHist();return;}
+  const sh=document.querySelector(".sheet");if(sh){sh.remove();const bg=document.querySelector(".sheet-bg");if(bg)bg.remove();pushHist();return;}
+  if($("dlg").open){$("dlg").close();pushHist();return;}
+  if($("rep").open){$("rep").close();pushHist();return;}
+  const side=document.querySelector(".chat aside.open");if(side){side.classList.remove("open");pushHist();return;}
+  if(busy){pushHist();return;}
+  if(stack.length){route=stack.pop();render();}
+  else if(route.v!=="home"){route={v:"home"};render();}
+  else{ // на главной: даём выйти только вторым нажатием подряд
+    if(window._exitArmed){return;}window._exitArmed=true;toast("Нажми «Назад» ещё раз, чтобы выйти");pushHist();setTimeout(()=>{window._exitArmed=false;},1500);}
+});
+try{history.replaceState({d:0},"");}catch(e){}
 $("backBtn").onclick=back;
 $("editWorldBtn").onclick=()=>{if(route.v==="world")go({v:"worldEdit",id:route.id});};
 function render(){
@@ -1102,7 +1120,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();applyTheme();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();applyTheme();pushHist();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
