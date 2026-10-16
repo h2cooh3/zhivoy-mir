@@ -812,8 +812,12 @@ function renderAllChats(){
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function toast(t,bad){const s=document.querySelector("#status");if(s){s.textContent=t;s.style.color=bad?"var(--danger)":"";}else if(t){const b=el("div","banner",t);b.style.position="fixed";b.style.left="12px";b.style.right="12px";b.style.bottom="calc(16px + env(safe-area-inset-bottom,0px))";b.style.background="var(--panel)";b.style.zIndex=20;if(!bad){b.style.borderColor="var(--line)";b.style.color="var(--ink)";}document.body.append(b);setTimeout(()=>b.remove(),3500);}}
 function avatarEl(e,c){e.innerHTML="";if(c&&c.avatar){const i=document.createElement("img");i.src=c.avatar;i.alt="";e.append(i);}else e.textContent=((c&&c.name)||"?").trim().charAt(0).toUpperCase()||"?";}
-function nearBottom(s){return s.scrollHeight-s.scrollTop-s.clientHeight<120;}
-function stickScroll(s,atB,st){if(atB)s.scrollTop=s.scrollHeight;else s.scrollTop=st;}
+// Автопрокрутка только пока пользователь сам внизу. Стоило пролистать вверх (или держать палец на экране) — ленту не трогаем.
+function nearBottom(s){if(!s._fw){s._fw=1;s.addEventListener("scroll",()=>{s._follow=s.scrollHeight-s.scrollTop-s.clientHeight<40;},{passive:true});
+  const hold=()=>{s._touch=1;},rel=()=>{s._touch=0;};s.addEventListener("touchstart",hold,{passive:true});s.addEventListener("touchend",rel,{passive:true});s.addEventListener("touchcancel",rel,{passive:true});
+  s.addEventListener("wheel",e=>{if(e.deltaY<0)s._follow=false;},{passive:true});}
+  if(s._touch)return false;if(s._follow===undefined)return s.scrollHeight-s.scrollTop-s.clientHeight<40;return s._follow;}
+function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true;}else s.scrollTop=st;}
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 function fmt(e,text){
@@ -972,12 +976,12 @@ function renderAssist(){
     if(m.role==="assistant")parseBlocks(m.content).forEach(b=>col.append(blockCard(b,w)));
     if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>sheet([["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}],...(i===hist.length-1&&m.role==="assistant"?[["↻ Другой вариант",()=>{hist.pop();save();run();}]]:[]),["Удалить",()=>{hist.splice(i,1);save();draw();},true]]);col.append(mb);}
     wv.append(col);return wv;}
-  function draw(live){liveEl=null;log.innerHTML="";
+  function draw(live){const atB=live===""||live===undefined&&!log._fw||nearBottom(log),st=log.scrollTop;liveEl=null;log.innerHTML="";
     if(!hist.length&&live===undefined){const e=el("div","list");e.style.maxWidth="760px";e.style.margin="0 auto";e.style.width="100%";tips.forEach(t=>{const b=el("button","item",t);b.style.textAlign="left";b.style.cursor="pointer";b.onclick=()=>{ta.value=t;grow();ta.focus();};e.append(b);});log.append(e);}
     hist.forEach((m,i)=>log.append(msgEl(m,i)));
     if(live!==undefined){liveEl=msgEl({role:"assistant",content:live||"…"},-1);log.append(liveEl);}
-    log.scrollTop=log.scrollHeight;send.disabled=busy;stop.hidden=!busy;}
-  function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(log.scrollHeight-log.scrollTop-log.clientHeight<160)log.scrollTop=log.scrollHeight;}
+    stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
+  function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(nearBottom(log))log.scrollTop=log.scrollHeight;}
   async function run(){busy=true;ctl=new AbortController();let live="";draw("");
     try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperContext(w))
         :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
