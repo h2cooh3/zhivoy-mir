@@ -229,15 +229,15 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       </select>
     </label>
     <label id="baseWrap">Адрес API <span class="hint">OpenAI: https://api.openai.com/v1 · OpenRouter: https://openrouter.ai/api/v1</span>
-      <input type="text" id="base" placeholder="https://api.openai.com/v1">
+      <input type="text" spellcheck="false" autocorrect="off" id="base" placeholder="https://api.openai.com/v1">
     </label>
     <label>API-ключ
       <div class="row" style="flex-wrap:nowrap"><input type="password" id="key" autocomplete="off" placeholder="sk-..." style="flex:1"><button class="btn" id="keyEye" type="button" title="Показать / скрыть">👁</button></div>
     </label>
     <div class="row"><button class="btn primary" id="keySave" type="button">Сохранить ключ</button><span class="note" id="keyStatus"></span></div>
-    <label>Модель для разговоров <input type="text" id="model"></label>
+    <label>Модель для разговоров <input type="text" spellcheck="false" autocorrect="off" id="model"></label>
     <label>Дешёвая модель для «режиссёра» <span class="hint">Разбор сцен, ход времени, память. Можно оставить пустым — тогда та же, что для разговоров.</span>
-      <input type="text" id="cheap">
+      <input type="text" spellcheck="false" autocorrect="off" id="cheap">
     </label>
     <div class="row">
       <label style="flex:1">Температура <span class="hint">Только для OpenAI и старых моделей; Claude 5.5 её не использует</span><input type="number" id="temp" min="0" max="1" step="0.1"></label>
@@ -270,7 +270,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
 
     <h2>Ты</h2>
     <label>Имя по умолчанию <span class="hint">Подставляется вместо {{user}}; в каждом мире можно задать своего героя отдельно</span>
-      <input type="text" id="pname" placeholder="Маратбек">
+      <input type="text" spellcheck="false" autocorrect="off" id="pname" placeholder="Маратбек">
     </label>
 
     <h2>Синхронизация между устройствами</h2>
@@ -283,7 +283,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
 
     <h2>Сохранения мира</h2>
     <p class="note">Слепок всех миров и персонажей. Пошло не туда — загрузись и попробуй иначе.</p>
-    <div class="row"><input type="text" id="snapName" placeholder="Название, например «перед разговором с Бакытом»" style="flex:1"><button class="btn" id="snapBtn">Сохранить</button></div>
+    <div class="row"><input type="text" spellcheck="false" autocorrect="off" id="snapName" placeholder="Название, например «перед разговором с Бакытом»" style="flex:1"><button class="btn" id="snapBtn">Сохранить</button></div>
     <div class="list" id="snapList"></div>
 
     <h2>Резервная копия в файл</h2>
@@ -927,7 +927,7 @@ function renderAllChats(){
     row.append(av,x,mb);row.onclick=()=>{if(it.kind==="chat"){it.c.activeChat=it.x.id;save();go({v:"chat",id:it.c.id});}else go({v:"scene",id:it.x.id});};l.append(row);});
   p.append(l);$("view").append(p);
 }
-function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;if(tag==="textarea"||tag==="input"){e.spellcheck=false;e.setAttribute("autocorrect","off");}return e;}
 function toast(t,bad){const s=document.querySelector("#status");if(s){s.textContent=t;s.style.color=bad?"var(--danger)":"";}else if(t){const b=el("div","banner",t);b.style.position="fixed";b.style.left="12px";b.style.right="12px";b.style.bottom="calc(16px + env(safe-area-inset-bottom,0px))";b.style.background="var(--panel)";b.style.zIndex=20;if(!bad){b.style.borderColor="var(--line)";b.style.color="var(--ink)";}document.body.append(b);setTimeout(()=>b.remove(),3500);}}
 function avatarEl(e,c){e.innerHTML="";if(c&&c.avatar){const i=document.createElement("img");i.src=c.avatar;i.alt="";e.append(i);}else e.textContent=((c&&c.name)||"?").trim().charAt(0).toUpperCase()||"?";}
 // Автопрокрутка только пока пользователь сам внизу. Стоило пролистать вверх (или держать палец на экране) — ленту не трогаем.
