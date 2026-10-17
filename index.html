@@ -420,13 +420,23 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
   addUsage(U,purpose,model);return out;
 }
-function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{");if(a<0)throw new Error("Модель вернула не JSON");const b=t.lastIndexOf("}");
-  if(b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{");if(a<0)throw new Error("Модель вернула не JSON");
+  const tryP=x=>{try{return JSON.parse(x);}catch(e){return undefined;}};
+  const b=t.lastIndexOf("}");if(b>a){const r=tryP(t.slice(a,b+1));if(r!==undefined)return r;}
+  // сбалансированный первый объект (если после JSON идёт лишний текст)
+  let q=false,esc=false,depth=0,endI=-1;for(let i=a;i<t.length;i++){const ch=t[i];if(esc){esc=false;continue;}if(q){if(ch==="\\")esc=true;else if(ch==='"')q=false;continue;}if(ch==='"')q=true;else if(ch==="{"||ch==="[")depth++;else if(ch==="}"||ch==="]"){depth--;if(depth===0){endI=i;break;}}}
+  if(endI>a){const r=tryP(t.slice(a,endI+1));if(r!==undefined)return r;}
   // обрезанный ответ: закрываем незакрытые строки, массивы и объекты
-  let s=t.slice(a),q=false,esc=false,st=[];for(const ch of s){if(esc){esc=false;continue;}if(ch==="\\"&&q){esc=true;continue;}if(ch==='"'){q=!q;continue;}if(q)continue;if(ch==="{"||ch==="[")st.push(ch);else if(ch==="}"||ch==="]")st.pop();}
-  if(q)s+='"';s=s.replace(/,\s*$/,"").replace(/:\s*$/,':""');while(st.length){s+=st.pop()==="{"?"}":"]";}
-  try{return JSON.parse(s);}catch(e){throw new Error("Модель вернула не JSON (ответ обрезан или с лишним текстом)");}}
-async function askJSON(prompt,maxTokens,purpose){const t=await callModel({msgs:[{role:"user",content:prompt+"\n\nОтветь ТОЛЬКО валидным JSON без пояснений и без markdown."}],maxTokens:maxTokens||2500,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});return parseJSON(t);}
+  let x=t.slice(a),st=[];q=false;esc=false;for(const ch of x){if(esc){esc=false;continue;}if(q){if(ch==="\\")esc=true;else if(ch==='"')q=false;continue;}if(ch==='"')q=true;else if(ch==="{"||ch==="[")st.push(ch);else if(ch==="}"||ch==="]")st.pop();}
+  if(q)x+='"';x=x.replace(/,\s*$/,"").replace(/:\s*$/,':""').replace(/,\s*"[^"]*$/,"");while(st.length){x+=st.pop()==="{"?"}":"]";}
+  const r=tryP(x);if(r!==undefined)return r;
+  throw new Error("Модель вернула не JSON (ответ обрезан или с лишним текстом)");}
+async function askJSON(prompt,maxTokens,purpose){const mt=Math.max(maxTokens||2500,3500);const msgs=[{role:"user",content:prompt+"\n\nОтветь ТОЛЬКО валидным JSON без пояснений и без markdown. Строки короткие; если не хватает места — сокращай, но JSON должен быть закрыт."}];
+  const t=await callModel({msgs,maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});
+  try{return parseJSON(t);}catch(e){
+    // повтор: показываем модели её же ответ и просим починить
+    const t2=await callModel({msgs:[...msgs,{role:"assistant",content:String(t).slice(0,6000)},{role:"user",content:"Этот ответ не разобрался как JSON (обрезан или с лишним текстом). Верни тот же смысл строго валидным JSON, вдвое короче, без единого слова вне JSON."}],maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});
+    return parseJSON(t2);}}
 const friendly=e=>{if(!e)return "";if(e.name==="AbortError")return "";if(e.message==="Failed to fetch")return "Нет соединения с API (сеть, адрес или блокировка браузера).";return e.message||"Ошибка";};
 
 // ============ ПРОМПТЫ ============
