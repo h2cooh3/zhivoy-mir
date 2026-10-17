@@ -420,7 +420,12 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
   addUsage(U,purpose,model);return out;
 }
-function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a<0||b<0)throw new Error("Модель вернула не JSON");return JSON.parse(t.slice(a,b+1));}
+function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{");if(a<0)throw new Error("Модель вернула не JSON");const b=t.lastIndexOf("}");
+  if(b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+  // обрезанный ответ: закрываем незакрытые строки, массивы и объекты
+  let s=t.slice(a),q=false,esc=false,st=[];for(const ch of s){if(esc){esc=false;continue;}if(ch==="\\"&&q){esc=true;continue;}if(ch==='"'){q=!q;continue;}if(q)continue;if(ch==="{"||ch==="[")st.push(ch);else if(ch==="}"||ch==="]")st.pop();}
+  if(q)s+='"';s=s.replace(/,\s*$/,"").replace(/:\s*$/,':""');while(st.length){s+=st.pop()==="{"?"}":"]";}
+  try{return JSON.parse(s);}catch(e){throw new Error("Модель вернула не JSON (ответ обрезан или с лишним текстом)");}}
 async function askJSON(prompt,maxTokens,purpose){const t=await callModel({msgs:[{role:"user",content:prompt+"\n\nОтветь ТОЛЬКО валидным JSON без пояснений и без markdown."}],maxTokens:maxTokens||2500,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});return parseJSON(t);}
 const friendly=e=>{if(!e)return "";if(e.name==="AbortError")return "";if(e.message==="Failed to fetch")return "Нет соединения с API (сеть, адрес или блокировка браузера).";return e.message||"Ошибка";};
 
@@ -508,8 +513,9 @@ ${transcript(last,w,kind==="chat"?anchor.name:"Рассказчик").slice(-600
  "enter":[{"name":"кто входит (из списка «могут появиться»)","why_now":"почему именно сейчас, по его делам","cost":"что он ради этого бросил или чем рискует","how":"как появляется — одной фразой"}],
  "leave":[{"name":"кто уходит","how":"как и почему — одной фразой"}],
  "threads":["обновлённый список того, что назревает: 2–6 коротких пунктов, прежние сохраняй, отыгранные убирай"],
- "why":"3–7 слов для журнала драматурга"}`;
-  const r=await askJSON(prompt,900,"director");
+ "why":"3–7 слов для журнала драматурга"}
+Пиши кратко: каждое поле — одна-две фразы, threads — по 5–10 слов. Весь ответ — только JSON.`;
+  const r=await askJSON(prompt,2000,"director");
   const d={tension:Math.max(1,Math.min(10,parseInt(r.tension)||5)),beat:String(r.beat||""),direction:String(r.direction||""),event:String(r.event||""),why:String(r.why||""),hist:[...hist,String(r.why||r.beat||"")].slice(-5),threads:(Array.isArray(r.threads)&&r.threads.length?r.threads:threads).map(String).slice(-6),enter:[],leave:[],cue:""};
   const cues=[];const sinceMove=prev.lastMove==null?99:(history.length-prev.lastMove);
   (r.enter||[]).slice(0,1).forEach(e=>{const c=byName(w.id,e.name);const ok=c&&others.some(o=>o.id===c.id)&&sinceMove>=3&&String(e.why_now||"").trim().length>8;if(ok){d.enter.push(c.id);d.lastMove=history.length;cues.push("В этом ходе появляется "+c.name+": "+(e.how||"")+(e.why_now?" (почему сейчас: "+e.why_now+")":"")+(e.cost?" Ему это стоит: "+e.cost:""));}});
@@ -542,7 +548,7 @@ ${cs.map(charBrief).join("\n")}
 Правила: 2–3 персонажа (не больше), герой присутствует. Правдоподобие выше интереса: сначала реши, где каждый сейчас находится по времени суток, правилам мира и своим делам, и собирай сцену только там, где эти люди в это время реально могут оказаться вместе (рынок, пристань, поле, часовня, вечер в трактире). Никто не бросает работу ради визита без причины сильнее работы. Место из списка мест мира или логичное для него. Завязка — 2–4 предложения: где, когда, кто что делает в момент появления героя; без развязки, без случайных совпадений. Выбирай тех, у кого сейчас есть причина быть вместе и чьи цели сталкиваются. Не повторяй сцены из хроники.
 
 Верни JSON: {"whereabouts":"где сейчас ключевые персонажи, одной строкой","title":"короткое название","cast":["имя","имя"],"setup":"завязка","tension":3,"beat":"завязка","direction":"скрытое указание рассказчику на первый ход, 1–3 фразы","threads":["1–3 линии, которые эта сцена может посеять"],"why":"3–7 слов"}`;
-  const r=await askJSON(prompt,900,"director");
+  const r=await askJSON(prompt,2000,"director");
   const x=blankScene();x.worldId=w.id;x.title=String(r.title||"Сцена");x.setup=String(r.setup||"");
   (r.cast||[]).forEach(n=>{const c=byName(w.id,n);if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);});
   if(!x.charIds.length)throw new Error("Драматург не выбрал персонажей.");
