@@ -126,7 +126,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg .col{display:flex;flex-direction:column;gap:3px;max-width:86%;min-width:0}
 .msg .b{padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word;background:var(--panel);border:1px solid var(--line)}
 .msg .b .nar{color:var(--ink)}
-.msg .b .say{color:var(--speech);font-weight:500}.msg .b .who-l{font-weight:700}
+.msg .b .say{color:var(--speech);font-weight:500}.msg .b .who-l{font-weight:700}.msg .b .nm{font-weight:600}
 .msg .b,.chapter,.item .x{user-select:text;-webkit-user-select:text}
 .msg.user{flex-direction:row-reverse}
 .msg.user .col{align-items:flex-end}
@@ -983,13 +983,22 @@ function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 let FMT=null; // {main:"Имя главного персонажа", names:[...]} — задаёт экран чата/сцены
-const HUES=[25,140,280,50,330,175,0,95,245,305,60,190];
-function nameColor(n){if(!n)return "";if(FMT&&FMT.main&&n.toLowerCase()===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";let h=0;for(const ch of n.toLowerCase())h=(h*31+ch.charCodeAt(0))>>>0;return "hsl("+HUES[h%HUES.length]+" 62% var(--sayL))";}
+// у каждого персонажа мира свой цвет (по порядку в мире), главный в разговоре — голубой
+const PALETTE=[[28,80],[140,55],[280,60],[48,85],[330,65],[0,70],[95,55],[305,55],[65,70],[15,60],[120,45],[345,55],[160,50],[80,45],[295,40],[40,55],[170,45],[265,50],[110,60],[355,45]]; // без оттенков, похожих на голубой главного (212)
+function nameColor(n){if(!n)return "";const low=n.toLowerCase();if(FMT&&FMT.main&&low===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";
+  const list=((FMT&&FMT.names)||[]).filter(x=>!(FMT.main&&x.toLowerCase()===FMT.main.toLowerCase()));let i=list.findIndex(x=>x.toLowerCase()===low);
+  if(i<0){let h=0;for(const ch of low)h=(h*31+ch.charCodeAt(0))>>>0;i=h;}const [hu,sa]=PALETTE[i%PALETTE.length];return "hsl("+hu+" "+sa+"% var(--sayL))";}
 function knownName(raw){const n=raw.replace(/\*+/g,"").trim();if(!n||n.length>28)return null;const list=(FMT&&FMT.names)||[];const low=n.toLowerCase();const hit=list.find(x=>x.toLowerCase()===low)||list.find(x=>low.startsWith(x.toLowerCase())||x.toLowerCase().startsWith(low));return hit||(/^[А-ЯЁA-Z][а-яёa-z\-]+( [А-ЯЁA-Z][а-яёa-z\-]+)?$/.test(n)&&list.length?null:null);}
+function nameRx(){if(!FMT||!FMT.names||!FMT.names.length)return null;if(FMT._rx)return FMT._rx;const map={};const vars=[];
+  FMT.names.forEach(n=>{const parts=[n];const w=n.trim().split(/\s+/);if(w.length>1)parts.push(w[w.length-1]);parts.forEach(v=>{const st=v.length>4?v.slice(0,v.length-1):v;if(!map[st]){map[st]=n;vars.push(st);}});});
+  vars.sort((a,b)=>b.length-a.length);const esc=v=>v.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  FMT._map=map;FMT._rx=new RegExp("(?<![А-Яа-яЁёA-Za-z])("+vars.map(esc).join("|")+")([а-яё]{0,3})(?![А-Яа-яЁёA-Za-z])","g");return FMT._rx;}
+function addNames(box,t){const rx=nameRx();if(!rx){box.append(document.createTextNode(t));return;}let last=0;t.replace(rx,(m0,st,end,idx)=>{if(idx>last)box.append(document.createTextNode(t.slice(last,idx)));const sp=el("span","nm",m0);sp.style.color=nameColor(FMT._map[st]);box.append(sp);last=idx+m0.length;return m0;});if(last<t.length)box.append(document.createTextNode(t.slice(last)));}
 function fmt(e,text,opt){
   // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
   const main=opt&&opt.user?null:(FMT&&FMT.main)||null;
-  const say=(t,col)=>{const sp=el("span","say",t);if(col)sp.style.color=col;return sp;};
+  const say=(t,col)=>{const sp=el("span","say");addNames(sp,t);if(col)sp.style.color=col;return sp;};
+  const txt=t=>{const f=document.createDocumentFragment();addNames(f,t);return f;};
   const names=((FMT&&FMT.names)||[]).slice().sort((a,b)=>b.length-a.length);
   const stem=n=>n.toLowerCase().slice(0,Math.max(3,n.length-2)); // «Бесси», «Бесс», «Бессе»
   const lastName=t=>{const low=t.toLowerCase();let best=null,pos=-1;names.forEach(n=>{const i=low.lastIndexOf(stem(n));if(i>pos){pos=i;best=n;}});return best;};
@@ -1000,15 +1009,15 @@ function fmt(e,text,opt){
         // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
         const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||firstName(sinceQ)||lastWho;
         if(who)lastWho=who;e.append(say(q,who?nameColor(who):col));sinceQ="";}
-      else{e.append(document.createTextNode(q));sinceQ+=q;}});};
-  const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));sinceQ+=p;return;}quotes(p,col);});};
+      else{e.append(txt(q));sinceQ+=q;}});};
+  const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){const nr=el("span","nar");addNames(nr,p.slice(1,-1));e.append(nr);sinceQ+=p;return;}quotes(p,col);});};
   String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));sinceQ="";lastWho=null;
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
     if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];labeled=true;lastWho=who;}}
     // «Имя: текст» без кавычек и без тире — весь текст после имени и есть его слова (кроме *описаний*)
-    if(labeled&&!/[«“„"]/.test(rest)&&!/^\s*([—–]|-\s)/.test(rest)){rest.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p))e.append(el("span","nar",p.slice(1,-1)));else e.append(say(p,col));});return;}
+    if(labeled&&!/[«“„"]/.test(rest)&&!/^\s*([—–]|-\s)/.test(rest)){rest.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){const nr=el("span","nar");addNames(nr,p.slice(1,-1));e.append(nr);}else e.append(say(p,col));});return;}
     // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
     const d=rest.match(/^(\s*)([—–]|-(?=\s))\s*(.*)$/);
     if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;
@@ -1373,7 +1382,7 @@ function renderCharEdit(){
 // ---- ЧАТ С ПЕРСОНАЖЕМ
 let editIdx=-1,lastErr="";
 function renderChat(){
-  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;FMT={main:c.name,names:charsOf(c.worldId).map(x=>x.name)};S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
+  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;FMT={main:c.name,names:[...charsOf(c.worldId).map(x=>x.name),heroName(w)].filter(Boolean)};S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title="Профиль персонажа";mini.onclick=()=>go({v:"profile",id:c.id});const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
@@ -1461,7 +1470,7 @@ function renderSceneEdit(){
 }
 // ---- ГРУППОВАЯ СЦЕНА
 function renderScene(){
-  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,names:charsOf(x.worldId).map(c=>c.name)};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
+  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean)};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.setup||""));
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
