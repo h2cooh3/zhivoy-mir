@@ -1068,9 +1068,9 @@ function helperContext(w){
     w.chapters.length?"НАПИСАННЫЕ ГЛАВЫ (названия): "+w.chapters.map(c=>c.title).join("; "):""].filter(Boolean).join("\n\n");
 }
 // ============ «ДЛЯ ДРУГОГО ИИ» ============
-function showCopy(title,text,note){$("repTitle").textContent=title;const b=$("repBody");b.innerHTML="";if(note)b.append(el("p","note",note));const ta=el("textarea");ta.value=text;ta.rows=14;ta.style.width="100%";ta.readOnly=true;b.append(ta);
+function showCopy(title,text,note,noGemini){$("repTitle").textContent=title;const b=$("repBody");b.innerHTML="";if(note)b.append(el("p","note",note));const ta=el("textarea");ta.value=text;ta.rows=14;ta.style.width="100%";ta.readOnly=true;b.append(ta);
   const r=el("div","row");r.style.marginTop="10px";const cp=el("button","btn primary","Копировать");cp.onclick=async()=>{try{await navigator.clipboard.writeText(text);cp.textContent="Скопировано ✓";}catch(e){ta.select();document.execCommand&&document.execCommand("copy");cp.textContent="Скопировано ✓";}};
-  const gm=el("button","btn","Открыть Gemini");gm.onclick=()=>window.open("https://gemini.google.com/app","_blank");r.append(cp,gm);b.append(r);$("rep").showModal();}
+  const gm=el("button","btn","Открыть Gemini");gm.onclick=()=>window.open("https://gemini.google.com/app","_blank");r.append(cp);if(!noGemini)r.append(gm);b.append(r);$("rep").showModal();}
 function charCardText(c){const w=W(c.worldId);const st=c.state;
   return ["Ты играешь персонажа "+c.name+". Оставайся в роли, говори только за него, действия пиши в *звёздочках*. Меня зовут "+heroName(w)+".","",
     w?"МИР: "+w.name+"\n"+w.desc+(w.rules?"\nПравила: "+w.rules:""):"","",
@@ -1484,7 +1484,9 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
   const c=apiCfg();if(withKey)c.key=S.api.key;const code="ZMCFG:"+btoa(unescape(encodeURIComponent(JSON.stringify(c))));
-  try{await navigator.clipboard.writeText(code);toast("Настройки скопированы"+(withKey?" вместе с ключом":"")+". Отправь строку и вставь её кнопкой «Вставить настройки».");}catch(e){prompt("Скопируй строку:",code);}};
+  try{await navigator.clipboard.writeText(code);}catch(e){}
+  showCopy("Настройки "+(withKey?"с ключом":"без ключа"),code,"Строка уже скопирована. Отправь её (Telegram, WhatsApp) — на другом устройстве: Настройки → «Вставить настройки»."+(withKey?" В ней твой API-ключ: отправляй только тому, кому доверяешь, и потом удали сообщение.":""),true);
+  if(navigator.share){const sh=el("button","btn","Отправить…");sh.onclick=async()=>{try{await navigator.share({text:code});}catch(e){}};$("repBody").querySelector(".row").append(sh);}};
 $("cfgPaste").onclick=async()=>{let t="";try{t=await navigator.clipboard.readText();}catch(e){}if(!/^ZMCFG:/.test(t||""))t=prompt("Вставь строку настроек (начинается с ZMCFG:)","")||"";t=t.trim();if(!t)return;
   try{const c=JSON.parse(decodeURIComponent(escape(atob(t.replace(/^ZMCFG:/,"")))));applyCfg(c);save();fillSettings();keyStatus(c.key?"✓ Настройки и ключ вставлены. Нажми «Сохранить ключ», чтобы проверить.":"✓ Настройки вставлены. Ключ остался прежний.");}catch(e){alert("Не получилось прочитать строку настроек.");}};
 $("usageReset").onclick=()=>{if(!confirm("Обнулить счётчик расхода?"))return;S.usage={calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}};save();drawUsage();};
