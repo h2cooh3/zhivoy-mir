@@ -405,6 +405,7 @@ async function errorText(res){let t="";try{t=await res.text();const j=JSON.parse
 function normalize(msgs){const out=[];msgs.forEach(m=>{const l=out[out.length-1];if(l&&l.role===m.role)l.content+="\n\n"+m.content;else out.push({role:m.role,content:m.content});});
   if(!out.length||out[0].role!=="user")out.unshift({role:"user",content:"[Начало]"});return out;}
 // stable — кэшируемая часть (мир, характер), dynamic — меняющаяся (состояние, память)
+let lastStop="";
 async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false}){
   const A=S.api;if(!A.key)throw new Error("Нет API-ключа — открой «Настройки».");
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
@@ -419,8 +420,8 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
     const body={model,max_tokens:mt,stream,messages:msgs};if(sys.length)body.system=sys;if(!/-5-5|-5$|fable|mythos/.test(model))body.temperature=+A.temp;
     const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{"content-type":"application/json","x-api-key":A.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
     if(!res.ok)throw new Error(await errorText(res));
-    if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);return (j.content||[]).map(b=>b.text||"").join("");}
-    let out="";for await(const ev of sse(res)){if(ev.type==="message_start"&&ev.message)take(ev.message.usage);if(ev.type==="message_delta"&&ev.usage)take(ev.usage);if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text){out+=ev.delta.text;onText(out);}if(ev.type==="error")throw new Error(ev.error&&ev.error.message||"Ошибка потока");}
+    lastStop="";if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);lastStop=j.stop_reason==="max_tokens"?"length":"";return (j.content||[]).map(b=>b.text||"").join("");}
+    let out="";for await(const ev of sse(res)){if(ev.type==="message_start"&&ev.message)take(ev.message.usage);if(ev.type==="message_delta"&&ev.usage)take(ev.usage);if(ev.type==="message_delta"&&ev.delta&&ev.delta.stop_reason==="max_tokens")lastStop="length";if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text){out+=ev.delta.text;onText(out);}if(ev.type==="error")throw new Error(ev.error&&ev.error.message||"Ошибка потока");}
     addUsage(U,purpose,model);return out;
   }
   const autoBase=/^kimi|^moonshot/i.test(model)?"https://api.moonshot.ai/v1":/^deepseek-/i.test(model)?"https://api.deepseek.com":/\//.test(model)?"https://openrouter.ai/api/v1":"https://api.openai.com/v1";
@@ -434,10 +435,17 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   const body=Object.assign({model,temperature:isKimi?0.6:+A.temp,stream,messages:all},isKimi?{max_completion_tokens:mt,thinking:{type:"disabled"}}:{max_tokens:mt},stream?{stream_options:{include_usage:true}}:{},json?{response_format:{type:"json_object"}}:{});
   const res=await fetch(base+"/chat/completions",{method:"POST",signal,headers:{"content-type":"application/json","authorization":"Bearer "+A.key},body:JSON.stringify(body)});
   if(!res.ok){const host=base.replace(/^https?:\/\//,"").split("/")[0];throw new Error((res.status===401?"Ключ не подошёл ("+host+"). Проверь, что ключ от этого сервиса и адрес в настройках верный. ":"["+host+"] ")+await errorText(res));}
-  if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";}
-  let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
+  lastStop="";if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);if(j.choices&&j.choices[0]&&j.choices[0].finish_reason==="length")lastStop="length";return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";}
+  let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);if(ev.choices&&ev.choices[0]&&ev.choices[0].finish_reason==="length")lastStop="length";const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
   addUsage(U,purpose,model);return out;
 }
+// Продолжить ответ ровно с места обрыва. У Claude — «дописывание» прямо в сообщение ассистента, у остальных — просьбой.
+const CONT_ASK="[Твой прошлый ответ оборвался на полуслове. Продолжи ровно с того места, где он оборвался: без повторов, без вступлений, без кавычек вокруг. Начни с продолжения последнего слова или фразы.]";
+function glue(a,b){a=String(a);b=String(b||"").replace(/^\s*\[[^\]]*\]\s*/,"");if(!b)return a;if(/\s$/.test(a)||/^[\s,.!?…»”:;)]/.test(b))return a+b;if(/[А-Яа-яЁёA-Za-z-]$/.test(a)&&/^[а-яёa-z]/.test(b))return a+b;return a+" "+b;}
+async function continueReply(base,partial,onText,maxRounds){let text=partial;for(let k=0;k<(maxRounds||2);k++){
+  const ant=S.api.provider==="anthropic";const tail=ant?[{role:"assistant",content:text.replace(/\s+$/,"")}]:[{role:"assistant",content:text},{role:"user",content:CONT_ASK}];
+  const more=await callModel(Object.assign({},base,{msgs:[...base.msgs,...tail],onText:t=>onText&&onText(glue(text,t))}));text=glue(text,more);if(lastStop!=="length")break;}
+  return text;}
 function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{");if(a<0)throw new Error("Модель вернула не JSON");
   const tryP=x=>{try{return JSON.parse(x);}catch(e){return undefined;}};
   const b=t.lastIndexOf("}");if(b>a){const r=tryP(t.slice(a,b+1));if(r!==undefined)return r;}
@@ -1445,7 +1453,7 @@ function renderChat(){
         r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);if(isLast&&m.role==="assistant")acts.push(["↪ Дописать (если оборвалось)",contReply]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -1481,13 +1489,20 @@ function renderChat(){
       if(liveLen>K().budget&&c.history.length-c.sumIdx>K().keep){toast("Сжимаю старую часть…");await compressHistory(c,c.name,w);drawLog("");}
       const lastUser=[...c.history].reverse().find(m=>m.role==="user");
       if(dramaDue(c,c.history)){toast("Драматург думает…");try{const d=await dramaForChat(c);toast(dramaStr(d));}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
-      const text=await callModel({stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true});
+      const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
+      let text=await callModel(base);if(lastStop==="length"){toast("Ответ упёрся в лимит — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
   }
   function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
+  async function contReply(){if(busy)return;const l=c.history[c.history.length-1];if(!l||l.role!=="assistant")return;
+    busy=true;lastErr="";ctl=new AbortController();const keep=l.content;c.history.pop();let live=keep;drawLog(keep);
+    try{const lastUser=[...c.history].reverse().find(m=>m.role==="user");const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
+      live=await continueReply(base,keep,t=>{live=t;liveText(log,t);},1);c.history.push({role:"assistant",content:live.trim()});}
+    catch(e){c.history.push({role:"assistant",content:live||keep});lastErr=friendly(e);}
+    finally{busy=false;ctl=null;save();drawLog();toast(usageStr(lastUsage));}}
   function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
@@ -1517,8 +1532,15 @@ function renderScene(){
       if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Память персонажей, уже обновлённая режиссёром, не откатывается."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↪ Дописать (если оборвалось)",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
+  async function contScene(){if(busy)return;const l=x.history[x.history.length-1];if(!l||l.role!=="assistant")return;
+    busy=true;lastErr="";ctl=new AbortController();const keep=l.content;x.history.pop();let live=keep;drawLog(keep);
+    try{const msgs=x.history.slice(x.sumIdx);const lm=msgs[msgs.length-1];if(!msgs.length||lm.role!=="user")msgs.push({role:"user",content:"[Герой молчит и наблюдает. Продолжай сцену.]"});
+      const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,signal:ctl.signal,maxTokens:Math.max(K().maxtok,2000),purpose:"scene",cacheMsgs:true};
+      live=await continueReply(base,keep,t=>{live=t;liveText(log,t);},1);x.history.push({role:"assistant",content:live.trim()});}
+    catch(e){x.history.push({role:"assistant",content:live||keep});lastErr=friendly(e);}
+    finally{busy=false;ctl=null;save();drawLog();}}
   function cutAfter(i){x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
@@ -1533,7 +1555,8 @@ function renderScene(){
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=x.history.slice(x.sumIdx);const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?"[Герой молчит и наблюдает. Продолжай сцену.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]"});
-      const text=await callModel({stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,1200),purpose:"scene",cacheMsgs:true});x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
+      const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,2000),purpose:"scene",cacheMsgs:true};
+      let text=await callModel(base);if(lastStop==="length"){toast("Ответ упёрся в лимит — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
