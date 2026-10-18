@@ -212,6 +212,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   <button class="btn ghost" id="backBtn" hidden>←</button>
   <h1 id="hTitle">Живой мир</h1>
   <button class="btn" id="editWorldBtn" hidden>Изменить мир</button>
+  <button class="btn" id="reloadBtn" title="Обновить приложение до последней версии" style="padding-left:12px;padding-right:12px">⟳</button>
   <button class="btn" id="setBtn">Настройки</button>
 </header>
 <div id="view"></div>
@@ -1517,6 +1518,10 @@ function renderScene(){
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";}
 function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
+$("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
+  try{clearTimeout(saveT);if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}
+  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
+  location.reload();};
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>render());
