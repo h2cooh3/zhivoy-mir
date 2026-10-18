@@ -155,6 +155,9 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .compose .send{background:var(--accent);color:var(--accent-ink)}
 .compose .send:disabled{opacity:.4}
 .compose .stopb{background:var(--danger);color:#fff}
+.compose .mic{width:40px;height:40px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;flex:none;padding:0;background:transparent;color:var(--muted,#9aa3b2)}
+.compose .mic.on{background:var(--danger);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(227,132,111,.5)}50%{box-shadow:0 0 0 8px rgba(227,132,111,0)}}
 .compose .send svg,.compose .stopb svg{display:block}
 .status{max-width:760px;margin:6px auto 0;font-size:12px;color:var(--muted);min-height:1em}
 .chat aside{border-left:1px solid var(--line);padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:12px;background:var(--panel2)}
@@ -1072,6 +1075,22 @@ function fmt(e,text,opt){
 function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
   actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
   const c=el("button","cancel","Отмена");c.onclick=close;s.append(c);document.body.append(bg,s);}
+const MIC_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+// Голосовой ввод: бесплатное распознавание браузера (Chrome/Android — через Google), по-русски
+function micButton(ta,grow){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;
+  const b=el("button","mic");b.type="button";b.innerHTML=MIC_SVG;b.title="Диктовать";let rec=null,base="",on=false;
+  const stop=()=>{on=false;b.classList.remove("on");try{rec&&rec.stop();}catch(e){}};
+  b.onclick=()=>{if(on){stop();return;}
+    rec=new SR();rec.lang="ru-RU";rec.interimResults=true;rec.continuous=true;base=ta.value&&!/\s$/.test(ta.value)?ta.value+" ":ta.value;let finalT="";
+    rec.onresult=ev=>{let interim="";for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)finalT+=r[0].transcript.trim()+" ";else interim+=r[0].transcript;}
+      let t=(finalT+interim);
+      // голосовые команды разметки: «звёздочка» → *, «кавычки открыть/закрыть» → « »
+      t=t.replace(/\s*звёздочк[аиу]\s*/gi,"*").replace(/\s*открыть кавычк[иу]\s*/gi," «").replace(/\s*закрыть кавычк[иу]\s*/gi,"» ").replace(/\s*(новая строка|с новой строки)\s*/gi,"\n");
+      ta.value=base+t;grow&&grow();};
+    rec.onerror=e=>{stop();if(e.error==="not-allowed"||e.error==="service-not-allowed")toast("Нет доступа к микрофону — разреши его в настройках браузера.",true);else if(e.error!=="aborted"&&e.error!=="no-speech")toast("Распознавание: "+e.error,true);};
+    rec.onend=()=>{if(on){try{rec.start();}catch(e){stop();}}else{ta.value=ta.value.replace(/\s+$/,"");grow&&grow();}};
+    try{rec.start();on=true;b.classList.add("on");}catch(e){toast("Не удалось включить микрофон",true);}};
+  b._stop=stop;return b;}
 const SEND_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg>';
 const STOP_SVG='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 function autoGrow(ta){const f=()=>{ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,window.innerHeight*0.4)+"px";};ta.addEventListener("input",f);setTimeout(f,0);return f;}
@@ -1433,7 +1452,7 @@ function renderChat(){
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title="Профиль персонажа";mini.onclick=()=>go({v:"profile",id:c.id});const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
   const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});bar.append(mini,who,ab,ob,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
-  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
+  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);const mic=micButton(ta,grow);inner.append(ta);if(mic)inner.append(mic);inner.append(stop,send);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){
     stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
@@ -1498,7 +1517,7 @@ function renderChat(){
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
+  function sendMsg(){if(busy)return;if(mic&&mic._stop)mic._stop();const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
   async function contReply(){if(busy)return;const l=c.history[c.history.length-1];if(!l||l.role!=="assistant")return;
     busy=true;lastErr="";ctl=new AbortController();const keep=l.content;c.history.pop();let live=keep;drawLog(keep);
     try{const lastUser=[...c.history].reverse().find(m=>m.role==="user");const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
@@ -1526,7 +1545,7 @@ function renderScene(){
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.setup||""));
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
-  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;inner.append(ta,stop,send);const grow=autoGrow(ta);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
+  const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);const mic=micButton(ta,grow);inner.append(ta);if(mic)inner.append(mic);inner.append(stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
@@ -1562,7 +1581,7 @@ function renderScene(){
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else x.history.push({role:"user",content:t});}ta.value="";grow();save();run();}
+  function sendMsg(){if(busy)return;if(mic&&mic._stop)mic._stop();const t=ta.value.trim();if(t){const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else x.history.push({role:"user",content:t});}ta.value="";grow();save();run();}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   drawLog();drawAside();if(!x.history.length)run();
 }
