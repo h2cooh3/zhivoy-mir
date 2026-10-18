@@ -845,8 +845,26 @@ setInterval(syncTick,60000);
 function expChar(c){download((c.name||"персонаж")+".json",JSON.stringify({app:"zhivoymir",kind:"char",version:1,char:c},null,1),"application/json");}
 function expWorld(w){const cs=charsOf(w.id),sc=S.scenes.filter(x=>x.worldId===w.id);download((w.name||"мир")+".json",JSON.stringify({app:"zhivoymir",kind:"world",version:1,worlds:[w],chars:cs,scenes:sc},null,1),"application/json");}
 function expAll(){download("zhivoy-mir-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({app:"zhivoymir",kind:"all",version:1,savedAt:new Date().toISOString(),persona:S.persona,worlds:S.worlds,chars:S.chars,scenes:S.scenes},null,1),"application/json");}
-function fixAll(){S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];});S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
+function fixAll(){S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
+  S.worlds.forEach(w=>{if(S.chars.filter(c=>c.worldId===w.id).every(c=>c.chats.every(x=>!x.history.length))&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length))w.base={events:JSON.parse(JSON.stringify(w.events||[])),date:w.date||""};});
+  S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
+// Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
+const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
+const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
+async function startOver(w){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
+  if(!confirm("Создать параллельный мир «"+nm+"»?\n\nВсе персонажи и хроника начнутся с самого начала — никто ничего не помнит. Этот мир останется как есть, между ними можно переключаться."))return;
+  let ref=null;if(CLEAN_PRESETS[bn]){try{const r=await fetch(CLEAN_PRESETS[bn],{cache:"no-store"});if(r.ok)ref=await r.json();}catch(e){}}
+  const sameName=(a,b)=>{a=String(a||"").toLowerCase().trim();b=String(b||"").toLowerCase().trim();return !!a&&!!b&&(a===b||(Math.min(a.length,b.length)>=4&&(a.startsWith(b)||b.startsWith(a))));};
+  const rc=name=>ref&&((ref.chars||[]).find(x=>x.name===name)||(ref.chars||[]).find(x=>sameName(x.name,name))),rw=ref&&ref.worlds&&ref.worlds[0];
+  const cs=S.chars.filter(c=>c.worldId===w.id).map(c=>{const o=JSON.parse(JSON.stringify(c));const pc=rc(c.name);const b=c.base;
+      if(pc){o.state=JSON.parse(JSON.stringify(pc.state||{}));o.facts=[...(pc.facts||[])];const idOf=Object.fromEntries((ref.chars||[]).map(x=>[x.id,x.name]));const rel={};Object.entries(o.state.relations||{}).forEach(([k,v])=>{const t=S.chars.find(x=>x.worldId===w.id&&sameName(x.name,idOf[k]));if(t)rel[t.id]=v;});o.state.relations=rel;}
+      else if(b){o.state=JSON.parse(JSON.stringify(b.state));o.facts=[...b.facts];}
+      else{o.state={mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:c.state.secrets||""};o.facts=[];}
+      o.log=[];o.chats=[];o.activeChat="";delete o.base;return o;});
+  const wo=JSON.parse(JSON.stringify(w));const wb=rw?{events:rw.events||[],date:rw.date||""}:w.base;wo.events=wb?JSON.parse(JSON.stringify(wb.events)):[];if(wb)wo.date=wb.date;wo.chapters=[];delete wo.base;
+  const d={kind:"world",worlds:[wo],chars:cs,scenes:[]};
+  d.kind="world";d.worlds[0].name=nm;await importFile(new Blob([JSON.stringify(d)]));}
 async function importFile(file,targetWorldId){
   let d;try{let t=(await file.text()).replace(/^﻿/,"").trim();if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать: это не файл приложения или он обрезан. Нужен файл .json, сохранённый через «Экспорт».");return;}
   const chars=[];let worlds=[],scenes=[],persona=null;
@@ -1130,7 +1148,7 @@ function renderHome(){
   const tools=el("div","row between");const h=el("h2",null,"Миры");h.style.margin="0";const nb=el("button","btn primary","+ Новый мир");nb.onclick=()=>{const w=blankWorld();go({v:"worldEdit",id:w.id,draft:w});};const ib=el("button","btn","Загрузить из файла");ib.onclick=()=>pickFile(f=>importFile(f));tools.append(h,ib,nb);p.append(tools);
   const g=el("div","grid");
   S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";c.append(el("div","nm",w.name||"Без названия"),el("div","ds",w.desc||""),el("div","mt",charsOf(w.id).length+" перс. · "+w.events.length+" событий · "+w.chapters.length+" глав"+(w.date?" · "+w.date:"")));
-    const del=el("button","more","⋯");del.title="Экспорт, удаление";del.style.position="absolute";del.style.top="6px";del.style.right="6px";const rmW=()=>{if(!confirm("Удалить мир «"+(w.name||"без названия")+"» со всеми персонажами, разговорами, сценами и главами? Это нельзя отменить."))return;S.chars=S.chars.filter(x=>x.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();render();};del.onclick=e=>{e.stopPropagation();sheet([["Экспорт мира…",()=>setTimeout(()=>exportWorld(w),50)],["Изменить мир",()=>go({v:"worldEdit",id:w.id})],["Удалить мир",rmW]]);};
+    const del=el("button","more","⋯");del.title="Экспорт, удаление";del.style.position="absolute";del.style.top="6px";del.style.right="6px";const rmW=()=>{if(!confirm("Удалить мир «"+(w.name||"без названия")+"» со всеми персонажами, разговорами, сценами и главами? Это нельзя отменить."))return;S.chars=S.chars.filter(x=>x.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();render();};del.onclick=e=>{e.stopPropagation();sheet([["⟲ Начать мир заново (параллельная линия)",()=>startOver(w)],["Экспорт мира…",()=>setTimeout(()=>exportWorld(w),50)],["Изменить мир",()=>go({v:"worldEdit",id:w.id})],["Удалить мир",rmW]]);};
     c.append(del);c.onclick=()=>go({v:"world",id:w.id,tab:"chars"});g.append(c);});
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
@@ -1422,7 +1440,7 @@ function tabAbout(w,body){
   const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
   blk("Описание",w.desc);blk("Правила и условия",w.rules);blk("Места",w.places);blk("Твой герой",(w.hero.name?w.hero.name+". ":"")+(w.hero.desc||""));
   body.append(kv);
-  const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
+  const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const sob=el("button","btn","⟲ Начать заново");sob.title="Параллельная линия: копия мира, где все с самого начала";sob.onclick=()=>startOver(w);r.append(sob);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
 }
 function download(name,data,type){
   if(window.matchMedia&&matchMedia("(pointer:coarse)").matches&&navigator.canShare&&window.File){try{const f=new File([data],name,{type:(type||"").split(";")[0]||"application/octet-stream"});if(navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(e=>{if(e&&e.name!=="AbortError")saveFile(name,data,type);});return;}}catch(e){}}
@@ -1528,7 +1546,7 @@ function renderChat(){
       it.append(rn,dl);it.onclick=()=>{if(busy)return;c.activeChat=x.id;editIdx=-1;lastErr="";save();render();};cl2.append(it);});
     aside.append(cl2);
     const nc=el("button","btn sm primary","+ Новый разговор");nc.onclick=()=>{if(busy)return;const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();render();};aside.append(nc);
-    aside.append(el("p","note","Новый разговор начинается с чистого листа, но персонаж остаётся тем же: память, состояние и доверие общие для всех разговоров. Старые разговоры можно открыть в любой момент."));
+    aside.append(el("p","note","Новый разговор начинается с чистого листа, но персонаж остаётся тем же: память, состояние и доверие общие для всех разговоров. Нужна история с нуля, где никто ничего не помнит, — открой мир и нажми «⟲ Начать заново»."));
   }
   async function run(){
     busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
