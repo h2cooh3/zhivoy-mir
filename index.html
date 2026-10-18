@@ -983,6 +983,15 @@ function nearBottom(s){if(!s._fw){s._fw=1;s.addEventListener("scroll",()=>{s._fo
 function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true;}else s.scrollTop=st;}
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
+// делит текст на куски: [{q:true,t:"«…»"}, {q:false,t:"…"}]; «ёлочки» — с вложенностью
+function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push({q,t:x});};
+  while(i<t.length){const ch=t[i];
+    if(ch==="«"){push(false,buf);buf="";let d=0,j=i;for(;j<t.length;j++){if(t[j]==="«")d++;else if(t[j]==="»"){d--;if(d===0)break;}}
+      if(j<t.length){push(true,t.slice(i,j+1));i=j+1;continue;}else{push(true,t.slice(i));i=t.length;continue;}}
+    const pair=ch==="“"?"”":ch==="„"?"“”":ch==='"'?'"':null;
+    if(pair){let j=i+1;while(j<t.length&&!pair.includes(t[j])&&!(ch==='"'&&t[j]==="\n"))j++;if(j<t.length&&pair.includes(t[j])){push(false,buf);buf="";push(true,t.slice(i,j+1));i=j+1;continue;}}
+    buf+=ch;i++;}
+  push(false,buf);return out;}
 let FMT=null; // {main:"Имя главного персонажа", names:[...]} — задаёт экран чата/сцены
 // у каждого персонажа мира свой цвет (по порядку в мире), главный в разговоре — голубой
 const PALETTE=[[28,80],[140,55],[280,60],[48,85],[330,65],[0,70],[95,55],[305,55],[65,70],[15,60],[120,45],[345,55],[160,50],[80,45],[295,40],[40,55],[170,45],[265,50],[110,60],[355,45]]; // без оттенков, похожих на голубой главного (212)
@@ -998,12 +1007,23 @@ function addNames(box,t){const rx=nameRx();if(!rx){box.append(document.createTex
 function fmt(e,text,opt){
   // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
   const main=opt&&opt.user?((FMT&&FMT.hero)||null):(FMT&&FMT.main)||null;
-  const say=(t,col)=>{const sp=el("span","say");addNames(sp,t);if(col)sp.style.color=col;return sp;};
+  const sayPlain=(t,col)=>{const sp=el("span","say");addNames(sp,t);if(col)sp.style.color=col;return sp;};
+  const say=(t,col)=>{const inner=t.replace(/^[«“„"]/,"").replace(/[»”“"]$/,"");
+    // слова автора внутри кавычек — только по русскому правилу: перед тире запятая, «!», «?» или «…» («Швея, — голос ровный…»)
+    if(!/[,!?…]\s[-—–]\s/.test(inner))return sayPlain(t,col);
+    // чередование: речь — автор — речь…; слова автора обычным текстом, вложенные кавычки в них — цитатой
+    const f=document.createDocumentFragment();const open=t[0],close=/[»”“"]$/.test(t)?t[t.length-1]:"";
+    const segs=inner.split(/(\s[-—–]\s)/);let speech=true;let first=true;
+    segs.forEach((sg,k)=>{if(/^\s[-—–]\s$/.test(sg)){f.append(document.createTextNode(sg));speech=!speech;return;}if(!sg)return;
+      const last=k===segs.length-1;const piece=(first?open:"")+sg+(last&&speech?close:"");first=false;
+      if(speech)f.append(sayPlain(piece,col));else{f.append(narSpanPlain(piece));if(last&&close)f.append(sayPlain(close,col));}});
+    return f;};
   const txt=t=>{const f=document.createDocumentFragment();addNames(f,t);return f;};
   const norm=t=>t.toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ").trim();
   const heroSaid=q=>{const h=FMT&&FMT.hero&&FMT.heroText?FMT.heroText():"";const n=norm(q);return n.length>=3&&h.includes(n);};
   // *описание/мысли* — цитаты в нём это вспомненные слова: цвет того, кто сказал, курсивом и бледнее
-  const narSpan=t=>{const nr=el("span","nar");let ctx="";t.split(/(«[^»]*»|“[^”]*”|„[^“”]*[“”]|"[^"\n]*")/g).forEach(q=>{if(!q)return;
+  const narSpanPlain=t=>{const f=document.createDocumentFragment();splitQ(t).forEach(x=>{if(x.q){const sp=el("span","say echo");addNames(sp,x.t);const c2=main?nameColor(main):"";if(c2)sp.style.color=c2;f.append(sp);}else addNames(f,x.t);});return f;};
+  const narSpan=t=>{const nr=el("span","nar");let ctx="";splitQ(t).map(x=>x.t).forEach(q=>{if(!q)return;
       if(/^(«|“|„|")/.test(q)){const who=firstName(ctx)||(heroSaid(q)?FMT.hero:main);const sp=el("span","say echo");addNames(sp,q);const c2=who?nameColor(who):"";if(c2)sp.style.color=c2;nr.append(sp);ctx="";}
       else{addNames(nr,q);ctx+=q;}});return nr;};
   const names=((FMT&&FMT.names)||[]).slice().sort((a,b)=>b.length-a.length);
@@ -1011,7 +1031,7 @@ function fmt(e,text,opt){
   const lastName=t=>{const low=t.toLowerCase();let best=null,pos=-1;names.forEach(n=>{const i=low.lastIndexOf(stem(n));if(i>pos){pos=i;best=n;}});return best;};
   const firstName=t=>{const low=t.toLowerCase();let best=null,pos=1e9;names.forEach(n=>{const i=low.indexOf(stem(n));if(i>=0&&i<pos){pos=i;best=n;}});return best;};
   let sinceQ="",lastWho=null;
-  const quotes=(part,col)=>{const bits=part.split(/(«[^»]*»|“[^”]*”|„[^“”]*[“”]|"[^"\n]*")/g);
+  const quotes=(part,col)=>{const bits=splitQ(part).map(x=>x.t);
     bits.forEach((q,k)=>{if(!q)return;if(/^(«|“|„|")/.test(q)){
         // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
         const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||firstName(sinceQ)||lastWho;
