@@ -852,7 +852,7 @@ function fixAll(){S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld()
 // Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
 const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
-async function startOver(w){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
+async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
   if(!confirm("Создать параллельный мир «"+nm+"»?\n\nВсе персонажи и хроника начнутся с самого начала — никто ничего не помнит. Этот мир останется как есть, между ними можно переключаться."))return;
   let ref=null;if(CLEAN_PRESETS[bn]){try{const r=await fetch(CLEAN_PRESETS[bn],{cache:"no-store"});if(r.ok)ref=await r.json();}catch(e){}}
   const sameName=(a,b)=>{a=String(a||"").toLowerCase().trim();b=String(b||"").toLowerCase().trim();return !!a&&!!b&&(a===b||(Math.min(a.length,b.length)>=4&&(a.startsWith(b)||b.startsWith(a))));};
@@ -864,7 +864,10 @@ async function startOver(w){const bn=baseWorldName(w.name);let n=2;while(S.world
       o.log=[];o.chats=[];o.activeChat="";delete o.base;return o;});
   const wo=JSON.parse(JSON.stringify(w));const wb=rw?{events:rw.events||[],date:rw.date||""}:w.base;wo.events=wb?JSON.parse(JSON.stringify(wb.events)):[];if(wb)wo.date=wb.date;wo.chapters=[];delete wo.base;
   const d={kind:"world",worlds:[wo],chars:cs,scenes:[]};
-  d.kind="world";d.worlds[0].name=nm;await importFile(new Blob([JSON.stringify(d)]));}
+  d.kind="world";d.worlds[0].name=nm;await importFile(new Blob([JSON.stringify(d)]));
+  if(openChar){const nw=S.worlds.find(x=>x.name===nm);const nc=nw&&S.chars.find(x=>x.worldId===nw.id&&x.name===openChar);if(nc){stack.length=0;go({v:"home"},true);go({v:"chat",id:nc.id});}}}
+// «+ Новый разговор»: спросить — просто новый разговор (память общая) или новый мир с нуля
+function newChatAsk(c,plain){sheet([["Просто новый разговор — "+c.name+" всё помнит",plain],["Новый мир с нуля — никто ничего не помнит",()=>{const w=W(c.worldId);if(w)startOver(w,c.name);}]]);}
 async function importFile(file,targetWorldId){
   let d;try{let t=(await file.text()).replace(/^﻿/,"").trim();if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать: это не файл приложения или он обрезан. Нужен файл .json, сохранённый через «Экспорт».");return;}
   const chars=[];let worlds=[],scenes=[],persona=null;
@@ -974,7 +977,7 @@ function renderProfile(){
   // действия
   const acts=el("div","row");acts.style.gap="8px";
   const go1=el("button","btn primary","Написать");go1.onclick=()=>go({v:"chat",id:c.id});
-  const nc=el("button","btn","+ Новый разговор");nc.onclick=()=>{const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();go({v:"chat",id:c.id});};
+  const nc=el("button","btn","+ Новый разговор");nc.onclick=()=>newChatAsk(c,()=>{const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();go({v:"chat",id:c.id});});
   const ed=el("button","btn","Изменить");ed.onclick=()=>go({v:"charEdit",id:c.id});
   const ai=el("button","btn","Экспорт");ai.onclick=()=>exportChar(c);
   const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});
@@ -1545,8 +1548,8 @@ function renderChat(){
       const dl=el("button","btn ghost sm warn","✕");dl.onclick=e=>{e.stopPropagation();if(c.chats.length<2){alert("Это единственный разговор. Создай новый, потом удаляй.");return;}if(!confirm("Удалить разговор «"+x.title+"»? Память и состояние персонажа останутся."))return;c.chats=c.chats.filter(y=>y.id!==x.id);if(c.activeChat===x.id)c.activeChat=c.chats[c.chats.length-1].id;save();render();};
       it.append(rn,dl);it.onclick=()=>{if(busy)return;c.activeChat=x.id;editIdx=-1;lastErr="";save();render();};cl2.append(it);});
     aside.append(cl2);
-    const nc=el("button","btn sm primary","+ Новый разговор");nc.onclick=()=>{if(busy)return;const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();render();};aside.append(nc);
-    aside.append(el("p","note","Новый разговор начинается с чистого листа, но персонаж остаётся тем же: память, состояние и доверие общие для всех разговоров. Нужна история с нуля, где никто ничего не помнит, — открой мир и нажми «⟲ Начать заново»."));
+    const nc=el("button","btn sm primary","+ Новый разговор");nc.onclick=()=>{if(busy)return;newChatAsk(c,()=>{const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();render();});};aside.append(nc);
+    aside.append(el("p","note","Новый разговор начинается с чистого листа, но персонаж остаётся тем же: память, состояние и доверие общие для всех разговоров. При создании можно выбрать «Новый мир с нуля» — там никто ничего не помнит."));
   }
   async function run(){
     busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
