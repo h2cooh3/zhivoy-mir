@@ -441,10 +441,12 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
 }
 // Продолжить ответ ровно с места обрыва. У Claude — «дописывание» прямо в сообщение ассистента, у остальных — просьбой.
 const CONT_ASK="[Твой прошлый ответ оборвался на полуслове. Продолжи ровно с того места, где он оборвался: без повторов, без вступлений, без кавычек вокруг. Начни с продолжения последнего слова или фразы.]";
+// ответ оборван, даже если сервер не сказал «лимит»: кончается посреди слова или без знака конца
+const looksCut=t=>{t=String(t||"").replace(/\s+$/,"");if(t.length<40)return false;return !/[.!?…»”"*)\]—–]$/.test(t);};
 function glue(a,b){a=String(a);b=String(b||"").replace(/^\s*\[[^\]]*\]\s*/,"");if(!b)return a;if(/\s$/.test(a)||/^[\s,.!?…»”:;)]/.test(b))return a+b;if(/[А-Яа-яЁёA-Za-z-]$/.test(a)&&/^[а-яёa-z]/.test(b))return a+b;return a+" "+b;}
 async function continueReply(base,partial,onText,maxRounds){let text=partial;for(let k=0;k<(maxRounds||2);k++){
   const ant=S.api.provider==="anthropic";const tail=ant?[{role:"assistant",content:text.replace(/\s+$/,"")}]:[{role:"assistant",content:text},{role:"user",content:CONT_ASK}];
-  const more=await callModel(Object.assign({},base,{msgs:[...base.msgs,...tail],onText:t=>onText&&onText(glue(text,t))}));text=glue(text,more);if(lastStop!=="length")break;}
+  const more=await callModel(Object.assign({},base,{msgs:[...base.msgs,...tail],onText:t=>onText&&onText(glue(text,t))}));text=glue(text,more);if(lastStop!=="length"&&!looksCut(text))break;}
   return text;}
 function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();const a=t.indexOf("{");if(a<0)throw new Error("Модель вернула не JSON");
   const tryP=x=>{try{return JSON.parse(x);}catch(e){return undefined;}};
@@ -1490,7 +1492,7 @@ function renderChat(){
       const lastUser=[...c.history].reverse().find(m=>m.role==="user");
       if(dramaDue(c,c.history)){toast("Драматург думает…");try{const d=await dramaForChat(c);toast(dramaStr(d));}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
-      let text=await callModel(base);if(lastStop==="length"){toast("Ответ упёрся в лимит — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}
+      let text=await callModel(base);if(lastStop==="length"||looksCut(text)){toast("Ответ оборвался — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
@@ -1556,7 +1558,7 @@ function renderScene(){
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=x.history.slice(x.sumIdx);const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?"[Герой молчит и наблюдает. Продолжай сцену.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]"});
       const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,2000),purpose:"scene",cacheMsgs:true};
-      let text=await callModel(base);if(lastStop==="length"){toast("Ответ упёрся в лимит — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
+      let text=await callModel(base);if(lastStop==="length"||looksCut(text)){toast("Ответ оборвался — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
