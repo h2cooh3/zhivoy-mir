@@ -993,7 +993,10 @@ function fmt(e,text,opt){
   String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
-    if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];}}
+    let labeled=false;
+    if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];labeled=true;}}
+    // «Имя: текст» без кавычек и без тире — весь текст после имени и есть его слова (кроме *описаний*)
+    if(labeled&&!/[«“„"]/.test(rest)&&!/^\s*([—–]|-\s)/.test(rest)){rest.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p))e.append(el("span","nar",p.slice(1,-1)));else e.append(say(p,col));});return;}
     // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
     const d=rest.match(/^(\s*)([—–]|-(?=\s))\s*(.*)$/);
     if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;
