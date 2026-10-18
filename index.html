@@ -240,7 +240,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="text" spellcheck="false" autocorrect="off" id="cheap">
     </label>
     <div class="row">
-      <label style="flex:1">Температура <span class="hint">Только для OpenAI и старых моделей; Claude 5.5 её не использует</span><input type="number" id="temp" min="0" max="1" step="0.1"></label>
+      <label style="flex:1">Температура <span class="hint">Для Kimi, DeepSeek, OpenAI (Kimi: 0.6–0.9); Claude 5.5 её не использует</span><input type="number" id="temp" min="0" max="1" step="0.1"></label>
       <label style="flex:1">Длина ответа, токенов <input type="number" id="maxtok" min="100" step="100"></label>
     </div>
     <label>Объём контекста, символов <span class="hint">Сколько последних сообщений модель видит дословно; старое сжимается в краткое содержание, детали уходят в картотеку</span>
@@ -382,7 +382,7 @@ const K=()=>S.api.eco?{facts:30,events:6,recent:10,keep:10,helperChat:1500,helpe
 function addUsage(u,purpose,model){if(!u)return;const pr=priceFor(model)||[parseFloat(S.api.pIn),parseFloat(S.api.pCache),parseFloat(S.api.pOut)];if(pr[0]>=0&&pr[2]>=0){const pc=pr[1]>=0?pr[1]:pr[0]/10;u.usd=((u.inp||0)*pr[0]+(u.cacheR||0)*pc+(u.cacheW||0)*pr[0]*1.25+(u.out||0)*pr[2])/1e6;}const g=S.usage;g.usd=(g.usd||0)+(u.usd||0);g.calls++;g.inp+=u.inp||0;g.cacheR+=u.cacheR||0;g.cacheW+=u.cacheW||0;g.out+=u.out||0;const b=g.by[purpose]=g.by[purpose]||{calls:0,inp:0,cacheR:0,cacheW:0,out:0};b.usd=(b.usd||0)+(u.usd||0);b.calls++;b.inp+=u.inp||0;b.cacheR+=u.cacheR||0;b.cacheW+=u.cacheW||0;b.out+=u.out||0;lastUsage=u;save();}
 let lastUsage=null;
 function cost(u){if(u&&u.usd!=null)return u.usd;const pi=parseFloat(S.api.pIn),pc=parseFloat(S.api.pCache),po=parseFloat(S.api.pOut);if(!(pi>=0)||!(po>=0))return null;const pcv=pc>=0?pc:pi/10;return ((u.inp||0)*pi+(u.cacheR||0)*pcv+(u.cacheW||0)*pi*1.25+(u.out||0)*po)/1e6;}
-function priceFor(model){const m=String(model||"");if(/haiku-5-5/.test(m))return [0.10,0.01,0.50];if(/sonnet-5-5/.test(m))return [2,0.10,10];if(/opus-5-5/.test(m))return [4,0.20,20];return null;}
+function priceFor(model){const m=String(model||"");if(/kimi-k2\.6/.test(m))return [0.95,0.16,4];if(/kimi-k2\.5/.test(m))return [0.60,0.10,3];if(/kimi-k3/.test(m))return [3,0.30,15];if(/deepseek.*flash/i.test(m))return [0.15,0.003,0.60];if(/haiku-5-5/.test(m))return [0.10,0.01,0.50];if(/sonnet-5-5/.test(m))return [2,0.10,10];if(/opus-5-5/.test(m))return [4,0.20,20];return null;}
 function usageStr(u){if(!u)return "";const c=cost(u);return "токены: "+((u.inp||0)+(u.cacheR||0)+(u.cacheW||0))+" вход ("+(u.cacheR||0)+" из кэша) + "+(u.out||0)+" выход"+(c!=null?" ≈ $"+c.toFixed(4):"");}
 // ============ API ============
 let busy=false,ctl=null;
@@ -398,7 +398,7 @@ async function errorText(res){let t="";try{t=await res.text();const j=JSON.parse
 function normalize(msgs){const out=[];msgs.forEach(m=>{const l=out[out.length-1];if(l&&l.role===m.role)l.content+="\n\n"+m.content;else out.push({role:m.role,content:m.content});});
   if(!out.length||out[0].role!=="user")out.unshift({role:"user",content:"[Начало]"});return out;}
 // stable — кэшируемая часть (мир, характер), dynamic — меняющаяся (состояние, память)
-async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false}){
+async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false}){
   const A=S.api;if(!A.key)throw new Error("Нет API-ключа — открой «Настройки».");
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
   msgs=normalize(msgs);const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
@@ -413,8 +413,14 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
     addUsage(U,purpose,model);return out;
   }
   const base=(A.base.trim()||"https://api.openai.com/v1").replace(/\/+$/,"");
-  const system=[stable,dynamic].filter(Boolean).join("\n\n");const all=system?[{role:"system",content:system},...msgs]:msgs;
-  const res=await fetch(base+"/chat/completions",{method:"POST",signal,headers:{"content-type":"application/json","authorization":"Bearer "+A.key},body:JSON.stringify(Object.assign({model,temperature:+A.temp,max_tokens:mt,stream,messages:all},stream?{stream_options:{include_usage:true}}:{}))});
+  // Порядок для автоматического кэша (Kimi, DeepSeek, OpenAI): неизменное — в начало, меняющееся — в конец,
+  // чтобы мир, карточка и вся прошлая переписка совпадали с прошлым запросом и читались со скидкой.
+  let all=[];if(stable)all.push({role:"system",content:stable});
+  if(dynamic&&msgs.length>0){all.push(...msgs.slice(0,-1));all.push({role:"system",content:dynamic});all.push(msgs[msgs.length-1]);}
+  else{if(dynamic)all.push({role:"system",content:dynamic});all.push(...msgs);}
+  const isKimi=/moonshot|kimi\.ai/.test(base)||/^kimi/i.test(model);
+  const body=Object.assign({model,temperature:+A.temp,stream,messages:all},isKimi?{max_completion_tokens:mt,thinking:{type:"disabled"}}:{max_tokens:mt},stream?{stream_options:{include_usage:true}}:{},json?{response_format:{type:"json_object"}}:{});
+  const res=await fetch(base+"/chat/completions",{method:"POST",signal,headers:{"content-type":"application/json","authorization":"Bearer "+A.key},body:JSON.stringify(body)});
   if(!res.ok)throw new Error(await errorText(res));
   if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";}
   let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
@@ -432,10 +438,10 @@ function parseJSON(t){t=String(t||"").trim();t=t.replace(/^```(?:json)?/i,"").re
   const r=tryP(x);if(r!==undefined)return r;
   throw new Error("Модель вернула не JSON (ответ обрезан или с лишним текстом)");}
 async function askJSON(prompt,maxTokens,purpose){const mt=Math.max(maxTokens||2500,3500);const msgs=[{role:"user",content:prompt+"\n\nОтветь ТОЛЬКО валидным JSON без пояснений и без markdown. Строки короткие; если не хватает места — сокращай, но JSON должен быть закрыт."}];
-  const t=await callModel({msgs,maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});
+  const t=await callModel({msgs,maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director",json:true});
   try{return parseJSON(t);}catch(e){
     // повтор: показываем модели её же ответ и просим починить
-    const t2=await callModel({msgs:[...msgs,{role:"assistant",content:String(t).slice(0,6000)},{role:"user",content:"Этот ответ не разобрался как JSON (обрезан или с лишним текстом). Верни тот же смысл строго валидным JSON, вдвое короче, без единого слова вне JSON."}],maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director"});
+    const t2=await callModel({msgs:[...msgs,{role:"assistant",content:String(t).slice(0,6000)},{role:"user",content:"Этот ответ не разобрался как JSON (обрезан или с лишним текстом). Верни тот же смысл строго валидным JSON, вдвое короче, без единого слова вне JSON."}],maxTokens:mt,cheap:true,signal:ctl&&ctl.signal,purpose:purpose||"director",json:true});
     return parseJSON(t2);}}
 const friendly=e=>{if(!e)return "";if(e.name==="AbortError")return "";if(e.message==="Failed to fetch")return "Нет соединения с API (сеть, адрес или блокировка браузера).";return e.message||"Ошибка";};
 
