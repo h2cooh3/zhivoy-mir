@@ -314,7 +314,7 @@ const DEF_MODEL={anthropic:"claude-sonnet-5-5",openai:""};
 const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
-const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:2,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
+const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
   persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
@@ -403,8 +403,12 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
   msgs=normalize(msgs);const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
   if(A.provider==="anthropic"){
-    const sys=[];if(stable)sys.push({type:"text",text:stable,cache_control:{type:"ephemeral"}});if(dynamic)sys.push({type:"text",text:dynamic});
-    if(cacheMsgs&&msgs.length>1){const i=msgs.length-2;msgs=msgs.map((m,j)=>j===i?{role:m.role,content:[{type:"text",text:m.content,cache_control:{type:"ephemeral"}}]}:m);}
+    // В system — только неизменное. Меняющийся контекст (факты, настроение, драматург) кладём в начало последнего
+    // сообщения: тогда мир, карточка и вся прошлая переписка совпадают с прошлым ходом и читаются из кэша (10% цены).
+    const sys=[];if(stable)sys.push({type:"text",text:stable,cache_control:{type:"ephemeral"}});
+    const lastI=msgs.length-1;let dynInMsg=false;
+    if(dynamic&&lastI>=0&&msgs[lastI].role==="user"){dynInMsg=true;}else if(dynamic)sys.push({type:"text",text:dynamic});
+    msgs=msgs.map((m,j)=>{if(j===lastI&&dynInMsg)return {role:m.role,content:[{type:"text",text:"[СЛУЖЕБНЫЙ КОНТЕКСТ — не слова собеседника, не отвечай на него напрямую]\n"+dynamic},{type:"text",text:"[СООБЩЕНИЕ СОБЕСЕДНИКА]\n"+m.content}]};if(cacheMsgs&&j===lastI-1)return {role:m.role,content:[{type:"text",text:m.content,cache_control:{type:"ephemeral"}}]};return m;});
     const body={model,max_tokens:mt,stream,messages:msgs};if(sys.length)body.system=sys;if(!/-5-5|-5$|fable|mythos/.test(model))body.temperature=+A.temp;
     const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{"content-type":"application/json","x-api-key":A.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
     if(!res.ok)throw new Error(await errorText(res));
@@ -454,7 +458,11 @@ function stateBlock(c){const st=c.state,p=[];if(st.mood)p.push("Настроен
   const rel=Object.entries(st.relations||{}).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:null;}).filter(Boolean);if(rel.length)p.push("Отношения с другими: "+rel.join(" | "));if(st.secrets)p.push("Скрывает: "+st.secrets);return p.length?"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖА (это он сейчас, учитывай сильнее базового описания):\n"+p.join("\n"):"";}
 const TRUST=["−10 — ненависть, хочет навредить","−9 — враг, ждёт случая отомстить","−8 — глубокая обида, презрение","−7 — враждебность, не скрывает","−6 — сильное недоверие, считает опасным","−5 — недоверие, ждёт подвоха","−4 — настороженность, держится подальше","−3 — холодность, неприязнь","−2 — скептицизм, не верит словам","−1 — лёгкое недоверие","0 — нейтрально, чужой человек","1 — присматривается без враждебности","2 — осторожный интерес","3 — начальное расположение, но проверяет","4 — доверяет в мелочах","5 — доверяет, но хранит главные тайны","6 — симпатия, делится личным","7 — близость, доверяет важное","8 — глубокая привязанность","9 — почти безусловное доверие","10 — полное доверие, пойдёт за тобой"];
 const trustWord=t=>TRUST[Math.max(0,Math.min(20,Math.round(+t||0)+10))];
-function factsBlock(c,n){const f=(c.facts||[]).slice(-(n||K().facts));return f.length?"ПАМЯТЬ ПЕРСОНАЖА — факты, которые он точно помнит:\n"+f.map(x=>"- "+x).join("\n"):"";}
+function factsBlock(c,n,query){const all=c.facts||[];const lim=n||Math.min(30,K().facts);let f;
+  if(all.length<=lim)f=all;else{const recent=all.slice(-Math.ceil(lim/2));const words=(query||"").toLowerCase().match(/[a-zа-яё0-9]{4,}/g)||[];
+    const rest=all.slice(0,-recent.length).map((t,i)=>{const lt=t.toLowerCase();let sc=0;words.forEach(w=>{if(lt.includes(w.slice(0,Math.max(4,w.length-2))))sc++;});return {t,i,sc};}).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc||b.i-a.i).slice(0,lim-recent.length).sort((a,b)=>a.i-b.i).map(x=>x.t);
+    f=[...rest,...recent];}
+  return f.length?"ПАМЯТЬ ПЕРСОНАЖА — факты, которые он точно помнит (самые свежие и относящиеся к теме):\n"+f.map(x=>"- "+x).join("\n"):"";}
 function recall(c,query){const old=c.history.slice(0,c.sumIdx);if(!old.length)return "";const words=(query||"").toLowerCase().match(/[a-zа-яёa-z0-9]{4,}/g)||[];if(!words.length)return "";
   const sc=old.map((m,i)=>{const t=m.content.toLowerCase();let s=0;words.forEach(w=>{if(t.includes(w))s++;});return {i,s};}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,3);
   if(!sc.length)return "";const pick=new Set();sc.forEach(x=>{pick.add(x.i);if(x.i>0)pick.add(x.i-1);});
@@ -468,7 +476,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
 function dramaBlock(d){if(!d||!d.direction)return "";const p=["УКАЗАНИЯ РЕЖИССЁРА (скрыты от игрока; выполняй через поведение и подтекст, не объявляй):","Напряжение: "+(d.tension||5)+"/10, фаза: "+(d.beat||"—")+".",d.direction];if(d.event)p.push("Происшествие вокруг: "+d.event);if(d.cue)p.push(d.cue);return p.join("\n");}
-function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama)].filter(Boolean).join("\n\n");}
+function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama)].filter(Boolean).join("\n\n");}
 function charBrief(c){const st=c.state;return "• "+c.name+(c.short?" — "+c.short:"")+"\n  Основа: "+c.core.slice(0,600).replace(/\s+/g," ")+(st.now?"\n  Сейчас: "+st.now:"")+(st.mood?"\n  Настроение: "+st.mood:"")+(st.goals&&st.goals.length?"\n  Цели: "+st.goals.join("; "):"")+(st.relUser?"\n  К герою: "+st.relUser+" (доверие "+(st.trust??0)+", от −10 до 10)":"")+(st.arc?"\n  История с героем: "+st.arc:"")+
   (Object.keys(st.relations||{}).length?"\n  Отношения: "+Object.entries(st.relations).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:"";}).filter(Boolean).join(" | "):"")+(st.secrets?"\n  Скрывает: "+st.secrets:"");}
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldBlock(w),"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
@@ -497,7 +505,7 @@ ${kind==="chat"?"ЭТО РАЗГОВОР ОДИН НА ОДИН с «"+anchor.na
 ${cast.map(brief).join("\n")}
 
 МОГУТ ПОЯВИТЬСЯ (живут своей жизнью где-то рядом; вводи только с мотивом — цель, время дня, слух, случай):
-${others.map(brief).join("\n")||"никого"}
+${others.slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,10).map(o=>"• "+o.name+(o.short?" — "+o.short.slice(0,140):"")+(o.state.now?" Сейчас: "+o.state.now.slice(0,160):"")).join("\n")||"никого"}
 
 ${summary?"ЧТО БЫЛО РАНЬШЕ:\n"+summary+"\n":""}
 ПОСЛЕДНИЕ ХОДЫ:
