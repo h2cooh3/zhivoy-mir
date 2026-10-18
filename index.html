@@ -246,6 +246,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <label>Объём контекста, символов <span class="hint">Сколько последних сообщений модель видит дословно; старое сжимается в краткое содержание, детали уходят в картотеку</span>
       <input type="number" id="budget" min="5000" step="5000">
     </label>
+    <label>Длина ответов персонажей <span class="hint">Коротко — живая игра, сразу можно ответить. Подробно — как книга.</span>
+      <select id="replyLen"><option value="short">Коротко (1–2 абзаца)</option><option value="medium">Средне (2–3 абзаца)</option><option value="long">Подробно, как книга</option></select></label>
     <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
     <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
       <input type="number" id="drama" min="0" step="1"></label>
@@ -316,7 +318,7 @@ const DEF_MODEL={anthropic:"claude-sonnet-5-5",openai:""};
 const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
-const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
+const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
   persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
@@ -369,7 +371,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
@@ -474,6 +476,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
   "ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ (основа, не меняется):\n"+fill(c.core,w,c),
   c.examples.trim()?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
   guestsBlock(c),
+  lenRule(),
   "ПРАВИЛА: Оставайся в роли, говори и действуй только за "+c.name+(guestsOf(c).length?" и за присутствующих рядом персонажей (их реплики — с именем: «Имя: …»; "+c.name+" остаётся главным голосом)":"")+". Никогда не пиши реплики, мысли и действия за собеседника. Действия и описания — в *звёздочках*. Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
@@ -484,8 +487,17 @@ function charBrief(c){const st=c.state;return "• "+c.name+(c.short?" — "+c.s
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldBlock(w),"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
+  sceneLenRule(),
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*, реплики с именем говорящего («Бакыт: …»). Никогда не пиши реплики, мысли и действия за "+heroName(w)+" — это пользователь. Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
 function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama)].filter(Boolean).join("\n\n");}
+
+// ============ ДЛИНА ОТВЕТОВ ============
+const LEN_RULE={
+ short:"ДЛИНА ХОДА: коротко — 40–120 слов, 1–2 небольших абзаца. Одно действие и одна-две реплики. Остановись в момент, когда собеседник может ответить или вмешаться. Не проживай за один ход несколько событий, не забегай вперёд, не пересказывай чувства длинно — покажи одной деталью.",
+ medium:"ДЛИНА ХОДА: средне — 120–250 слов, 2–3 абзаца. Несколько действий и реплик, но заканчивай там, где собеседнику есть на что ответить.",
+ long:"ДЛИНА ХОДА: подробно, как в книге — до 400 слов, развёрнутые описания и внутренние движения. Всё равно не решай за собеседника и не уходи далеко вперёд по времени."};
+const SCENE_LEN={short:"ДЛИНА ХОДА: коротко — 60–180 слов. Один-два персонажа говорят или действуют, остальные молчат. Остановись там, где герой может вмешаться.",medium:LEN_RULE.medium.replace("120–250","150–300"),long:LEN_RULE.long};
+const lenRule=()=>LEN_RULE[S.api.len]||LEN_RULE.short, sceneLenRule=()=>SCENE_LEN[S.api.len]||SCENE_LEN.short;
 
 // ============ ДРАМАТУРГ ============
 function dramaEvery(){const v=parseInt(S.api.drama);return isNaN(v)?2:v;}
@@ -767,7 +779,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
   S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
-const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","eco","pIn","pCache","pOut"];
+const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","eco","pIn","pCache","pOut"];
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
 function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
@@ -1460,7 +1472,7 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";}
-function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
+function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
@@ -1481,6 +1493,7 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
   keyStatus("✓ Ключ сохранён. Проверяю…");
   try{ctl=new AbortController();await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal,purpose:"test"});keyStatus("✓ Ключ сохранён и работает");}
   catch(e){keyStatus("Ключ сохранён, но не работает: "+friendly(e),true);}finally{ctl=null;}};
+$("replyLen").addEventListener("change",()=>{S.api.len=$("replyLen").value;save();});
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
   const c=apiCfg();if(withKey)c.key=S.api.key;const code="ZMCFG:"+btoa(unescape(encodeURIComponent(JSON.stringify(c))));
