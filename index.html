@@ -251,6 +251,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="number" id="drama" min="0" step="1"></label>
     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="eco" style="width:auto"> Режим экономии <span class="hint">— короче ответы, меньше памяти в запросе, лёгкий соавтор. Примерно вдвое дешевле.</span></label>
 
+    <div class="row"><button class="btn sm" id="cfgShare" type="button">Поделиться настройками</button><button class="btn sm" id="cfgPaste" type="button">Вставить настройки</button></div>
+    <p class="note">Провайдер, модель, адрес, цены, драматург — одной строкой, чтобы перенести на другое устройство или отдать другу. Ключ — только если сам выберешь. Настройки модели также ездят с синхронизацией GitHub (без ключа).</p>
     <h2>Расход</h2>
     <div class="kv" id="usageBox"></div>
     <div class="row">
@@ -744,7 +746,7 @@ async function genWorld(w){
 
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
-const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
+const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
 async function gh(path,method,body){const r=await fetch(GH+path,{method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
 let pushT=null,pushing=false,pushAgain=false;
@@ -763,8 +765,11 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if(!force&&remoteStamp<=S.sync.pulled)return false; // ничего нового
   const localChanged=S.stamp>S.sync.pulled;
   if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
-  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}
+  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
+const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","eco","pIn","pCache","pOut"];
+const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
+function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
 function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.pulled?new Date(S.sync.pulled).toLocaleString("ru"):"ещё не было"):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
 async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus("Вставь токен GitHub",true);return;}S.sync.token=t;S.sync.on=true;syncStatus("Проверяю…");
@@ -1477,6 +1482,11 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
   try{ctl=new AbortController();await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal,purpose:"test"});keyStatus("✓ Ключ сохранён и работает");}
   catch(e){keyStatus("Ключ сохранён, но не работает: "+friendly(e),true);}finally{ctl=null;}};
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
+$("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
+  const c=apiCfg();if(withKey)c.key=S.api.key;const code="ZMCFG:"+btoa(unescape(encodeURIComponent(JSON.stringify(c))));
+  try{await navigator.clipboard.writeText(code);toast("Настройки скопированы"+(withKey?" вместе с ключом":"")+". Отправь строку и вставь её кнопкой «Вставить настройки».");}catch(e){prompt("Скопируй строку:",code);}};
+$("cfgPaste").onclick=async()=>{let t="";try{t=await navigator.clipboard.readText();}catch(e){}if(!/^ZMCFG:/.test(t||""))t=prompt("Вставь строку настроек (начинается с ZMCFG:)","")||"";t=t.trim();if(!t)return;
+  try{const c=JSON.parse(decodeURIComponent(escape(atob(t.replace(/^ZMCFG:/,"")))));applyCfg(c);save();fillSettings();keyStatus(c.key?"✓ Настройки и ключ вставлены. Нажми «Сохранить ключ», чтобы проверить.":"✓ Настройки вставлены. Ключ остался прежний.");}catch(e){alert("Не получилось прочитать строку настроек.");}};
 $("usageReset").onclick=()=>{if(!confirm("Обнулить счётчик расхода?"))return;S.usage={calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}};save();drawUsage();};
 const PURPOSE={ai:"ИИ-чат",test:"Проверка ключа",chat:"Разговоры",scene:"Сцены",director:"Режиссёр",time:"Ход времени",memory:"Память (сжатие)",story:"Главы",helper:"Соавтор",generate:"Генерация"};
 function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const tot=g.usd!=null&&g.calls?g.usd:cost(g);const tin=g.inp+g.cacheR+g.cacheW;
