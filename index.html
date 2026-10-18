@@ -229,7 +229,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       </select>
     </label>
     <label id="baseWrap">Адрес API <span class="hint">OpenAI: https://api.openai.com/v1 · OpenRouter: https://openrouter.ai/api/v1</span>
-      <input type="text" spellcheck="false" autocorrect="off" id="base" placeholder="https://api.openai.com/v1">
+      <input type="text" spellcheck="false" autocorrect="off" id="base" placeholder="пусто = по модели: kimi → Moonshot, deepseek → DeepSeek, иначе OpenAI">
     </label>
     <label>API-ключ
       <div class="row" style="flex-wrap:nowrap"><input type="password" id="key" autocomplete="off" placeholder="sk-..." style="flex:1"><button class="btn" id="keyEye" type="button" title="Показать / скрыть">👁</button></div>
@@ -412,7 +412,8 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
     let out="";for await(const ev of sse(res)){if(ev.type==="message_start"&&ev.message)take(ev.message.usage);if(ev.type==="message_delta"&&ev.usage)take(ev.usage);if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text){out+=ev.delta.text;onText(out);}if(ev.type==="error")throw new Error(ev.error&&ev.error.message||"Ошибка потока");}
     addUsage(U,purpose,model);return out;
   }
-  const base=(A.base.trim()||"https://api.openai.com/v1").replace(/\/+$/,"");
+  const autoBase=/^kimi|^moonshot/i.test(model)?"https://api.moonshot.ai/v1":/^deepseek-/i.test(model)?"https://api.deepseek.com":/\//.test(model)?"https://openrouter.ai/api/v1":"https://api.openai.com/v1";
+  const base=(A.base.trim()||autoBase).replace(/\/+$/,"").replace(/\/chat\/completions$/,"");
   // Порядок для автоматического кэша (Kimi, DeepSeek, OpenAI): неизменное — в начало, меняющееся — в конец,
   // чтобы мир, карточка и вся прошлая переписка совпадали с прошлым запросом и читались со скидкой.
   let all=[];if(stable)all.push({role:"system",content:stable});
@@ -421,7 +422,7 @@ async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false
   const isKimi=/moonshot|kimi\.ai/.test(base)||/^kimi/i.test(model);
   const body=Object.assign({model,temperature:+A.temp,stream,messages:all},isKimi?{max_completion_tokens:mt,thinking:{type:"disabled"}}:{max_tokens:mt},stream?{stream_options:{include_usage:true}}:{},json?{response_format:{type:"json_object"}}:{});
   const res=await fetch(base+"/chat/completions",{method:"POST",signal,headers:{"content-type":"application/json","authorization":"Bearer "+A.key},body:JSON.stringify(body)});
-  if(!res.ok)throw new Error(await errorText(res));
+  if(!res.ok){const host=base.replace(/^https?:\/\//,"").split("/")[0];throw new Error((res.status===401?"Ключ не подошёл ("+host+"). Проверь, что ключ от этого сервиса и адрес в настройках верный. ":"["+host+"] ")+await errorText(res));}
   if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";}
   let out="";for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const d=ev.choices&&ev.choices[0]&&ev.choices[0].delta&&ev.choices[0].delta.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
   addUsage(U,purpose,model);return out;
