@@ -16,19 +16,19 @@
 /* тёмная тема по умолчанию */
 :root{
   --bg:#111316; --panel:#1B1E22; --panel2:#22262B; --ink:#E8E7E3; --muted:#949AA3; --line:#2F343A;
-  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; --speech:#8FC6FF;
+  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; --speech:#8FC6FF; --sayL:74%;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --serif:Georgia,"Times New Roman",serif;
   box-sizing:border-box; color-scheme:dark;
 }
 :root[data-theme="light"]{
   --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8;
+  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%;
   color-scheme:light;
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="auto"]{
     --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8;
+    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%;
     color-scheme:light;
   }
 }
@@ -126,7 +126,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg .col{display:flex;flex-direction:column;gap:3px;max-width:86%;min-width:0}
 .msg .b{padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word;background:var(--panel);border:1px solid var(--line)}
 .msg .b .nar{color:var(--ink)}
-.msg .b .say{color:var(--speech);font-weight:500}
+.msg .b .say{color:var(--speech);font-weight:500}.msg .b .who-l{font-weight:700}
 .msg .b,.chapter,.item .x{user-select:text;-webkit-user-select:text}
 .msg.user{flex-direction:row-reverse}
 .msg.user .col{align-items:flex-end}
@@ -477,7 +477,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
   c.examples.trim()?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
   guestsBlock(c),
   lenRule(),
-  "ПРАВИЛА: Оставайся в роли, говори и действуй только за "+c.name+(guestsOf(c).length?" и за присутствующих рядом персонажей (их реплики — с именем: «Имя: …»; "+c.name+" остаётся главным голосом)":"")+". Никогда не пиши реплики, мысли и действия за собеседника. Действия и описания — в *звёздочках*. Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
+  "ПРАВИЛА: Оставайся в роли, говори и действуй только за "+c.name+(guestsOf(c).length?" и за присутствующих рядом персонажей (их реплики — с именем: «Имя: …»; "+c.name+" остаётся главным голосом)":"")+". Никогда не пиши реплики, мысли и действия за собеседника. Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+(guestsOf(c).length?"; реплики присутствующих — с новой строки: Имя: «текст»":"")+". Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
 function dramaBlock(d){if(!d||!d.direction)return "";const p=["УКАЗАНИЯ РЕЖИССЁРА (скрыты от игрока; выполняй через поведение и подтекст, не объявляй):","Напряжение: "+(d.tension||5)+"/10, фаза: "+(d.beat||"—")+".",d.direction];if(d.event)p.push("Происшествие вокруг: "+d.event);if(d.cue)p.push(d.cue);return p.join("\n");}
@@ -488,7 +488,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   sceneLenRule(),
-  "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*, реплики с именем говорящего («Бакыт: …»). Никогда не пиши реплики, мысли и действия за "+heroName(w)+" — это пользователь. Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
+  "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». Никогда не пиши реплики, мысли и действия за "+heroName(w)+" — это пользователь. Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
 function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama)].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
@@ -873,7 +873,7 @@ $("backBtn").onclick=back;
 $("editWorldBtn").onclick=()=>{if(route.v==="world")go({v:"worldEdit",id:route.id});};
 function render(){
   const v=$("view");v.innerHTML="";$("backBtn").hidden=["home","allChars","allChats"].includes(route.v);$("editWorldBtn").hidden=route.v!=="world";
-  ({home:renderHome,profile:renderProfile,assist:renderAssist,allChars:renderAllChars,allChats:renderAllChats,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
+  FMT=null;({home:renderHome,profile:renderProfile,assist:renderAssist,allChars:renderAllChars,allChats:renderAllChats,world:renderWorld,worldEdit:renderWorldEdit,charEdit:renderCharEdit,chat:renderChat,sceneEdit:renderSceneEdit,scene:renderScene})[route.v]();
   renderNav();
 }
 function curWorldId(){if(route.v==="world"||route.v==="worldEdit")return W(route.id)?route.id:S.lastWorld;if(route.v==="chat"){const c=C(route.id);return c?c.worldId:S.lastWorld;}if(route.v==="scene"||route.v==="sceneEdit"){const x=SC(route.id);return x?x.worldId:S.lastWorld;}if(route.v==="charEdit"){const c=route.draft||C(route.id);return c?c.worldId:S.lastWorld;}return S.lastWorld;}
@@ -980,12 +980,25 @@ function nearBottom(s){if(!s._fw){s._fw=1;s.addEventListener("scroll",()=>{s._fo
 function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true;}else s.scrollTop=st;}
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
-function fmt(e,text){
-  // *описание* — обычный текст; «реплика», “реплика”, "реплика" — голубым
-  String(text).split(/(\*[^*\n]+\*)/g).forEach(p=>{
-    if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));return;}
-    p.split(/(«[^»]*»|“[^”]*”|"[^"\n]*")/g).forEach(q=>{if(!q)return;if(/^(«|“|")/.test(q))e.append(el("span","say",q));else e.append(document.createTextNode(q));});
-  });
+let FMT=null; // {main:"Имя главного персонажа", names:[...]} — задаёт экран чата/сцены
+const HUES=[25,140,280,50,330,175,0,95,245,305,60,190];
+function nameColor(n){if(!n)return "";if(FMT&&FMT.main&&n.toLowerCase()===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";let h=0;for(const ch of n.toLowerCase())h=(h*31+ch.charCodeAt(0))>>>0;return "hsl("+HUES[h%HUES.length]+" 62% var(--sayL))";}
+function knownName(raw){const n=raw.replace(/\*+/g,"").trim();if(!n||n.length>28)return null;const list=(FMT&&FMT.names)||[];const low=n.toLowerCase();const hit=list.find(x=>x.toLowerCase()===low)||list.find(x=>low.startsWith(x.toLowerCase())||x.toLowerCase().startsWith(low));return hit||(/^[А-ЯЁA-Z][а-яёa-z\-]+( [А-ЯЁA-Z][а-яёa-z\-]+)?$/.test(n)&&list.length?null:null);}
+function fmt(e,text,opt){
+  // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
+  const main=opt&&opt.user?null:(FMT&&FMT.main)||null;
+  const say=(t,col)=>{const sp=el("span","say",t);if(col)sp.style.color=col;return sp;};
+  const quotes=(part,col)=>{part.split(/(«[^»]*»|“[^”]*”|„[^“”]*[“”]|"[^"\n]*")/g).forEach(q=>{if(!q)return;if(/^(«|“|„|")/.test(q))e.append(say(q,col));else e.append(document.createTextNode(q));});};
+  const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));return;}quotes(p,col);});};
+  String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));
+    let col=main?nameColor(main):"";let rest=line;
+    const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
+    if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];}}
+    // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
+    const d=rest.match(/^(\s*)([—–]|-(?=\s))\s*(.*)$/);
+    if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;
+      segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){e.append(document.createTextNode(sg));speech=!speech;return;}if(!sg)return;if(speech)e.append(say(sg,col));else plain(sg,col);});return;}
+    plain(rest,col);});
 }
 function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
   actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
@@ -1345,7 +1358,7 @@ function renderCharEdit(){
 // ---- ЧАТ С ПЕРСОНАЖЕМ
 let editIdx=-1,lastErr="";
 function renderChat(){
-  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
+  const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent=c.name;FMT={main:c.name,names:charsOf(c.worldId).map(x=>x.name)};S.lastChat={type:"chat",id:c.id};S.lastWorld=c.worldId;
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title="Профиль персонажа";mini.onclick=()=>go({v:"profile",id:c.id});const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);
@@ -1373,7 +1386,7 @@ function renderChat(){
         r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -1433,7 +1446,7 @@ function renderSceneEdit(){
 }
 // ---- ГРУППОВАЯ СЦЕНА
 function renderScene(){
-  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
+  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,names:charsOf(x.worldId).map(c=>c.name)};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.setup||""));
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");bar.append(who,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);
@@ -1445,7 +1458,7 @@ function renderScene(){
       if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Память персонажей, уже обновлённая режиссёром, не откатывается."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content);col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   function cutAfter(i){x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
