@@ -477,6 +477,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
   c.examples.trim()?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
   guestsBlock(c),
   lenRule(),
+  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Оставайся в роли, говори и действуй только за "+c.name+(guestsOf(c).length?" и за присутствующих рядом персонажей (их реплики — с именем: «Имя: …»; "+c.name+" остаётся главным голосом)":"")+". Никогда не пиши реплики, мысли и действия за собеседника. Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+(guestsOf(c).length?"; реплики присутствующих — с новой строки: Имя: «текст»":"")+". Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
@@ -488,6 +489,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   sceneLenRule(),
+  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». Никогда не пиши реплики, мысли и действия за "+heroName(w)+" — это пользователь. Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
 function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama)].filter(Boolean).join("\n\n");}
 
@@ -988,13 +990,23 @@ function fmt(e,text,opt){
   // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
   const main=opt&&opt.user?null:(FMT&&FMT.main)||null;
   const say=(t,col)=>{const sp=el("span","say",t);if(col)sp.style.color=col;return sp;};
-  const quotes=(part,col)=>{part.split(/(«[^»]*»|“[^”]*”|„[^“”]*[“”]|"[^"\n]*")/g).forEach(q=>{if(!q)return;if(/^(«|“|„|")/.test(q))e.append(say(q,col));else e.append(document.createTextNode(q));});};
-  const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));return;}quotes(p,col);});};
-  String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));
+  const names=((FMT&&FMT.names)||[]).slice().sort((a,b)=>b.length-a.length);
+  const stem=n=>n.toLowerCase().slice(0,Math.max(3,n.length-2)); // «Бесси», «Бесс», «Бессе»
+  const lastName=t=>{const low=t.toLowerCase();let best=null,pos=-1;names.forEach(n=>{const i=low.lastIndexOf(stem(n));if(i>pos){pos=i;best=n;}});return best;};
+  const firstName=t=>{const low=t.toLowerCase();let best=null,pos=1e9;names.forEach(n=>{const i=low.indexOf(stem(n));if(i>=0&&i<pos){pos=i;best=n;}});return best;};
+  let sinceQ="",lastWho=null;
+  const quotes=(part,col)=>{const bits=part.split(/(«[^»]*»|“[^”]*”|„[^“”]*[“”]|"[^"\n]*")/g);
+    bits.forEach((q,k)=>{if(!q)return;if(/^(«|“|„|")/.test(q)){
+        // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
+        const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||firstName(sinceQ)||lastWho;
+        if(who)lastWho=who;e.append(say(q,who?nameColor(who):col));sinceQ="";}
+      else{e.append(document.createTextNode(q));sinceQ+=q;}});};
+  const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(el("span","nar",p.slice(1,-1)));sinceQ+=p;return;}quotes(p,col);});};
+  String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));sinceQ="";lastWho=null;
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
-    if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];labeled=true;}}
+    if(m){const who=knownName(m[3]);if(who){col=nameColor(who);e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];labeled=true;lastWho=who;}}
     // «Имя: текст» без кавычек и без тире — весь текст после имени и есть его слова (кроме *описаний*)
     if(labeled&&!/[«“„"]/.test(rest)&&!/^\s*([—–]|-\s)/.test(rest)){rest.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p))e.append(el("span","nar",p.slice(1,-1)));else e.append(say(p,col));});return;}
     // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
