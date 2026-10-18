@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Живой мир</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#111316">
+<meta name="theme-color" content="#111316" id="themeColor">
+<meta name="color-scheme" content="dark light">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1610,7 +1611,7 @@ function renderScene(){
 }
 
 // ============ НАСТРОЙКИ ============
-function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";}
+function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";try{const bg=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#111316";const m=$("themeColor");if(m)m.setAttribute("content",bg);document.documentElement.style.background=bg;}catch(e){}}
 function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
