@@ -260,6 +260,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <select id="heroMode"><option value="strict">Только я (ИИ никогда не пишет за меня)</option><option value="auto">За меня, только когда я отправил «.»</option><option value="free">Свободно (мелкие действия можно)</option></select></label>
     <label>Оформление <span class="hint">Раздельно — каждая реплика с новой строки, как в сценарии. Книжно — сплошной прозой.</span>
       <select id="layout"><option value="split">Раздельно (реплики отдельными строками)</option><option value="book">Книжно (сплошной прозой)</option></select></label>
+    <label>Откровенность <span class="hint">Взрослая литература — страсть, близость, тело, насилие, грубая речь пишутся честно и без стыдливых обрывов, как в хорошем романе 18+, но без порнографии. Сдержанно — всё самое откровенное остаётся за кадром.</span>
+      <select id="frank"><option value="adult">Взрослая литература (18+)</option><option value="soft">Сдержанно</option></select></label>
     <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
     <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
       <input type="number" id="drama" min="0" step="1"></label>
@@ -330,7 +332,7 @@ const DEF_MODEL={anthropic:"claude-sonnet-5-5",openai:""};
 const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
-const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",layout:"split",hero:"strict",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
+const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",layout:"split",frank:"adult",hero:"strict",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
   persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
@@ -503,7 +505,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
   c.examples.trim()?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
   guestsBlock(c),
   lenRule(),
-  layoutRule(),
+  layoutRule(),frankRule(),
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Оставайся в роли, говори и действуй только за "+c.name+(guestsOf(c).length?" и за присутствующих рядом персонажей (их реплики — с именем: «Имя: …»; "+c.name+" остаётся главным голосом)":"")+". "+heroRule(w)+" Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+(guestsOf(c).length?"; реплики присутствующих — с новой строки: Имя: «текст»":"")+". Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
@@ -516,7 +518,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   sceneLenRule(),
-  layoutRule(),
+  layoutRule(),frankRule(),
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+heroRule(w)+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
 function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&isPass(lu.content)?passNote(w):"";})(),heroReminder(w)].filter(Boolean).join("\n\n");}
@@ -527,6 +529,11 @@ const LEN_RULE={
  medium:"ДЛИНА ХОДА: средне — 120–250 слов, 2–3 абзаца. Несколько действий и реплик, но заканчивай там, где собеседнику есть на что ответить.",
  long:"ДЛИНА ХОДА: подробно, как в книге — до 400 слов, развёрнутые описания и внутренние движения. Всё равно не решай за собеседника и не уходи далеко вперёд по времени."};
 const SCENE_LEN={short:"ДЛИНА ХОДА: коротко — 60–180 слов. Один-два персонажа говорят или действуют, остальные молчат. Остановись там, где герой может вмешаться.",medium:LEN_RULE.medium.replace("120–250","150–300"),long:LEN_RULE.long};
+// Откровенность: художественная свобода для взрослых персонажей
+const FRANK_RULE={
+ adult:"ОТКРОВЕННОСТЬ: это художественная проза для взрослых (18+). Не смягчай и не обрывай стыдливо: влечение, поцелуи, прикосновения, нагота, близость, страсть, ревность, жестокость, кровь, боль, грубая и бранная речь пишутся честно и телесно, как в сильном взрослом романе или кино с рейтингом R. Интимные сцены показывай через ощущения, тело, дыхание, чувства и последствия, без анатомической порнографии; на самом пике можно сделать монтажную склейку. Персонажи не морализируют и не читают нотаций, если это не в их характере. Жёсткое правило: никакого сексуального или романтически-телесного содержания с участием тех, кому меньше 18 лет, — дети в мире остаются детьми.",
+ soft:"ОТКРОВЕННОСТЬ: сдержанно. Чувства и напряжение — да, но поцелуи и близость остаются за кадром (затемнение, склейка), насилие без натурализма, без грубой брани."};
+const frankRule=()=>FRANK_RULE[S.api.frank||"adult"]||FRANK_RULE.adult;
 const LAYOUT_RULE={
  split:"РАСКЛАДКА ТЕКСТА: каждая реплика — с новой строки, отдельным абзацем. Описание и действия — отдельными абзацами, не смешивай их с репликой в одной строке. Короткая атрибуция можно в той же строке: «Упрямая», — смеётся Бесси. Не дроби мелкие действия на отдельные строки: одно описание — один абзац.",
  book:"РАСКЛАДКА ТЕКСТА: сплошная проза, как в романе: реплики и описания можно сплетать в одном абзаце."};
@@ -821,7 +828,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
   S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
-const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","hero","eco","pIn","pCache","pOut"];
+const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","frank","hero","eco","pIn","pCache","pOut"];
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
 function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
@@ -1639,7 +1646,7 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";try{const bg=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#111316";const m=$("themeColor");if(m)m.setAttribute("content",bg);document.documentElement.style.background=bg;}catch(e){}}
-function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
+function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}
@@ -1665,7 +1672,7 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
   try{ctl=new AbortController();await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal,purpose:"test"});keyStatus("✓ Ключ сохранён и работает");}
   catch(e){keyStatus("Ключ сохранён, но не работает: "+friendly(e),true);}finally{ctl=null;}};
 $("replyLen").addEventListener("change",()=>{S.api.len=$("replyLen").value;save();});
-$("layout").addEventListener("change",()=>{S.api.layout=$("layout").value;save();});
+$("layout").addEventListener("change",()=>{S.api.layout=$("layout").value;save();});$("frank").addEventListener("change",()=>{S.api.frank=$("frank").value;save();});
 $("heroMode").addEventListener("change",()=>{S.api.hero=$("heroMode").value;save();});
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
