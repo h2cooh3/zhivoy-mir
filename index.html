@@ -404,7 +404,7 @@ async function load(){
   save();
 }
 let saveT;
-function save(){S.stamp=Date.now();schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
+function save(){S.stamp=Date.now();S.sync.dirty=true;schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
 window.addEventListener("pagehide",()=>{clearTimeout(saveT);try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");}catch(e){}});
 
 // ---- режим экономии: все лимиты в одном месте
@@ -847,26 +847,29 @@ async function genWorld(w){
 
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
-const syncPayload=()=>JSON.stringify({app:"zhivoymir",kind:"sync",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiUpdated:S.aiUpdated||0,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
-async function gh(path,method,body){const r=await fetch(GH+path,{method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiUpdated:S.aiUpdated||0,worlds:S.worlds,chars:S.chars,scenes:S.scenes});
+async function gh(path,method,body){const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
 let pushT=null,pushing=false,pushAgain=false;
 function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>syncPush().catch(e=>syncStatus("Не удалось отправить: "+e.message,true)),4000);}
 async function syncPush(){if(!S.sync.on||!S.sync.token)return;if(pushing){pushAgain=true;return;}pushing=true;
   try{if(S.sync.gistId){try{if(await syncPull(false)){clearTimeout(pushT);staleView=true;}}catch(e){}}
-    const content=syncPayload();const files={"zhivoy-mir.json":{content}};
+    const rev=uid();S.sync.dirty=false;const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};
     if(!S.sync.gistId){const g=await gh("/gists","POST",{description:"Живой мир — синхронизация (не удалять)",public:false,files});S.sync.gistId=g.id;}
     else await gh("/gists/"+S.sync.gistId,"PATCH",{files});
-    S.sync.pulled=S.stamp;persistQuiet();syncStatus("✓ Отправлено "+new Date().toLocaleTimeString("ru"));}
-  finally{pushing=false;if(pushAgain){pushAgain=false;schedulePush();}}}
+    S.sync.rev=rev;S.sync.pulled=S.stamp;S.sync.last=Date.now();persistQuiet();syncStatus("✓ Отправлено "+new Date().toLocaleTimeString("ru"));}
+  catch(e){S.sync.dirty=true;throw e;}
+  finally{pushing=false;if(pushAgain||S.sync.dirty){pushAgain=false;schedulePush();}}}
 async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)return false;
   const g=await gh("/gists/"+S.sync.gistId);const f=g.files&&g.files["zhivoy-mir.json"];if(!f)return false;
-  let text=f.content;if(f.truncated){const r=await fetch(f.raw_url,{headers:{"Authorization":"Bearer "+S.sync.token}});text=await r.text();}
+  let text=f.content;if(f.truncated){const r=await fetch(f.raw_url,{cache:"no-store",headers:{"Authorization":"Bearer "+S.sync.token}});text=await r.text();}
   const d=JSON.parse(text);if(!d||d.kind!=="sync")return false;
   const remoteStamp=d.stamp||0;
-  if(!force&&remoteStamp<=S.sync.pulled)return false; // ничего нового
-  const localChanged=S.stamp>S.sync.pulled;
-  if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
+  // новое ли это? По номеру версии (rev), а не по часам: часы на телефоне и компе могут расходиться
+  if(!force){if(d.rev){if(d.rev===S.sync.rev)return false;}else if(remoteStamp<=S.sync.pulled)return false;}
+  const localChanged=!!S.sync.dirty;
+  // слепок «до синхронизации» — только при полной замене или не чаще раза в час, иначе он забьёт память
+  if(S.worlds.length&&useIdb&&(force||(localChanged&&Date.now()-(S.sync.snapT||0)>3600000))){S.sync.snapT=Date.now();try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
   if(!force){
     // Сливаем, а не затираем: по каждому миру/персонажу/сцене берём более свежую версию (поле updated)
     let keptLocal=false;
@@ -874,16 +877,16 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
-    fixAll();S.sync.pulled=remoteStamp;
-    if(keptLocal||localChanged){S.stamp=Date.now();schedulePush();}else S.stamp=remoteStamp;
+    fixAll();S.sync.pulled=remoteStamp;S.sync.rev=d.rev||"";S.sync.last=Date.now();
+    if(keptLocal||localChanged){S.sync.dirty=true;S.stamp=Date.now();schedulePush();}else S.stamp=remoteStamp;
     persistQuiet();return true;}
   S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai)){S.ai=d.ai;S.aiUpdated=d.aiUpdated||0;}if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
-  fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
+  fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;S.sync.rev=d.rev||"";S.sync.dirty=false;S.sync.last=Date.now();persistQuiet();return true;}
 const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","frank","hero","yUrl","ySecret","yNarr","eco","pIn","pCache","pOut"];
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
 function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
-function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.pulled?new Date(S.sync.pulled).toLocaleString("ru"):"ещё не было"):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
+function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.last?new Date(S.sync.last).toLocaleString("ru"):"ещё не было")+(S.sync.dirty?" · есть неотправленное":""):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
 async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus("Вставь токен GitHub",true);return;}S.sync.token=t;S.sync.on=true;syncStatus("Проверяю…");
     await gh("/gists?per_page=1");
     if(!S.sync.gistId){const list=await gh("/gists?per_page=100");const mine=list.find(g=>g.description==="Живой мир — синхронизация (не удалять)"&&g.files&&g.files["zhivoy-mir.json"]);if(mine)S.sync.gistId=mine.id;}
@@ -898,7 +901,7 @@ async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus
     persistQuiet();syncStatus();}catch(e){S.sync.on=false;syncStatus("Ошибка: "+e.message,true);}}
 async function syncTick(){if(!S.sync.on||busy)return;try{const changed=await syncPull(false);if(changed){toast("Данные обновлены с другого устройства.");staleView=true;}}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncTick();});
-setInterval(syncTick,60000);
+setInterval(syncTick,20000);window.addEventListener("online",()=>{syncTick();if(S.sync.dirty)schedulePush();});
 // ============ ИМПОРТ / ЭКСПОРТ ============
 function expChar(c){download((c.name||"персонаж")+".json",JSON.stringify({app:"zhivoymir",kind:"char",version:1,char:c},null,1),"application/json");}
 function expWorld(w){const cs=charsOf(w.id),sc=S.scenes.filter(x=>x.worldId===w.id);download((w.name||"мир")+".json",JSON.stringify({app:"zhivoymir",kind:"world",version:1,worlds:[w],chars:cs,scenes:sc},null,1),"application/json");}
@@ -1919,7 +1922,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();applyTheme();pushHist();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();applyTheme();pushHist();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
