@@ -181,6 +181,7 @@ nav.bottom button[aria-current="true"]{color:var(--accent);font-weight:600}
 nav.bottom button:disabled{opacity:.35}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(600px,94vw);max-height:90vh}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlgfoot{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));margin:6px -20px calc(-20px - env(safe-area-inset-bottom,0px));padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2}.dlgfoot #dlgDirty{color:var(--muted);font-size:14px}.dlgfoot .btn{min-width:130px}
 dialog .in{padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:90vh}
 dialog h2{margin:0;font-size:18px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:6px}
@@ -313,6 +314,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <p class="note">«Загрузить» понимает любой файл приложения: полную копию, один мир с персонажами или одного персонажа. Персонажей и миры по отдельности можно сохранить из их экрана.</p>
     <p class="note" id="storeInfo">Данные хранятся на этом устройстве. Ключ в файл не попадает.</p>
     <button class="btn" id="persistBtn" style="align-self:flex-start" hidden>Защитить данные от автоочистки</button>
+    <div class="dlgfoot"><span id="dlgDirty"></span><button class="btn primary" id="dlgOk">Принять</button></div>
   </div>
 </dialog>
 
@@ -1654,6 +1656,11 @@ $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт отв
   location.reload();};
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
+// «Принять»: всё и так сохраняется сразу, но кнопка даёт ясное подтверждение
+{const dirty=on=>{$("dlgDirty").textContent=on?"Изменено — нажми «Принять»":"";};
+ $("dlg").addEventListener("change",()=>dirty(true));$("dlg").addEventListener("input",e=>{if(e.target.matches("input,textarea"))dirty(true);});
+ $("dlg").addEventListener("close",()=>dirty(false));
+ $("dlgOk").onclick=async()=>{const kv=$("key").value.trim();if(kv&&kv!==S.api.key){try{await $("keySave").onclick();}catch(e){}}const a=document.activeElement;if(a&&$("dlg").contains(a)&&a.blur){a.dispatchEvent(new Event("change",{bubbles:true}));a.blur();}save();dirty(false);$("dlg").close();toast("Настройки сохранены ✓");};}
 $("dlg").addEventListener("close",()=>render());
 [["provider","provider"],["base","base"],["model","model"],["cheap","cheap"],["temp","temp"],["maxtok","maxtok"],["budget","budget"],["every","every"],["drama","drama"],["pIn","pIn"],["pCache","pCache"],["pOut","pOut"]].forEach(([id,k])=>{$(id).addEventListener("input",()=>{let v=$(id).value;if(k==="temp")v=Math.min(1,Math.max(0,parseFloat(v)||0));if(k==="maxtok")v=Math.max(100,parseInt(v)||1200);if(k==="budget")v=Math.max(5000,parseInt(v)||50000);if(k==="every")v=Math.max(4,parseInt(v)||10);if(k==="drama")v=Math.max(0,parseInt(v)||0);if(k==="provider"){S.api.model=DEF_MODEL[v]||"";S.api.cheap=DEF_CHEAP[v]||"";}S.api[k]=v;save();if(k==="provider")fillSettings();});});
 $("pname").addEventListener("input",()=>{S.persona.name=$("pname").value;save();});
