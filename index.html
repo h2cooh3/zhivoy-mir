@@ -473,6 +473,10 @@ const looksCut=t=>{t=String(t||"").replace(/\s+$/,"");if(t.length<40)return fals
 function glue(a,b){a=String(a);b=String(b||"").replace(/^\s*\[[^\]]*\]\s*/,"");if(!b)return a;if(/\s$/.test(a)||/^[\s,.!?…»”:;)]/.test(b))return a+b;if(/[А-Яа-яЁёA-Za-z-]$/.test(a)&&/^[а-яёa-z]/.test(b))return a+b;return a+" "+b;}
 function watchBtn(m,busy,fn){if(busy||!m||m.role!=="assistant")return null;const b=el("button","playbtn watch","⏩  Дальше без меня");b.title="История идёт сама: ты молча наблюдаешь или тебя нет рядом";b.onclick=fn;return b;}
 function playBtn(m,busy,fn){if(busy||!m||m.role!=="assistant"||!looksCut(m.content))return null;const b=el("button","playbtn","▶  Дописать");b.title="Ответ оборвался — дописать следующим сообщением";b.onclick=fn;return b;}
+// Повторная отправка того же текста (прошлый запрос сорвался, а сообщение уже в чате) не дублирует его — просто пробуем ещё раз
+const sameTail=(a,b)=>{const n=x=>String(x||"").replace(/\s+/g," ").trim();return n(a).endsWith(n(b));};
+// Клавиатура Android иногда возвращает в очищенное поле только что отправленный текст — убираем его
+function clearIme(ta,t,grow){[60,250,600].forEach(ms=>setTimeout(()=>{if(ta.value.trim()===t){ta.value="";grow&&grow();ta.dispatchEvent(new Event("input"));}},ms));}
 // «Смотреть» — «Дальше без меня» нажимается само, ход за ходом, пока не остановишь (не больше WATCH_MAX за раз, чтобы не сжечь токены)
 const WATCH_MAX=8;
 function autoBtn(m,busy,w,fn){if(!m||m.role!=="assistant")return null;if(busy&&!w.on)return null;const b=el("button","playbtn"+(w.on?" on":""),w.on?"⏹  Остановить":"👁  Смотреть");b.title=w.on?"Остановить просмотр":"История пойдёт сама, ход за ходом, а ты просто смотришь";b.onclick=fn;return b;}
@@ -1747,7 +1751,7 @@ function renderChat(){
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,t))l.content+="\n\n"+t;}else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";clearIme(ta,t,grow);grow();save();run();}
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
@@ -1829,7 +1833,7 @@ function renderScene(){
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}}
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const tt=x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+tt;else x.history.push({role:"user",content:tt});}ta.value="";grow();save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const tt=x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;const l=x.history[x.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,tt))l.content+="\n\n"+tt;}else x.history.push({role:"user",content:tt});}ta.value="";if(t)clearIme(ta,t,grow);grow();save();run();}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=x.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
   const vRefresh=voiceSend(send,ta,grow,sendMsg,true);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
   drawLog();drawAside();if(!x.history.length)run();
