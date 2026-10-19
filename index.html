@@ -137,6 +137,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg .ops{display:none}
 .playbtn{display:block;margin:2px auto 10px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 16px;font-size:15px;cursor:pointer}.playbtn:active{transform:scale(.96)}
 .nextrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px 12px}.nextrow .playbtn{margin:0}.playbtn.on{background:var(--ink);color:var(--panel)}
+.watchbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--ink);color:var(--panel);font-size:14px}.watchbar[hidden]{display:none}.watchbar button{border:0;border-radius:999px;padding:9px 16px;background:var(--panel);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
 .ttsbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:94vw}.ttsbar button{border:0;background:none;color:var(--ink);font-size:18px;min-width:38px;height:38px;border-radius:50%;cursor:pointer}.ttsbar button:active{background:var(--line)}.ttsbar .tl{font-size:13px;color:var(--muted);padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}.bookp.tts-now{background:var(--panel2);border-radius:10px}.bookp{white-space:pre-wrap;line-height:1.65;font-size:17px;padding:6px 8px;margin:0 0 14px}.book{max-width:760px;margin:0 auto;padding:16px 14px 120px;width:100%}.book h2{margin:6px 0 4px}
 .msg.tts-now .b{outline:2px solid var(--accent);outline-offset:3px;border-radius:10px}
 .msg .more{border:0;background:none;color:var(--muted);font-size:16px;padding:0 6px;border-radius:6px;align-self:flex-end;line-height:1.2}
@@ -473,8 +474,8 @@ function glue(a,b){a=String(a);b=String(b||"").replace(/^\s*\[[^\]]*\]\s*/,"");i
 function watchBtn(m,busy,fn){if(busy||!m||m.role!=="assistant")return null;const b=el("button","playbtn watch","⏩  Дальше без меня");b.title="История идёт сама: ты молча наблюдаешь или тебя нет рядом";b.onclick=fn;return b;}
 function playBtn(m,busy,fn){if(busy||!m||m.role!=="assistant"||!looksCut(m.content))return null;const b=el("button","playbtn","▶  Дописать");b.title="Ответ оборвался — дописать следующим сообщением";b.onclick=fn;return b;}
 // «Смотреть» — «Дальше без меня» нажимается само, ход за ходом, пока не остановишь (не больше WATCH_MAX за раз, чтобы не сжечь токены)
-const WATCH_MAX=12;
-function autoBtn(m,busy,w,fn){if(!m||m.role!=="assistant")return null;if(busy&&!w.on)return null;const b=el("button","playbtn"+(w.on?" on":""),w.on?"⏸  Хватит ("+w.left+")":"👁  Смотреть");b.title=w.on?"Остановить просмотр":"История пойдёт сама, ход за ходом, а ты просто смотришь";b.onclick=fn;return b;}
+const WATCH_MAX=8;
+function autoBtn(m,busy,w,fn){if(!m||m.role!=="assistant")return null;if(busy&&!w.on)return null;const b=el("button","playbtn"+(w.on?" on":""),w.on?"⏹  Остановить":"👁  Смотреть");b.title=w.on?"Остановить просмотр":"История пойдёт сама, ход за ходом, а ты просто смотришь";b.onclick=fn;return b;}
 function watchKick(w,alive,hold,go){clearTimeout(w.t);if(!w.on)return;if(w.left<=0){w.on=false;toast("Просмотр на паузе: прошло "+WATCH_MAX+" ходов. Нажми «Смотреть», чтобы продолжить.");return;}
   const wait=()=>{if(!w.on)return;if(!alive()){w.on=false;return;}if(busy||hold()||(TTS.on&&!TTS.paused)){w.t=setTimeout(wait,1000);return;}w.left--;go();};w.t=setTimeout(wait,3500);}
 async function contNext(hist,base,onDelta){const l=hist[hist.length-1];const keep=l.content;
@@ -1744,12 +1745,16 @@ function renderChat(){
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
-    if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawLog();}
+    if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}
   }
   function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;const l=c.history[c.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";grow();save();run();}
-  const watch={on:false,left:0,t:null};
-  function nextTurn(){if(busy||ta.value.trim())return;ta.value="⏩";sendMsg();}
-  function toggleWatch(){if(watch.on){watch.on=false;clearTimeout(watch.t);drawLog();return;}watch.on=true;watch.left=WATCH_MAX;if(busy){drawLog();return;}watch.left--;nextTurn();}
+  const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
+  // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
+  function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
+  function drawWatch(){wbar.hidden=!watch.on;if(!watch.on)return;wbar.innerHTML="";wbar.append(el("span",null,"👁 История идёт сама · ещё ходов: "+watch.left));const b=el("button",null,"⏹ Остановить");b.onclick=()=>{stopWatch(true);toast("Остановил. Твой ход.");};wbar.append(b);}
+  ta.addEventListener("focus",()=>{if(watch.on){stopWatch(false);toast("Просмотр остановлен — твой ход.");}});
+  function nextTurn(){if(busy||ta.value.trim())return;drawWatch();ta.value="⏩";sendMsg();}
+  function toggleWatch(){if(watch.on){stopWatch(true);return;}watch.on=true;watch.left=WATCH_MAX;drawWatch();if(busy){drawLog();return;}watch.left--;nextTurn();}
   async function contReply(){if(busy)return;const l=c.history[c.history.length-1];if(!l||l.role!=="assistant")return;
     busy=true;lastErr="";ctl=new AbortController();drawLog("");
     try{const pre=normalize(c.history.slice(c.sumIdx));const merged=pre.pop().content;const lastUser=[...pre].reverse().find(m=>m.role==="user");const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:pre,signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
@@ -1790,9 +1795,13 @@ function renderScene(){
       col.append(t,r);setTimeout(()=>t.focus(),0);}
     else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
-  const watch={on:false,left:0,t:null};
-  function nextTurn(){if(busy||ta.value.trim())return;ta.value="⏩";sendMsg();}
-  function toggleWatch(){if(watch.on){watch.on=false;clearTimeout(watch.t);drawLog();return;}watch.on=true;watch.left=WATCH_MAX;if(busy){drawLog();return;}watch.left--;nextTurn();}
+  const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
+  // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
+  function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
+  function drawWatch(){wbar.hidden=!watch.on;if(!watch.on)return;wbar.innerHTML="";wbar.append(el("span",null,"👁 История идёт сама · ещё ходов: "+watch.left));const b=el("button",null,"⏹ Остановить");b.onclick=()=>{stopWatch(true);toast("Остановил. Твой ход.");};wbar.append(b);}
+  ta.addEventListener("focus",()=>{if(watch.on){stopWatch(false);toast("Просмотр остановлен — твой ход.");}});
+  function nextTurn(){if(busy||ta.value.trim())return;drawWatch();ta.value="⏩";sendMsg();}
+  function toggleWatch(){if(watch.on){stopWatch(true);return;}watch.on=true;watch.left=WATCH_MAX;drawWatch();if(busy){drawLog();return;}watch.left--;nextTurn();}
   async function contScene(){if(busy)return;const l=x.history[x.history.length-1];if(!l||l.role!=="assistant")return;
     busy=true;lastErr="";ctl=new AbortController();drawLog("");
     try{const pre=normalize(x.history.slice(x.sumIdx));const merged=pre.pop().content;const msgs=pre;const lm=msgs[msgs.length-1];if(!msgs.length||lm.role!=="user")msgs.push({role:"user",content:(x.noHero?"[Продолжай сцену. Героя здесь нет.]":"[Герой молчит и наблюдает. Продолжай сцену.]")});
@@ -1819,7 +1828,7 @@ function renderScene(){
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
-    if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawLog();}}
+    if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}}
   function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const tt=x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+tt;else x.history.push({role:"user",content:tt});}ta.value="";grow();save();run();}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   const vRefresh=voiceSend(send,ta,grow,sendMsg,true);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
