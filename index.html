@@ -256,7 +256,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="number" id="budget" min="5000" step="5000">
     </label>
     <label>Длина ответов персонажей <span class="hint">Коротко — живая игра, сразу можно ответить. Подробно — как книга.</span>
-      <select id="replyLen"><option value="short">Коротко (1–2 абзаца)</option><option value="medium">Средне (2–3 абзаца)</option><option value="long">Подробно, как книга</option></select></label>
+      <select id="replyLen"><option value="short">Коротко (до ~120 слов)</option><option value="medium">Средне (до ~250 слов)</option><option value="long">Подробно, как книга</option></select></label>
     <label>Игра за героя <span class="hint">Кто может говорить и действовать за тебя. «.» — отправь точку, когда ленишься писать.</span>
       <select id="heroMode"><option value="strict">Только я (ИИ никогда не пишет за меня)</option><option value="auto">За меня, только когда я отправил «.»</option><option value="free">Свободно (мелкие действия можно)</option></select></label>
     <label>Оформление <span class="hint">Раздельно — каждая реплика с новой строки, как в сценарии. Книжно — сплошной прозой.</span>
@@ -513,7 +513,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
 function dramaBlock(d){if(!d||!d.direction)return "";const p=["УКАЗАНИЯ РЕЖИССЁРА (скрыты от игрока; выполняй через поведение и подтекст, не объявляй):","Напряжение: "+(d.tension||5)+"/10, фаза: "+(d.beat||"—")+".",d.direction];if(d.event)p.push("Происшествие вокруг: "+d.event);if(d.cue)p.push(d.cue);return p.join("\n");}
-function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),isPass(lastUser)?passNote(w):"",heroReminder(w)].filter(Boolean).join("\n\n");}
+function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),isPass(lastUser)?passNote(w):"",lenReminder(false),heroReminder(w)].filter(Boolean).join("\n\n");}
 function charBrief(c){const st=c.state;return "• "+c.name+(c.short?" — "+c.short:"")+"\n  Основа: "+c.core.slice(0,600).replace(/\s+/g," ")+(st.now?"\n  Сейчас: "+st.now:"")+(st.mood?"\n  Настроение: "+st.mood:"")+(st.goals&&st.goals.length?"\n  Цели: "+st.goals.join("; "):"")+(st.relUser?"\n  К герою: "+st.relUser+" (доверие "+(st.trust??0)+", от −10 до 10)":"")+(st.arc?"\n  История с героем: "+st.arc:"")+
   (Object.keys(st.relations||{}).length?"\n  Отношения: "+Object.entries(st.relations).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:"";}).filter(Boolean).join(" | "):"")+(st.secrets?"\n  Скрывает: "+st.secrets:"");}
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldBlock(w),"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
@@ -523,7 +523,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   layoutRule(),frankRule(),
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+heroRule(w)+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
-function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&isPass(lu.content)?passNote(w):"";})(),heroReminder(w)].filter(Boolean).join("\n\n");}
+function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&isPass(lu.content)?passNote(w):"";})(),lenReminder(true),heroReminder(w)].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
@@ -543,6 +543,14 @@ const LAYOUT_RULE={
 function heroRule(w){const h=heroName(w);const m=S.api.hero||"strict";
   if(m==="free")return "ГЕРОЙ "+h+" — это пользователь. Можешь иногда коротко описать его мелкое, очевидное действие (сел, взял чашку), но никогда не принимай за него важных решений, не пиши за него длинных реплик и его мыслей.";
   return "ГЕРОЙ "+h+" — это пользователь, и играет его только он. СТРОГО ЗАПРЕЩЕНО писать за "+h+": его реплики (даже одно слово, даже «— говорит он»), его действия, жесты, мысли, чувства и решения. Не пересказывай и не дополняй то, что он сказал или сделал, сверх его собственного сообщения. Если сцене нужна его реакция — остановись и дай ему ответить."+(m==="auto"?" Исключение: если в служебном контексте сказано, что игрок разрешил сыграть за него этот ход.":"");}
+// Длина: правило стоит и в начале, и напоминанием в самом конце (модели лучше слушают конец), плюс мягкий потолок токенов
+const LEN_WORDS={short:[120,180],medium:[250,300],long:[400,450]};
+function lenReminder(scene){const m=S.api.len||"short";const n=LEN_WORDS[m]?LEN_WORDS[m][scene?1:0]:120;return "ДЛИНА ЭТОГО ОТВЕТА: не больше "+n+" слов"+(m==="short"?" (5–8 коротких строк)":"")+". Не равняйся на длину прошлых ответов в переписке — если они были длиннее, это ошибка, не образец.";}
+const replyTokens=()=>({short:800,medium:1300}[S.api.len||"short"]||Math.max(K().maxtok,2000));
+const trimToSentence=t=>{t=String(t);const m=t.match(/^[\s\S]*[.!?…»”*)](?=\s|$)/);return m&&m[0].length>t.length*0.5?m[0]:t;};
+async function finishReply(base,text,onText){if(!(lastStop==="length"||looksCut(text)))return text;
+  if((S.api.len||"short")!=="long"&&text.split(/\s+/).length>60)return trimToSentence(text);
+  toast("Ответ оборвался — дописываю…");return await continueReply(base,text,onText);}
 function heroReminder(w){return (S.api.hero||"strict")==="free"?"":"НАПОМИНАНИЕ: не пиши ни слова, ни действия за "+heroName(w)+". Только за своих персонажей и окружение.";}
 // «.» или «…» — игрок молчит и ждёт; в режиме auto — разрешает сыграть за него один ход
 const isPass=t=>/^\s*[.…]+\s*$/.test(String(t||""));
@@ -1567,8 +1575,8 @@ function renderChat(){
       if(liveLen>K().budget&&c.history.length-c.sumIdx>K().keep){toast("Сжимаю старую часть…");await compressHistory(c,c.name,w);drawLog("");}
       const lastUser=[...c.history].reverse().find(m=>m.role==="user");
       if(dramaDue(c,c.history)){toast("Драматург думает…");try{const d=await dramaForChat(c);toast(dramaStr(d));}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
-      const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
-      let text=await callModel(base);if(lastStop==="length"||looksCut(text)){toast("Ответ оборвался — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}
+      const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:replyTokens()};
+      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
@@ -1635,8 +1643,8 @@ function renderScene(){
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=x.history.slice(x.sumIdx);const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?"[Герой молчит и наблюдает. Продолжай сцену.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]"});
-      const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:Math.max(K().maxtok,2000),purpose:"scene",cacheMsgs:true};
-      let text=await callModel(base);if(lastStop==="length"||looksCut(text)){toast("Ответ оборвался — дописываю…");text=await continueReply(base,text,t=>{live=t;liveText(log,t);});}x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
+      const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:replyTokens(),purpose:"scene",cacheMsgs:true};
+      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}}
