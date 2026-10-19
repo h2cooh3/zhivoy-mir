@@ -1057,7 +1057,13 @@ function nearBottom(s){if(!s._fw){s._fw=1;s.addEventListener("scroll",()=>{s._fo
   const hold=()=>{s._touch=1;},rel=()=>{s._touch=0;};s.addEventListener("touchstart",hold,{passive:true});s.addEventListener("touchend",rel,{passive:true});s.addEventListener("touchcancel",rel,{passive:true});
   s.addEventListener("wheel",e=>{if(e.deltaY<0)s._follow=false;},{passive:true});}
   if(s._touch)return false;if(s._follow===undefined)return s.scrollHeight-s.scrollTop-s.clientHeight<40;return s._follow;}
-function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true;}else s.scrollTop=st;}
+// Якорь прокрутки: запоминаем, какое сообщение было вверху экрана и на каком сдвиге, и после перерисовки
+// возвращаем именно его — тогда текст под глазами не прыгает, даже если высоты блоков поменялись.
+function anchorOf(s){const st=s.scrollTop;const kids=s.children;for(let i=0;i<kids.length;i++){const k=kids[i];if(k.offsetTop+k.offsetHeight>st)return {i,off:k.offsetTop-st,st};}return {i:-1,off:0,st};}
+function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true;return;}
+  const put=()=>{if(typeof st==="number"){s.scrollTop=st;return;}const k=st.i>=0&&s.children[st.i];s.scrollTop=k?k.offsetTop-st.off:st.st;};
+  put();const t0=s.scrollTop;requestAnimationFrame(()=>{if(Math.abs(s.scrollTop-t0)<2&&!s._touch)put();});
+  const until=Date.now()+1500;s.querySelectorAll("img").forEach(im=>{if(!im.complete)im.addEventListener("load",()=>{if(Date.now()<until&&!s._touch&&!s._follow)put();},{once:true});});}
 function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 // делит текст на куски: [{q:true,t:"«…»"}, {q:false,t:"…"}]; «ёлочки» — с вложенностью
@@ -1375,7 +1381,7 @@ function renderAssist(){
     if(m.role==="assistant")parseBlocks(m.content).forEach(b=>col.append(blockCard(b,w)));
     if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>sheet([["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}],...(i===hist.length-1&&m.role==="assistant"?[["↻ Другой вариант",()=>{hist.pop();save();run();}]]:[]),["Удалить",()=>{hist.splice(i,1);save();draw();},true]]);col.append(mb);}
     wv.append(col);return wv;}
-  function draw(live){const atB=live===""||live===undefined&&!log._fw||nearBottom(log),st=log.scrollTop;liveEl=null;log.innerHTML="";
+  function draw(live){const atB=live===""||live===undefined&&!log._fw||nearBottom(log),st=anchorOf(log);liveEl=null;log.innerHTML="";
     if(!hist.length&&live===undefined){const e=el("div","list");e.style.maxWidth="760px";e.style.margin="0 auto";e.style.width="100%";tips.forEach(t=>{const b=el("button","item",t);b.style.textAlign="left";b.style.cursor="pointer";b.onclick=()=>{ta.value=t;grow();ta.focus();};e.append(b);});log.append(e);}
     hist.forEach((m,i)=>log.append(msgEl(m,i)));
     if(live!==undefined){liveEl=msgEl({role:"assistant",content:live||"…"},-1);log.append(liveEl);}
@@ -1402,7 +1408,7 @@ function tabHelper(w,body){
   const log=el("div","list");log.style.minHeight="80px";log.style.maxHeight="60vh";log.style.overflow="auto";
   const parseBlocks=(text)=>{const out=[];const re=/```(character|event)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;};
   const stripBlocks=(text)=>text.replace(/```(character|event)\s*\n[\s\S]*?```/g,"").trim();
-  const draw=(live)=>{stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";w.helper.forEach((m,i)=>{const it=el("div","item"+(m.role==="user"?" sel":""));it.append(el("div","t",m.role==="user"?"Ты":"Соавтор"));const x=el("div","x");fmt(x,m.role==="assistant"?stripBlocks(m.content):m.content);
+  const draw=(live)=>{stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log);log.innerHTML="";w.helper.forEach((m,i)=>{const it=el("div","item"+(m.role==="user"?" sel":""));it.append(el("div","t",m.role==="user"?"Ты":"Соавтор"));const x=el("div","x");fmt(x,m.role==="assistant"?stripBlocks(m.content):m.content);
       if(m.role==="assistant"){parseBlocks(m.content).forEach(b=>{const box=el("div","block");box.style.marginTop="8px";box.style.borderLeft="3px solid var(--accent)";
         if(b.kind==="character"){const d=b.data;box.append(el("b",null,"Персонаж: "+(d.name||"без имени")),el("div","note",d.short||""));const btn=el("button","btn sm primary","Добавить в мир");btn.style.marginTop="6px";
           if(charsOf(w.id).some(c=>c.name===d.name)){btn.textContent="Уже есть в мире";btn.disabled=true;}
@@ -1520,7 +1526,7 @@ function renderChat(){
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);inner.append(ta,stop,send);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){
-    stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
+    stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log);log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);sm.textContent=(ac?ac.title+" · ":"")+(c.state.mood||"")+(c.state.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(c.facts.length?" · помнит фактов: "+c.facts.length:"");
     const last=c.history.length-1;
     c.history.forEach((m,i)=>{if(i===c.sumIdx&&c.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании и картотеке, ниже — модель видит дословно"));log.append(msgEl(m,i,i===last&&m.role==="assistant"));});if(live===undefined){const pb=playBtn(c.history[last],busy,contReply);if(pb)log.append(pb);}
     if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1,false);lv.dataset.live=1;log.append(lv);}
@@ -1614,7 +1620,7 @@ function renderScene(){
   const log=el("div");log.id="log";main.append(log);
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
-  function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=log.scrollTop;log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live===undefined){const pb=playBtn(x.history[x.history.length-1],busy,contScene);if(pb)log.append(pb);}if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
+  function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log);log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live===undefined){const pb=playBtn(x.history[x.history.length-1],busy,contScene);if(pb)log.append(pb);}if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);const after=x.history.length-1-i;
       if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Память персонажей, уже обновлённая режиссёром, не откатывается."));}
