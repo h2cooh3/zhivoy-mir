@@ -136,6 +136,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg.old .b{opacity:.55}
 .msg .ops{display:none}
 .playbtn{display:block;margin:2px auto 10px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 16px;font-size:15px;cursor:pointer}.playbtn:active{transform:scale(.96)}
+.ttsbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:94vw}.ttsbar button{border:0;background:none;color:var(--ink);font-size:18px;min-width:38px;height:38px;border-radius:50%;cursor:pointer}.ttsbar button:active{background:var(--line)}.ttsbar .tl{font-size:13px;color:var(--muted);padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}.msg.tts-now .b{outline:2px solid var(--accent);outline-offset:3px;border-radius:10px}
 .msg .more{border:0;background:none;color:var(--muted);font-size:16px;padding:0 6px;border-radius:6px;align-self:flex-end;line-height:1.2}
 .msg .more:hover{color:var(--ink);background:var(--panel2)}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);border-radius:14px 14px 0 0;padding:8px 10px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:4px;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
@@ -1094,6 +1095,54 @@ function nameRx(){if(!FMT||!FMT.names||!FMT.names.length)return null;if(FMT._rx)
   vars.sort((a,b)=>b.length-a.length);const esc=v=>v.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   FMT._map=map;FMT._rx=new RegExp("(?<![А-Яа-яЁёA-Za-z])("+vars.map(esc).join("|")+")([а-яё]{0,3})(?![А-Яа-яЁёA-Za-z])","g");return FMT._rx;}
 function addNames(box,t){const rx=nameRx();if(!rx){box.append(document.createTextNode(t));return;}let last=0;t.replace(rx,(m0,st,end,idx)=>{if(idx>last)box.append(document.createTextNode(t.slice(last,idx)));const sp=el("span","nm",m0);sp.style.color=nameColor(FMT._map[st]);box.append(sp);last=idx+m0.length;return m0;});if(last<t.length)box.append(document.createTextNode(t.slice(last)));}
+// ---- Озвучка: читает разговор вслух — рассказчик одним голосом, у каждого персонажа свой (бесплатно, голоса телефона)
+const TTS={q:[],i:0,on:false,paused:false,tok:0,rate:1,bar:null,lock:null};
+const ttsVoices=()=>{try{return speechSynthesis.getVoices().filter(v=>/^ru/i.test(v.lang));}catch(e){return [];}};
+function ttsGender(name){const w=route&&(C(route.id)||SC(route.id));const wid=w&&w.worldId;const c=S.chars.find(x=>x.name===name&&(!wid||x.worldId===wid))||S.chars.find(x=>x.name===name);
+  let t=c?(c.short+" "+c.core).slice(0,900):"";if(!c){const ww=wid&&W(wid);if(ww&&heroName(ww)===name)t=ww.hero.desc||"";}
+  if(/^[^а-яё]*(\d+\s*(лет|год[а]?)[,.\s]*)?(около\s*\d+[,.\s]*)?(молодая\s+)?(жена|вдова|дочь|мать|девушка|женщина|девочка|торговка|пасечница|травница|настоятельница|сестра|хозяйка|швея|служанка)/i.test(c?c.short:""))return "f";
+  const f=(t.match(/(^|[^а-яё])(она|ей|её)(?=[^а-яё]|$)/gi)||[]).length,m=(t.match(/(^|[^а-яё])(он|ему|его)(?=[^а-яё]|$)/gi)||[]).length;return f>m*1.2?"f":"m";}
+function ttsVoiceFor(who){const vs=ttsVoices();if(!who)return {voice:vs[0]||null,pitch:1,rate:0.95};
+  TTS.cast=TTS.cast||{};if(!TTS.cast[who]){const g=ttsGender(who);TTS.slots=TTS.slots||{f:0,m:0};const gi=TTS.slots[g]++;
+    const fem=vs.filter(v=>/female|жен|ruf|rud|milena|irina|alena|dariya|svetlana/i.test(v.name)),mal=vs.filter(v=>/male|муж|ruc|rue|yuri|pavel|dmitr|maxim/i.test(v.name)&&!/female/i.test(v.name));
+    const pool=(g==="f"?fem:mal).length?(g==="f"?fem:mal):vs;const voice=pool.length?pool[gi%pool.length]:null;const k=Math.floor(gi/Math.max(1,pool.length))%6;
+    TTS.cast[who]={voice,pitch:g==="f"?[1.2,1.0,1.4,1.1,1.3,0.95][k]:[0.8,0.95,0.68,1.05,0.88,0.75][k],rate:1};}
+  return TTS.cast[who];}
+function ttsSegments(hist,from){const out=[];const tmp=document.createElement("span");const cmap={};((FMT&&FMT.names)||[]).forEach(n=>{const col=nameColor(n);if(col){tmp.style.color="";tmp.style.color=col;cmap[tmp.style.color]=n;}});
+  for(let mi=from;mi<hist.length;mi++){const m=hist[mi];if(!m||!String(m.content||"").trim())continue;const d=document.createElement("div");fmt(d,m.content,{user:m.role==="user"});
+    const def=m.role==="user"?(FMT&&FMT.hero):(FMT&&FMT.main);const parts=[];const tw=document.createTreeWalker(d,NodeFilter.SHOW_TEXT);let nd;
+    while((nd=tw.nextNode())){const t=nd.nodeValue;if(!t.trim()){if(parts.length)parts[parts.length-1].text+=" ";continue;}const sp=nd.parentElement&&nd.parentElement.closest(".say");let who=null;
+      if(sp&&!sp.classList.contains("echo"))who=cmap[sp.style.color]||def||null;
+      const l=parts[parts.length-1];if(l&&l.who===who)l.text+=t;else parts.push({who,text:t});}
+    parts.forEach(p=>{const clean=p.text.replace(/[«»“”„"*_]/g,"").replace(/\s+/g," ").trim();if(!clean||!/[а-яёa-z0-9]/i.test(clean))return;
+      // длинное — кусками по предложениям (Chrome обрывает слишком длинные фразы)
+      const sent=clean.match(/[^.!?…]+[.!?…]*\s*/g)||[clean];let buf="";sent.forEach(x=>{if((buf+x).length>220&&buf){out.push({mi,who:p.who,text:buf.trim()});buf="";}buf+=x;});if(buf.trim())out.push({mi,who:p.who,text:buf.trim()});});}
+  return out;}
+function ttsBar(){if(TTS.bar)return TTS.bar;const b=el("div","ttsbar");const mk=(t,ti,fn)=>{const x=el("button",null,t);x.title=ti;x.onclick=fn;b.append(x);return x;};
+  mk("⏮","Предыдущее сообщение",()=>ttsJump(-1));TTS.pp=mk("⏸","Пауза",()=>TTS.paused?ttsResume():ttsPause());mk("⏭","Следующее сообщение",()=>ttsJump(1));
+  TTS.sp=mk("1×","Скорость",()=>{const r=[1,1.25,1.5,0.85];TTS.rate=r[(r.indexOf(TTS.rate)+1)%r.length];TTS.sp.textContent=(TTS.rate+"×").replace(".",",");if(!TTS.paused){ttsPause();ttsResume();}});
+  TTS.tl=el("span","tl","");b.append(TTS.tl);mk("✕","Остановить",()=>ttsStop());document.body.append(b);TTS.bar=b;return b;}
+function ttsMark(){const seg=TTS.q[TTS.i];document.querySelectorAll(".msg.tts-now").forEach(x=>x.classList.remove("tts-now"));if(!seg)return;
+  const m=document.querySelector('.msg[data-mi="'+seg.mi+'"]');if(m){m.classList.add("tts-now");if(m.getBoundingClientRect().top<0||m.getBoundingClientRect().top>innerHeight*0.6)m.scrollIntoView({block:"start",behavior:"smooth"});}
+  if(TTS.tl)TTS.tl.textContent="#"+(seg.mi+1)+(seg.who?" · "+seg.who:" · рассказчик");}
+function ttsSpeak(){if(!TTS.on||TTS.paused)return;const seg=TTS.q[TTS.i];if(!seg){ttsStop(true);return;}ttsMark();const tok=++TTS.tok;
+  const u=new SpeechSynthesisUtterance(seg.text);const v=ttsVoiceFor(seg.who);if(v.voice)u.voice=v.voice;u.lang=(v.voice&&v.voice.lang)||"ru-RU";u.pitch=v.pitch;u.rate=Math.min(2,v.rate*TTS.rate);
+  const next=()=>{if(tok!==TTS.tok||!TTS.on||TTS.paused)return;TTS.i++;ttsSpeak();};u.onend=next;u.onerror=e=>{if(e&&(e.error==="interrupted"||e.error==="canceled"))return;next();};
+  try{speechSynthesis.speak(u);}catch(e){toast("Озвучка не работает в этом браузере.",true);ttsStop();}}
+async function ttsLock(on){try{if(on&&navigator.wakeLock&&!TTS.lock){TTS.lock=await navigator.wakeLock.request("screen");TTS.lock.addEventListener("release",()=>{TTS.lock=null;});}if(!on&&TTS.lock){await TTS.lock.release();TTS.lock=null;}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&TTS.on&&!TTS.paused)ttsLock(true);});
+function ttsStart(hist,from){if(!("speechSynthesis"in window)){toast("Этот браузер не умеет читать вслух.",true);return;}
+  ttsStop();const q=ttsSegments(hist,from||0);if(!q.length){toast("Нечего читать.");return;}
+  Object.assign(TTS,{q,i:0,on:true,paused:false,cast:{},slots:{f:0,m:0}});q.forEach(x=>{if(x.who)ttsVoiceFor(x.who);});ttsBar();TTS.pp.textContent="⏸";ttsLock(true);
+  // голоса на Android подгружаются не сразу
+  if(!speechSynthesis.getVoices().length){let done=false;const go2=()=>{if(done)return;done=true;ttsSpeak();};speechSynthesis.onvoiceschanged=go2;setTimeout(go2,600);}else ttsSpeak();
+  toast("Читаю вслух. Экран не погаснет, пока идёт чтение.");}
+function ttsPause(){if(!TTS.on)return;TTS.paused=true;TTS.tok++;try{speechSynthesis.cancel();}catch(e){}if(TTS.pp)TTS.pp.textContent="▶";}
+function ttsResume(){if(!TTS.on)return;TTS.paused=false;if(TTS.pp)TTS.pp.textContent="⏸";ttsSpeak();}
+function ttsJump(dir){if(!TTS.on)return;const q=TTS.q;const at=Math.min(TTS.i,q.length-1);const cur=q[at].mi;let k=at;while(k>0&&q[k-1].mi===cur)k--;let j;
+  if(dir>0){j=at;while(j<q.length&&q[j].mi===cur)j++;}else if(at>k)j=k;else{j=k;if(j>0){const pm=q[j-1].mi;while(j>0&&q[j-1].mi===pm)j--;}}
+  TTS.i=Math.max(0,Math.min(q.length,j));TTS.tok++;try{speechSynthesis.cancel();}catch(e){}if(!TTS.paused)setTimeout(ttsSpeak,60);else ttsMark();}
+function ttsStop(finished){TTS.on=false;TTS.tok++;try{speechSynthesis.cancel();}catch(e){}if(TTS.bar){TTS.bar.remove();TTS.bar=null;}document.querySelectorAll(".msg.tts-now").forEach(x=>x.classList.remove("tts-now"));ttsLock(false);if(finished)toast("Дочитал до конца.");}
 function fmt(e,text,opt){
   // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
   const main=opt&&opt.user?((FMT&&FMT.hero)||null):(FMT&&FMT.main)||null;
@@ -1552,7 +1601,7 @@ function renderChat(){
     stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;eb.disabled=busy;
   }
   function msgEl(m,i,isLast){
-    const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
+    const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<c.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const av=el("div","av");if(m.role==="user")av.textContent=heroName(w).charAt(0).toUpperCase();else avatarEl(av,c);
     const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);
       const after=c.history.length-1-i;
@@ -1562,7 +1611,7 @@ function renderChat(){
         r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);if(isLast&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contReply]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);if(isLast&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contReply]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(c.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -1582,6 +1631,7 @@ function renderChat(){
     const fh=el("div","row between");fh.append(el("h3",null,"Картотека фактов"));aside.append(fh);const ft=el("textarea");ft.value=c.facts.join("\n");ft.rows=6;ft.oninput=()=>{c.facts=ft.value.split("\n").map(t=>t.trim()).filter(Boolean);save();};aside.append(ft);
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=c.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{c.summary=su.value;save();};aside.append(su);
     const hb=el("button","btn sm","Обсудить с соавтором");hb.onclick=()=>{go({v:"assist",world:w.id,char:c.id});};aside.append(hb);
+    {const lb=el("button","btn sm","🎧 Слушать весь разговор с начала");lb.onclick=()=>ttsStart(c.history,0);aside.append(lb);}
     aside.append(el("h3",null,"Разговоры"));
     const cl2=el("div","list");c.chats.slice().reverse().forEach(x=>{const it=el("div","item"+(x.id===c.activeChat?" sel":""));it.style.cursor="pointer";const t=el("div","x",x.title+(x.desc?"\n"+x.desc:"")+"\n"+x.history.length+" сообщ."+(x.t?" · "+x.t.slice(0,10):""));it.append(t);
       const rn=el("button","btn ghost sm","✎");rn.title="Название и описание";rn.onclick=e=>{e.stopPropagation();const v=prompt("Название разговора:",x.title);if(v&&v.trim())x.title=v.trim();const d=prompt("Описание (о чём разговор, видно в списке чатов):",x.desc||"");if(d!==null)x.desc=d.trim();save();drawAside();};
@@ -1638,12 +1688,12 @@ function renderScene(){
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder="Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log);log.innerHTML="";x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live===undefined){const pb=playBtn(x.history[x.history.length-1],busy,contScene);if(pb)log.append(pb);}if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}if(lastErr)log.append(el("div","err",lastErr));stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
-  function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));const col=el("div","col");
+  function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);const after=x.history.length-1-i;
       if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Память персонажей, уже обновлённая режиссёром, не откатывается."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{m.content=t.value;editIdx=-1;save();drawLog();};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   async function contScene(){if(busy)return;const l=x.history[x.history.length-1];if(!l||l.role!=="assistant")return;
     busy=true;lastErr="";ctl=new AbortController();drawLog("");
