@@ -933,7 +933,23 @@ async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;whil
   if(openChar){const nw=S.worlds.find(x=>x.name===nm);const nc=nw&&S.chars.find(x=>x.worldId===nw.id&&x.name===openChar);if(nc){stack.length=0;go({v:"home"},true);go({v:"chat",id:nc.id});}}}
 // «+ Новый разговор»: спросить — просто новый разговор (память общая) или новый мир с нуля
 function newChatAsk(c,plain){sheet([["Просто новый разговор — "+c.name+" всё помнит",plain],["Новый мир с нуля — никто ничего не помнит",()=>{const w=W(c.worldId);if(w)startOver(w,c.name);}]]);}
-async function importFile(file,targetWorldId){
+// Карточки из других приложений (SillyTavern и похожие): PNG с зашитым JSON или голый JSON формата chara_card
+async function readPngCard(file){const buf=new Uint8Array(await file.arrayBuffer());if(buf[0]!==0x89||buf[1]!==0x50)return null;let i=8;const td=new TextDecoder("latin1");
+  while(i+8<buf.length){const len=(buf[i]<<24|buf[i+1]<<16|buf[i+2]<<8|buf[i+3])>>>0;const type=td.decode(buf.slice(i+4,i+8));
+    if(type==="tEXt"||type==="iTXt"){const data=buf.slice(i+8,i+8+len);const z=data.indexOf(0);const key=td.decode(data.slice(0,z));
+      if(key==="chara"||key==="ccv3"){let raw=data.slice(z+1);if(type==="iTXt"){let k=0,p=0;while(k<3&&p<raw.length){if(raw[p]===0)k++;p++;}raw=raw.slice(p+1);}
+        try{const b64=td.decode(raw).trim();const bin=atob(b64);const bytes=Uint8Array.from(bin,ch=>ch.charCodeAt(0));return JSON.parse(new TextDecoder("utf-8").decode(bytes));}catch(e){}}}
+    if(type==="IEND")break;i+=12+len;}return null;}
+function fromTavern(d){const t=d&&d.data&&(d.spec||d.data.name)?d.data:(d&&(d.char_name||(d.first_mes!==undefined&&d.name))?d:null);if(!t)return null;
+  const name=String(t.name||t.char_name||"Персонаж").trim();const sub=x=>String(x||"").replace(/\{\{char\}\}|<BOT>/gi,name).replace(/<USER>/gi,"{{user}}").trim();
+  const core=[sub(t.description),t.personality&&"ХАРАКТЕР: "+sub(t.personality),t.scenario&&"СЦЕНАРИЙ: "+sub(t.scenario)].filter(Boolean).join("\n\n");
+  const ex=sub(t.mes_example).replace(/<START>/gi,"").replace(/\n{3,}/g,"\n\n").trim();
+  const shortSrc=sub(t.creator_notes||t.description).replace(/\s+/g," ");const short=(shortSrc.match(/^.{20,160}?[.!?](\s|$)/)||[shortSrc.slice(0,150)])[0].trim();
+  return {name,short,tags:Array.isArray(t.tags)?t.tags.map(String).slice(0,8):[],core,examples:ex,greeting:sub(t.first_mes),state:{mood:"",now:"",goals:[],relUser:"",trust:0,secrets:""}};}
+async function avatarFromFile(file){return await new Promise(res=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);URL.revokeObjectURL(url);res(cv.toDataURL("image/jpeg",0.82));};img.onerror=()=>{URL.revokeObjectURL(url);res("");};img.src=url;});}
+async function importFile(file,targetWorldId,opt){opt=opt||{};
+  if(/\.png$/i.test(file.name||"")||file.type==="image/png"){const card=await readPngCard(file);const ch=card&&fromTavern(card);if(!ch){alert("В этой картинке нет карточки персонажа. Подходят PNG-карточки из SillyTavern и похожих приложений.");return;}
+    ch.avatar=await avatarFromFile(file);return importFile(new File([JSON.stringify({app:"zhivoymir",kind:"char",char:ch})],"card.json"),targetWorldId,opt);}
   let d;try{let t=(await file.text()).replace(/^﻿/,"").trim();if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать: это не файл приложения или он обрезан. Нужен файл .json, сохранённый через «Экспорт».");return;}
   const chars=[];let worlds=[],scenes=[],persona=null;
   if(d.char)chars.push(d.char);
@@ -942,6 +958,7 @@ async function importFile(file,targetWorldId){
   if(Array.isArray(d.scenes))scenes=d.scenes;
   if(d.persona)persona=d.persona;
   if(d.name&&d.core&&!d.worlds)chars.push(d); // голый персонаж
+  if(!chars.length&&!d.worlds){const tv=fromTavern(d);if(tv)chars.push(tv);}
   // старый формат «Мои персонажи»: chars с prompt вместо core
   chars.forEach(c=>{if(c.prompt&&!c.core){c.core=[c.prompt,c.scenario?"Сценарий: "+c.scenario:""].filter(Boolean).join("\n\n");if(c.mem&&!c.facts)c.facts=String(c.mem).split("\n").filter(Boolean);}});
   if(!chars.length&&!worlds.length){alert("В файле нет ни миров, ни персонажей.");return;}
@@ -965,6 +982,7 @@ async function importFile(file,targetWorldId){
   scenes.forEach(x=>{x.id=uid();x.worldId=wmap[x.worldId];if(!x.worldId)return;x.charIds=(x.charIds||[]).map(i=>cmap[i]||i);S.scenes.push(x);});
   fixAll();save();
   toast("Добавлено: миров "+worlds.length+", персонажей "+chars.length+".");
+  if(opt.open&&chars.length===1&&!worlds.length){if(route.draft)stack.pop();go({v:"charEdit",id:chars[0].id},true);return;}
   if(worlds.length===1&&!targetWorldId){stack.length=0;go({v:"world",id:worlds[0].id,tab:"chars"},true);}
   else if(dest){stack.length=0;go({v:"world",id:dest,tab:"chars"},true);}
   else render();
@@ -1656,7 +1674,10 @@ function renderCharEdit(){
   const c=route.draft||C(route.id);const w=W(c.worldId);$("hTitle").textContent=route.draft?"Новый персонаж":c.name;const p=el("div","page editor");
   const ar=el("div","ava-row");const av=el("div","ava");avatarEl(av,c);const ab=el("button","btn","Загрузить аватар");const ad=el("button","btn ghost","Убрать");const fi=el("input");fi.type="file";fi.accept="image/*";fi.hidden=true;
   ab.onclick=()=>fi.click();ad.onclick=()=>{c.avatar="";avatarEl(av,c);};fi.onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);c.avatar=cv.toDataURL("image/jpeg",0.82);URL.revokeObjectURL(url);avatarEl(av,c);};img.src=url;};
-  const rr=el("div","row");rr.append(ab,ad,fi);ar.append(av,rr);p.append(ar);
+  const rr=el("div","row");rr.append(ab,ad,fi);ar.append(av,rr);
+  if(route.draft){const im=el("div","block");im.style.marginBottom="12px";const ib=el("button","btn","📂 Загрузить персонажа из файла");ib.onclick=()=>pickFile(f=>importFile(f,c.worldId,{open:true}));
+    im.append(ib,el("div","note","Файл персонажа из «Живого мира» (.json, через «Экспорт персонажа») или карточка из SillyTavern и похожих приложений (.png или .json). Или заполни поля ниже вручную."));p.append(im);}
+  p.append(ar);
   const f=(lbl,hint,key,ta,rows,ph)=>{const l=el("label");l.append(document.createTextNode(lbl));if(hint)l.append(el("span","hint",hint));const i=ta?el("textarea"):el("input");if(!ta)i.type="text";if(rows)i.rows=rows;if(ph)i.placeholder=ph;i.value=key==="tags"?c.tags.join(", "):(c[key]||"");i.oninput=()=>{if(key==="tags")c.tags=i.value.split(",").map(t=>t.trim()).filter(Boolean);else c[key]=i.value;};l.append(i);p.append(l);return i;};
   const nm=f("Имя","","name");f("Коротко","Одна фраза для карточки, она же идея для генерации","short","",0,"Таксист, 52 года. Двадцать лет за рулём и ни одного лишнего слова.");
   const gb=el("button","btn","✨ Придумать личность по имени и идее");gb.onclick=withBusy(gb,async()=>{const r=await genChar(c,w);if(r.name&&!c.name.trim())c.name=r.name;if(r.short)c.short=r.short;if(Array.isArray(r.tags))c.tags=r.tags.map(String);c.core=r.core||c.core;c.examples=r.examples||c.examples;c.greeting=r.greeting||c.greeting;if(r.state)Object.assign(c.state,{mood:r.state.mood||"",now:r.state.now||"",goals:Array.isArray(r.state.goals)?r.state.goals:[],relUser:r.state.relUser||"",secrets:r.state.secrets||""});render();});p.append(gb);
