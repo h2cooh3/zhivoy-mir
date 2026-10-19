@@ -977,11 +977,20 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
     else if(S.worlds.length===1)dest=S.worlds[0].id;
     else{const list=S.worlds.map((w,i)=>(i+1)+" — "+w.name).join("\n");const ans=prompt("В какой мир добавить персонажей ("+orphan.map(c=>c.name).join(", ")+")?\nВведи номер:\n"+list,"1");const i=parseInt(ans)-1;if(!(i>=0&&i<S.worlds.length))return;dest=S.worlds[i].id;}
   }
+  // персонаж с таким же именем уже есть в этом мире — не дублируем
+  let skipped=[];for(let i=chars.length-1;i>=0;i--){const c=chars[i];const wid=wmap[c.worldId]||dest;if(!wmap[c.worldId]&&wid&&charsOf(wid).some(x=>x.name===c.name)){skipped.unshift(c.name);chars.splice(i,1);}}
+  if(skipped.length)toast("Уже есть в мире, пропустил: "+skipped.join(", "));
   chars.forEach(c=>{const n=uid();cmap[c.id]=n;c.id=n;c.worldId=wmap[c.worldId]||dest;c.updated=Date.now();S.chars.push(c);});
   chars.forEach(c=>{const rel={};Object.entries((c.state&&c.state.relations)||{}).forEach(([k,v])=>rel[cmap[k]||k]=v);if(c.state)c.state.relations=rel;});
   scenes.forEach(x=>{x.id=uid();x.worldId=wmap[x.worldId];if(!x.worldId)return;x.charIds=(x.charIds||[]).map(i=>cmap[i]||i);S.scenes.push(x);});
   fixAll();save();
   toast("Добавлено: миров "+worlds.length+", персонажей "+chars.length+".");
+  // дополнение к миру: новые правила (лор) и новые связи у уже существующих персонажей
+  {const tw=dest&&W(dest);if(tw&&!worlds.length){let add=0;
+    if(typeof d.worldRulesAdd==="string"&&d.worldRulesAdd.trim()&&!(tw.rules||"").includes(d.worldRulesAdd.trim().slice(0,60))){tw.rules=((tw.rules||"").trim()+"\n\n"+d.worldRulesAdd.trim()).trim();add++;}
+    if(typeof d.worldPlacesAdd==="string"&&d.worldPlacesAdd.trim()&&!(tw.places||"").includes(d.worldPlacesAdd.trim().slice(0,40))){tw.places=((tw.places||"").trim()+"\n"+d.worldPlacesAdd.trim()).trim();add++;}
+    if(d.relAdd&&typeof d.relAdd==="object")Object.entries(d.relAdd).forEach(([who,rels])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!rels)return;c.state.relations=c.state.relations||{};Object.entries(rels).forEach(([k,v])=>{if(!c.state.relations[k]){c.state.relations[k]=String(v);add++;}});c.updated=Date.now();});
+    if(add){tw.updated=Date.now();save();toast("Мир дополнен: правила и связи обновлены.");}}}
   if(opt.open&&chars.length===1&&!worlds.length){if(route.draft)stack.pop();go({v:"charEdit",id:chars[0].id},true);return;}
   if(worlds.length===1&&!targetWorldId){stack.length=0;go({v:"world",id:worlds[0].id,tab:"chars"},true);}
   else if(dest){stack.length=0;go({v:"world",id:dest,tab:"chars"},true);}
