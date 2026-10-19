@@ -266,6 +266,12 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <select id="layout"><option value="split">Раздельно (реплики отдельными строками)</option><option value="book">Книжно (сплошной прозой)</option></select></label>
     <label>Откровенность <span class="hint">Зрелое повествование — страсть, близость, жестокость, боль, грубая речь пишутся честно и без стыдливых обрывов, как в серьёзном романе или кино. Сдержанно — всё самое откровенное остаётся за кадром.</span>
       <select id="frank"><option value="adult">Зрелое повествование</option><option value="soft">Сдержанно</option></select></label>
+    <h2>Живые голоса (Yandex SpeechKit)</h2>
+    <p class="note">Для «Книги»: озвучка настоящими голосами, аудио сохраняется в телефоне — потом слушаешь офлайн, даже с выключенным экраном, и можно скачать mp3. Около 36 ₽ за час аудио. Как подключить — <a href="https://github.com/h2cooh3/zhivoy-mir/blob/main/tools/yandex-tts/README.md" target="_blank">инструкция</a>.</p>
+    <label>Адрес функции <input type="url" id="yUrl" placeholder="https://functions.yandexcloud.net/…" autocomplete="off"></label>
+    <label>Пароль функции <input type="text" id="ySecret" placeholder="то же слово, что SECRET в функции" autocomplete="off"></label>
+    <label>Голос рассказчика <select id="yNarr"><option value="filipp">Филипп (м)</option><option value="ermil">Ермил (м)</option><option value="zahar">Захар (м)</option><option value="alexander">Александр (м)</option><option value="kirill">Кирилл (м)</option><option value="anton">Антон (м)</option><option value="madirus">Мадирус (м)</option><option value="alena">Алёна (ж)</option><option value="jane">Джейн (ж)</option><option value="omazh">Омаж (ж)</option><option value="dasha">Даша (ж)</option><option value="julia">Юлия (ж)</option><option value="lera">Лера (ж)</option><option value="masha">Маша (ж)</option><option value="marina">Марина (ж)</option></select></label>
+    <div class="row"><button class="btn" id="yTest" type="button">▶ Проверить голос</button><span class="note" id="yStatus"></span></div>
     <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
     <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
       <input type="number" id="drama" min="0" step="1"></label>
@@ -857,7 +863,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if((localChanged||force)&&S.worlds.length&&useIdb){try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
   S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai))S.ai=d.ai;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;persistQuiet();return true;}
-const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","frank","hero","eco","pIn","pCache","pOut"];
+const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","frank","hero","yUrl","ySecret","yNarr","eco","pIn","pCache","pOut"];
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
 function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
@@ -1593,6 +1599,34 @@ function renderCharEdit(){
 
 // ---- ЧАТ С ПЕРСОНАЖЕМ
 let editIdx=-1,lastErr="";
+// ---- Живые голоса: Yandex SpeechKit через облачную функцию (tools/yandex-tts). Аудио хранится в IndexedDB → офлайн
+const Y_F=["alena","jane","omazh","dasha","julia","lera","masha","marina"],Y_M=["filipp","ermil","zahar","alexander","kirill","anton","madirus"];
+async function yttsSay(text,voice,role){const u=S.api.yUrl;if(!u)throw new Error("Сначала впиши адрес функции в Настройках → Живые голоса.");
+  const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,voice,role,secret:S.api.ySecret||""})});
+  if(!r.ok){const t=(await r.text()).slice(0,200);throw new Error(r.status===403?"Пароль функции не совпадает.":"Яндекс: "+r.status+" "+t);}
+  return await r.blob();}
+function yVoiceMap(segs){const m={},cnt={f:0,m:0};const narr=S.api.yNarr||"filipp";segs.forEach(s=>{if(!s.who||m[s.who])return;const g=ttsGender(s.who);const pool=(g==="f"?Y_F:Y_M).filter(v=>v!==narr);m[s.who]=pool[cnt[g]++%pool.length];});return m;}
+const hashStr=t=>{let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))>>>0;return h.toString(36)+t.length;};
+const audKey=(ch,i)=>"aud:"+ch.id+":"+i;
+async function audGet(ch,i){if(!useIdb)return null;try{return await idb.get("kv",audKey(ch,i));}catch(e){return null;}}
+async function voiceBook(c,onProg){if(!useIdb)throw new Error("Хранилище телефона недоступно — аудио негде сохранить.");
+  const ch=c.chats.find(x=>x.id===c.activeChat)||c.chats[0];const b=bookOf(c);const all=ttsSegments(b.parts.map(p=>({role:"assistant",content:p.text})),0);const vmap=yVoiceMap(all);const narr=S.api.yNarr||"filipp";
+  for(let i=0;i<b.parts.length;i++){if(ctl&&ctl.signal.aborted)break;const h=hashStr(b.parts[i].text+"|"+narr+"|"+JSON.stringify(vmap));const old=await audGet(ch,i);if(old&&old.h===h)continue;
+    const segs=all.filter(s=>s.mi===i);const blobs=[];for(let k=0;k<segs.length;k++){if(ctl&&ctl.signal.aborted)return;onProg(i,b.parts.length,k,segs.length);const sg=segs[k];blobs.push(await yttsSay(sg.text,sg.who?vmap[sg.who]:narr));}
+    await idb.put("kv",{h,blob:new Blob(blobs,{type:"audio/mpeg"})},audKey(ch,i));}}
+// плеер сохранённого аудио: работает и с погашенным экраном
+const AUD={el:null,i:0,list:[],bar:null};
+async function audPlay(c,from){const ch=c.chats.find(x=>x.id===c.activeChat)||c.chats[0];const b=bookOf(c);const list=[];for(let i=0;i<b.parts.length;i++){const a=await audGet(ch,i);if(a)list.push({i,blob:a.blob});}
+  if(!list.length){toast("Сначала «🎙 Озвучить».");return;}ttsStop();audStop();AUD.list=list;AUD.i=Math.max(0,list.findIndex(x=>x.i>=(from||0)));
+  AUD.el=new Audio();AUD.el.onended=()=>{AUD.i++;audLoad();};const bar=el("div","ttsbar");const mk=(t,fn)=>{const x=el("button",null,t);x.onclick=fn;bar.append(x);return x;};
+  mk("⏮",()=>{AUD.i=Math.max(0,AUD.i-1);audLoad();});AUD.pp=mk("⏸",()=>{if(AUD.el.paused){AUD.el.play();AUD.pp.textContent="⏸";}else{AUD.el.pause();AUD.pp.textContent="▶";}});mk("⏭",()=>{AUD.i++;audLoad();});
+  AUD.sp=mk("1×",()=>{const r=[1,1.25,1.5,0.85];const n=r[(r.indexOf(AUD.el.playbackRate)+1)%r.length]||1;AUD.el.playbackRate=n;AUD.sp.textContent=(n+"×").replace(".",",");});
+  AUD.tl=el("span","tl","");bar.append(AUD.tl);mk("✕",audStop);document.body.append(bar);AUD.bar=bar;
+  if("mediaSession"in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:c.name+" · "+ch.title,artist:"Живой мир",album:(W(c.worldId)||{}).name||""});navigator.mediaSession.setActionHandler("nexttrack",()=>{AUD.i++;audLoad();});navigator.mediaSession.setActionHandler("previoustrack",()=>{AUD.i=Math.max(0,AUD.i-1);audLoad();});}catch(e){}}
+  audLoad();}
+function audLoad(){const it=AUD.list[AUD.i];if(!it){audStop();toast("Дослушал до конца.");return;}if(AUD.el.src)URL.revokeObjectURL(AUD.el.src);const rate=AUD.el.playbackRate||1;AUD.el.src=URL.createObjectURL(it.blob);AUD.el.playbackRate=rate;AUD.el.play().catch(()=>{});
+  if(AUD.pp)AUD.pp.textContent="⏸";if(AUD.tl)AUD.tl.textContent="Часть "+(it.i+1)+" из "+AUD.list.length;document.querySelectorAll(".tts-now").forEach(x=>x.classList.remove("tts-now"));const m=document.querySelector('#view [data-mi="'+it.i+'"]');if(m){m.classList.add("tts-now");m.scrollIntoView({block:"start",behavior:"smooth"});}}
+function audStop(){if(AUD.el){AUD.el.pause();if(AUD.el.src)URL.revokeObjectURL(AUD.el.src);AUD.el=null;}if(AUD.bar){AUD.bar.remove();AUD.bar=null;}document.querySelectorAll(".tts-now").forEach(x=>x.classList.remove("tts-now"));}
 // ---- Книга: связная проза из разговора. Чат не трогаем; реплики героя только выправляем, без новых решений за него
 const BOOK_CHUNK=12000;
 function bookOf(c){const ch=c.chats.find(x=>x.id===c.activeChat)||c.chats[0];if(!ch.book)ch.book={parts:[],upto:0,t:""};const b=ch.book;
@@ -1622,7 +1656,14 @@ function renderBook(){const c=C(route.id);if(!c){go({v:"home"},true);return;}con
   const ls=el("button","btn","🎧 Слушать");ls.disabled=!b.parts.length;ls.onclick=()=>ttsStart(b.parts.map(p=>({role:"assistant",content:p.text})),0);
   const ex=el("button","btn","Сохранить .txt");ex.disabled=!b.parts.length;ex.onclick=()=>download((w.name+" — "+c.name+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".txt",w.name+"\n"+c.name+" · "+ch.title+"\n\n"+b.parts.map(p=>p.text).join("\n\n"),"text/plain;charset=utf-8");
   const rs=el("button","btn ghost warn","Пересобрать с нуля");rs.hidden=!b.parts.length;rs.onclick=()=>{if(!confirm("Удалить собранную книгу и собрать заново?"))return;ch.book=null;save();render();};
-  head.append(mk,ls,ex,rs);box.append(head);
+  const vo=el("button","btn","🎙 Озвучить живыми голосами");vo.disabled=!b.parts.length;const pl=el("button","btn","▶ Слушать аудио");pl.hidden=true;const dl=el("button","btn","Скачать mp3");dl.hidden=true;
+  (async()=>{let n=0;for(let i=0;i<b.parts.length;i++)if(await audGet(ch,i))n++;if(n){pl.hidden=false;dl.hidden=false;pl.textContent="▶ Слушать аудио ("+n+"/"+b.parts.length+")";if(n===b.parts.length)vo.textContent="🎙 Аудио готово (переозвучить новое)";}})();
+  pl.onclick=()=>audPlay(c,0);
+  dl.onclick=async()=>{const bl=[];for(let i=0;i<b.parts.length;i++){const a=await audGet(ch,i);if(a)bl.push(a.blob);}if(!bl.length)return;download((w.name+" — "+c.name+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".mp3",new Blob(bl,{type:"audio/mpeg"}),"audio/mpeg");};
+  vo.onclick=withBusy(vo,async()=>{if(!S.api.yUrl){alert("Сначала подключи Yandex SpeechKit: Настройки → «Живые голоса».");return;}const chars=b.parts.reduce((n,p)=>n+p.text.length,0);
+    if(!confirm("Озвучить книгу живыми голосами?\n≈ "+Math.round(chars/1000)+" тыс. символов ≈ "+Math.max(1,Math.round(chars/250*0.1626))+" ₽ ("+Math.round(chars/900)+" мин аудио). Уже озвученные части не трогаю."))return;
+    await voiceBook(c,(i,n,k,m)=>{vo.lastChild&&(vo.lastChild.textContent="Озвучиваю часть "+(i+1)+"/"+n+" · "+Math.round(k/m*100)+"%");});toast("Аудио готово — слушай офлайн.");render();});
+  head.append(mk,ls,vo,pl,dl,ex,rs);box.append(head);
   box.append(el("p","note",b.parts.length?("Разговор «"+ch.title+"»: собрано "+b.upto+" из "+c.history.length+" сообщений. Если правил старые сообщения — «Пересобрать с нуля»."):"Связная проза из разговора «"+ch.title+"» ("+c.history.length+" сообщ.). Твои реплики выправляются и оформляются, но ничего не добавляется за тебя. Чат не меняется. Стоимость — примерно как у "+Math.max(1,Math.ceil(c.history.length/12))+" обычных ответов."));
   const text=el("div");box.append(text);
   const draw=()=>{text.innerHTML="";b.parts.forEach((p,i)=>{const d=el("div","bookp");d.dataset.mi=i;fmt(d,p.text);text.append(d);});};draw();
@@ -1787,7 +1828,7 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";try{const bg=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#111316";const m=$("themeColor");if(m)m.setAttribute("content",bg);document.documentElement.style.background=bg;}catch(e){}}
-function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
+function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("yUrl").value=A.yUrl||"";$("ySecret").value=A.ySecret||"";$("yNarr").value=A.yNarr||"filipp";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}
@@ -1819,6 +1860,9 @@ $("keySave").onclick=async()=>{let raw=$("key").value;const mm=raw.match(/sk-[A-
   catch(e){keyStatus("Ключ сохранён, но не работает: "+friendly(e),true);}finally{ctl=null;}};
 $("replyLen").addEventListener("change",()=>{S.api.len=$("replyLen").value;save();});
 $("layout").addEventListener("change",()=>{S.api.layout=$("layout").value;save();});$("frank").addEventListener("change",()=>{S.api.frank=$("frank").value;save();});
+["yUrl","ySecret","yNarr"].forEach(k=>$(k).addEventListener("change",()=>{S.api[k]=$(k).value.trim();save();}));
+$("yTest").onclick=async()=>{S.api.yUrl=$("yUrl").value.trim();S.api.ySecret=$("ySecret").value.trim();S.api.yNarr=$("yNarr").value;save();$("yStatus").textContent="Синтезирую…";
+  try{const b=await yttsSay("Утро после шторма. У Чёрных камней лежали доски, канаты и бочки.",S.api.yNarr||"filipp");const a=new Audio(URL.createObjectURL(b));a.play();$("yStatus").textContent="Работает ✓";}catch(e){$("yStatus").textContent=e.message;}};
 $("heroMode").addEventListener("change",()=>{S.api.hero=$("heroMode").value;save();});
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
