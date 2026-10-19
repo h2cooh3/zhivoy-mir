@@ -1763,7 +1763,7 @@ function renderChat(){
     catch(e){lastErr=friendly(e);}
     finally{busy=false;ctl=null;save();drawLog();toast(usageStr(lastUsage));}}
   function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
-  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
+  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=c.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
   const vRefresh=voiceSend(send,ta,grow,sendMsg);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
 }
@@ -1830,7 +1830,7 @@ function renderScene(){
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}}
   function sendMsg(){if(busy)return;const t=ta.value.trim();if(t){const tt=x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;const l=x.history[x.history.length-1];if(l&&l.role==="user")l.content+="\n\n"+tt;else x.history.push({role:"user",content:tt});}ta.value="";grow();save();run();}
-  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
+  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=x.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
   const vRefresh=voiceSend(send,ta,grow,sendMsg,true);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
   drawLog();drawAside();if(!x.history.length)run();
 }
