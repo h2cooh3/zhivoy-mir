@@ -10,7 +10,7 @@
 - Файлы через чат на телефоне у него не открываются — всё доставляй через репозиторий (пресеты, дополнения), а не файлами.
 
 ## Приложение
-- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас ~v127).
+- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас ~v128).
 - Проверка синтаксиса: вытащить `<script>` в файл и `node --check`.
 - Тест: `python3 -m http.server 8815` в корне + Playwright (Chromium есть). На старте может быть открыт диалог API (`#dlg`) — закрыть перед кликами.
 - Состояние `S`: `worlds`, `chars`, `scenes`, `api`, `sync`. Хранение — IndexedDB. Синхронизация — GitHub gist, слияние по `updated`.
@@ -28,7 +28,7 @@
 ### Пресеты и дополнения
 - `presets/south-clean.json` — чистый мир «Южное побережье» (по умолчанию для новых игроков). `presets/south.json` — тот же мир, но сыгранный автором. Оба содержат все дополнения.
 - `presets/addons/south-*.json` — дополнения для **уже существующих** миров; список `ADDONS` в index.html (кнопка «＋ Добавить в мир» в разделе мира). Порядок в списке = рекомендуемый порядок применения.
-- Формат дополнения (`importFile` → блок «дополнение к миру»): `chars` (новые персонажи), `worldRulesAdd`, `worldPlacesAdd`, `relAdd`, `charPatch` {имя: `look`, `lookEn`, `endings`, `short`, `coreAdd` (дописать один раз), `coreReplace` [[старое,новое]], `coreSection` {markers, text} (заменить блок от маркера до пустой строки), `goalsAdd`, `goalsSet`, `relSet`, `secretsAdd`, `secretsSet`}, `story` (весь сюжет), `storyPatch` {id, replace, quests, tales, events, flagDefs, motifs, spine}. `storyPatch.id` записывается в `story.patches` — так кнопка понимает, что дополнение уже стоит.
+- Формат дополнения (`importFile` → блок «дополнение к миру»): `chars` (новые персонажи), `worldRulesAdd`, `worldPlacesAdd`, `relAdd`, `charPatch` {имя: `look`, `lookEn`, `endings`, `short`, `coreAdd` (дописать один раз), `coreReplace` [[старое,новое]], `coreSection` {markers, text} (заменить блок от маркера до пустой строки), `goalsAdd`, `goalsSet`, `relSet`, `secretsAdd`, `secretsSet`}, `story` (весь сюжет), `storyPatch` {id, replace, quests, tales, events, flagDefs, motifs, spine, counterDefs}; у `charPatch` ещё `coreSections` (список блоков) и `factsSet`; у квеста и сказания поле `rules` (запреты рассказчику, выводятся в промпт) и у квеста `watch` (флаги, значения которых рассказчик видит). `storyPatch.id` записывается в `story.patches` — так кнопка понимает, что дополнение уже стоит.
 - **Как вносить изменения в канон**: (1) правка данных скриптом на Python по пресетам и исходным дополнениям; (2) новое — отдельным дополнением + запись в `ADDONS`; (3) «запечь» его в оба пресета через `tools/bake.js` (импортирует пресет и дополнение через само приложение). Блоки глубины персонажей начинаются с «ПУТЬ И ГЛУБИНА.» (у младших детей — «ХАРАКТЕР.») и не содержат пустых строк внутри.
 - Карты: `WORLD_MAPS` → `presets/maps/south-saltham.svg` (живописная), `south.svg`.
 
