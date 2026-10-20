@@ -1707,7 +1707,8 @@ function exportChar(c){sheet([
   ["Промпт для портрета (картинка)",withPrompt("Промпт для портрета",()=>imagePrompt(c,false))],
   ["Промпт для кадра текущей сцены",withPrompt("Промпт для кадра",()=>imagePrompt(c,true))]]);}
 function chatFile(c,x){const w=W(c.worldId);return {app:"zhivoymir",kind:"chat",version:1,from:c.name,hero:heroName(w),title:x.title||"Разговор",summary:x.summary||"",history:x.history.filter(m=>String(m.content||"").trim()).map(m=>({role:m.role,content:m.content}))};}
-function exportChat(c,x){sheet([
+function exportChat(c,x){const w=W(c.worldId);sheet([
+  ...(w&&c.id!==w.heroId&&x.history.length>1?[["⇢ Перенести переписку в «История "+genName(heroName(w))+"»",()=>setTimeout(()=>moveChatToMain(w,c),50)]]:[]),
   ["⇢ Только переписка — файлом (.json), чтобы загрузить в «Историю»",()=>download(fnSafe(c.name+" — "+(x.title||"разговор"))+".json",JSON.stringify(chatFile(c,x),null,1),"application/json")],
   ["Разговор текстом — скачать .txt",()=>download(fnSafe(c.name+" — "+(x.title||"разговор"))+".txt",(x.title||"Разговор")+(x.desc?"\n"+x.desc:"")+"\n\n"+(x.summary?"Ранее:\n"+x.summary+"\n\n":"")+chatText(c,x),"text/plain;charset=utf-8")],
   ["Продолжить в другом ИИ (скопировать)",()=>showCopy("Разговор для другого ИИ",charCardText(c)+"\n\n"+(x.summary?"КРАТКО О РАЗГОВОРЕ:\n"+x.summary+"\n\n":"")+"ПОСЛЕДНИЕ СООБЩЕНИЯ:\n"+chatText(c,x,12)+"\n\nПродолжай с этого места, ответь как "+c.name+".","Вставь в любой ИИ-чат — он подхватит разговор с этого места.")],
