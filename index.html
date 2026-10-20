@@ -593,6 +593,19 @@ function genName(n){n=String(n||"").trim();const w=n.split(/\s+/);const last=w.p
   if(/[бвгджзклмнпрстфхцчшщ]$/i.test(last))g=last+"а";else if(/й$/i.test(last))g=last.slice(0,-1)+"я";else if(/[гкхжчшщ]а$/i.test(last))g=last.slice(0,-1)+"и";else if(/а$/i.test(last))g=last.slice(0,-1)+"ы";else if(/я$/i.test(last))g=last.slice(0,-1)+"и";else if(/ь$/i.test(last))g=last.slice(0,-1)+"я";
   return [...w,g].join(" ");}
 // перенести разговор с персонажем в главную историю: заменить её или дописать в конец
+function parseChatFile(text,w){text=String(text||"").replace(/^\uFEFF/,"").trim();
+  if(text[0]==="{"){try{const d=JSON.parse(text);if(Array.isArray(d.history))return {from:d.from||"",title:d.title||"",summary:d.summary||"",history:d.history.filter(m=>m&&(m.role==="user"||m.role==="assistant")&&String(m.content||"").trim()).map(m=>({role:m.role,content:String(m.content)}))};}catch(e){}return null;}
+  const hn=heroName(w).toLowerCase();const blocks=text.split(/\n{2,}(?=[^\n:]{1,40}:\n)/);const out=[];let from="";
+  blocks.forEach(b=>{const m=b.match(/^([^\n:]{1,40}):\n([\s\S]*)$/);if(!m)return;const who=m[1].trim();const role=who.toLowerCase()===hn?"user":"assistant";if(role==="assistant"&&!from)from=who;out.push({role,content:m[2].trim()});});
+  return out.length?{from,title:"",summary:"",history:out}:null;}
+function importChatToMain(w,data){let x=mainStoryOf(w);const h=data.history;if(!h.length){toast("В файле нет сообщений.");return;}const c=data.from&&charsOf(w.id).find(o=>o.name===data.from);
+  const doIt=mode=>{if(!x){x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));S.scenes.push(x);}
+    if(mode==="replace"){x.history=h;x.summary=data.summary||"";x.sumIdx=0;}
+    else{x.history=[...x.history,{role:"user",content:"[Дальше история продолжается"+(data.from?" с разговора с "+data.from:"")+".]"},...h];if(data.summary&&!x.summary)x.summary=data.summary;}
+    x.dirIdx=x.history.length;x.dramaIdx=x.history.length;if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);
+    x.updated=Date.now();save();toast("Переписка загружена в «"+x.title+"»: "+h.length+" сообщ.");go({v:"scene",id:x.id},true);};
+  if(!x||!x.history.length){doIt("replace");return;}
+  sheet([["Заменить «"+x.title+"» этой перепиской ("+h.length+" сообщ.)",()=>{if(confirm("Текущие "+x.history.length+" сообщ. в «"+x.title+"» исчезнут. Заменить?"))doIt("replace");},true],["Дописать в конец «"+x.title+"»",()=>doIt("append")]]);}
 function moveChatToMain(w,c){let x=mainStoryOf(w);const h=c.history.filter(m=>String(m.content||"").trim());if(!h.length){toast("В разговоре с "+c.name+" пусто.");return;}
   const doIt=mode=>{if(!x){x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));S.scenes.push(x);}
     const copy=h.map(m=>({role:m.role,content:m.content}));
@@ -1149,6 +1162,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
   if(/\.png$/i.test(file.name||"")||file.type==="image/png"){const card=await readPngCard(file);const ch=card&&fromTavern(card);if(!ch){alert("В этой картинке нет карточки персонажа. Подходят PNG-карточки из SillyTavern и похожих приложений.");return;}
     ch.avatar=await avatarFromFile(file);return importFile(new File([JSON.stringify({app:"zhivoymir",kind:"char",char:ch})],"card.json"),targetWorldId,opt);}
   let d;try{let t=(await file.text()).replace(/^﻿/,"").trim();if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать: это не файл приложения или он обрезан. Нужен файл .json, сохранённый через «Экспорт».");return;}
+  if(d&&d.kind==="chat"&&Array.isArray(d.history)){const w=W(targetWorldId||curWorldId())||S.worlds[0];if(!w){alert("Сначала нужен мир.");return;}importChatToMain(w,parseChatFile(JSON.stringify(d),w));return;}
   const chars=[];let worlds=[],scenes=[],persona=null;
   if(d.char)chars.push(d.char);
   if(Array.isArray(d.chars))chars.push(...d.chars);
@@ -1687,7 +1701,9 @@ function exportChar(c){sheet([
   ["Карточка для другого ИИ (скопировать текст)",()=>showCopy("Карточка персонажа",charCardText(c),"Вставь первым сообщением в любой ИИ-чат (ChatGPT, Gemini, другой Claude), и он будет играть этого персонажа с текущей памятью и состоянием.")],
   ["Промпт для портрета (картинка)",withPrompt("Промпт для портрета",()=>imagePrompt(c,false))],
   ["Промпт для кадра текущей сцены",withPrompt("Промпт для кадра",()=>imagePrompt(c,true))]]);}
+function chatFile(c,x){const w=W(c.worldId);return {app:"zhivoymir",kind:"chat",version:1,from:c.name,hero:heroName(w),title:x.title||"Разговор",summary:x.summary||"",history:x.history.filter(m=>String(m.content||"").trim()).map(m=>({role:m.role,content:m.content}))};}
 function exportChat(c,x){sheet([
+  ["⇢ Только переписка — файлом (.json), чтобы загрузить в «Историю»",()=>download(fnSafe(c.name+" — "+(x.title||"разговор"))+".json",JSON.stringify(chatFile(c,x),null,1),"application/json")],
   ["Разговор текстом — скачать .txt",()=>download(fnSafe(c.name+" — "+(x.title||"разговор"))+".txt",(x.title||"Разговор")+(x.desc?"\n"+x.desc:"")+"\n\n"+(x.summary?"Ранее:\n"+x.summary+"\n\n":"")+chatText(c,x),"text/plain;charset=utf-8")],
   ["Продолжить в другом ИИ (скопировать)",()=>showCopy("Разговор для другого ИИ",charCardText(c)+"\n\n"+(x.summary?"КРАТКО О РАЗГОВОРЕ:\n"+x.summary+"\n\n":"")+"ПОСЛЕДНИЕ СООБЩЕНИЯ:\n"+chatText(c,x,12)+"\n\nПродолжай с этого места, ответь как "+c.name+".","Вставь в любой ИИ-чат — он подхватит разговор с этого места.")],
   ["Копировать весь разговор",async()=>{try{await navigator.clipboard.writeText(chatText(c,x));toast("Скопировано.");}catch(e){showCopy("Разговор",chatText(c,x));}}],
@@ -2156,7 +2172,8 @@ function renderScene(){
   function cutAfter(i){x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
-    if(x.main){const mv=el("button","btn sm","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};aside.append(mv);}
+    if(x.main){const mv=el("button","btn sm ghost","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};
+      const ld=el("button","btn sm","⇣ Загрузить переписку из файла");ld.onclick=()=>pickFile(async f=>{const d=parseChatFile(await f.text(),w);if(!d){alert("Не получилось прочитать переписку. Нужен файл из «Экспорт → Только переписка» (.json) или текстовый (.txt) экспорт разговора.");return;}importChatToMain(w,d);});aside.append(el("div","row"),ld,mv);}
     if(dramaEvery()){const dd=x.drama;aside.append(el("h3",null,"Драматург"));aside.append(el("div","block",dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Вступит перед следующим ходом."));
       if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")+(dd.threads&&dd.threads.length?"\n\nНазревает:\n• "+dd.threads.join("\n• "):"")));aside.append(sp2);}
       const rb=el("button","btn sm","Сбросить драматурга");rb.onclick=()=>{x.drama=null;x.dramaIdx=x.history.length;save();drawAside();};aside.append(rb);}
