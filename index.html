@@ -610,7 +610,22 @@ function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
 const PARTS=["утро","день","вечер","ночь"];const PART_SOFT=8,PART_MAX=16; // ходов на часть дня: после SOFT рассказчик сам ведёт время дальше, после MAX хранитель двигает его сам
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
-function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});}
+function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
+// ============ ДЕНЬГИ И СЧЁТЧИКИ: дефицит как закон мира ============
+function fmtMoney(n){n=Math.round((Number(n)||0)*10)/10;return String(n).replace(".",",");}
+function initMoney(st){st.counts={};if(!st.money)return;st.purse=Number(st.money.start)||0;st.debt=0;st.ownIds=(st.money.assets||[]).map(a=>a.id);st.moneyLog=[];}
+function ensureMoney(st){if(st&&st.money&&st.purse===undefined)initMoney(st);}
+function ownedAssets(st){const m=st.money||{};return (m.assets||[]).filter(a=>(st.ownIds||[]).includes(a.id));}
+function addMoney(st,delta,why){ensureMoney(st);if(!st.money||!delta)return 0;const before=st.purse;st.purse=Math.max(0,Math.round((st.purse+delta)*100)/100);const real=Math.round((st.purse-before)*100)/100;
+  st.moneyLog=st.moneyLog||[];st.moneyLog.push({day:st.day,delta:real,asked:delta,why:String(why||"").slice(0,80)});if(st.moneyLog.length>20)st.moneyLog.shift();return real;}
+function moneyBlock(st){ensureMoney(st);const m=st.money;if(!m)return "";const own=ownedAssets(st);const g=m.goal||{};const unit=m.unit||"серебро";
+  return ["ДЕНЬГИ ГЕРОЯ ("+unit+"; игрок видит сумму наверху экрана):",
+    "В кошельке: "+fmtMoney(st.purse)+(st.debt>0?"; ДОЛГ: "+fmtMoney(st.debt):"")+". Еда на двоих — ещё около "+String(m.upkeep||0).replace(".",",")+" в день (хранитель вычтет сам; сам эту сумму в тексте не списывай).",
+    g.name?"Возможная цель героя (если он сам её поставил): "+g.name+" — около "+g.price+". "+(g.note||""):"",
+    own.length?"Что есть и можно продать (цена с торгом; Кадвал и Олдос дают примерно две трети): "+own.map(a=>a.name+" ≈ "+a.value).join("; ")+".":"Продавать больше нечего.",
+    m.rules||"",m.prices?"Ориентиры цен: "+m.prices:""].filter(Boolean).join("\n");}
+function countersBlock(st){const d=st.counterDefs||{};const ks=Object.keys(d);if(!ks.length)return "";const c=st.counts||{};return "СЧЁТЧИКИ (ведёт хранитель; веди историю с их учётом, но не называй числа игроку): "+ks.map(k=>d[k].text+" — "+(c[k]||0)).join("; ");}
+function rulesBlock(st){return (st.rules||[]).length?"ПРАВИЛА СЮЖЕТА:\n"+st.rules.map(r=>"• "+r).join("\n"):"";}
 // родительный падеж имени для «История Уилла / Фрейи»
 function genName(n){n=String(n||"").trim();const w=n.split(/\s+/);const last=w.pop()||"";let g=last;
   if(/[бвгджзклмнпрстфхцчшщ]$/i.test(last))g=last+"а";else if(/й$/i.test(last))g=last.slice(0,-1)+"я";else if(/[гкхжчшщ]а$/i.test(last))g=last.slice(0,-1)+"и";else if(/а$/i.test(last))g=last.slice(0,-1)+"ы";else if(/я$/i.test(last))g=last.slice(0,-1)+"и";else if(/ь$/i.test(last))g=last.slice(0,-1)+"я";
@@ -651,7 +666,7 @@ function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});ret
     const c=best.c;x.history=c.history.map(m=>({role:m.role,content:m.content}));x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,x.history.length);x.charIds=[c.id,...(c.guests||[])].filter(id=>C(id));x.dirIdx=x.history.length;x.dramaIdx=x.history.length;}
   else if(opening){x.history=[{role:"assistant",content:opening}];const oc=(st.openCast||STORY_OPENCAST[st.id]||[]);oc.forEach(n=>{const c=npcsOf(w.id).find(o=>o.name===n);if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);});x.dirIdx=1;x.dramaIdx=1;if(st.day===1){st.part=st.startPart||STORY_STARTPART[st.id]||st.part;}}
   S.scenes.push(x);save();go({v:"scene",id:x.id});}
-function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";return "День "+st.day+" · "+st.part;}
+function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";ensureMoney(st);return "День "+st.day+" · "+st.part+(st.money?" · 💰 "+fmtMoney(st.purse)+(st.debt>0?" (долг "+fmtMoney(st.debt)+")":""):"");}
 function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&(!e.if||(st.flags||{})[e.if]));}
 function storyBlock(w,cast){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
   if(st.done){const e=(st.endings||[]).find(x=>x.key===st.ending)||{};return "ИСТОРИЯ ЗАВЕРШЕНА: финал «"+(e.title||"")+"». Это жизнь после истории: сюжетных событий и больших новых конфликтов больше нет; люди живут с последствиями финала.";}
@@ -664,6 +679,9 @@ function storyBlock(w,cast){const st=storyOf(w);if(!st)return "";cast=(cast||[])
     sideBlock(w,st,cast),
     st.spine?"ПОЗВОНОЧНИК ГЕРОЕВ (игрок — соавтор: Уилла раскрывает он сам; ты не решаешь за героя и не называешь его чувства — даёшь материал и отражаешь через людей и мелочи):\n"+st.spine:"",
     motifBlock(st),
+    moneyBlock(st),
+    countersBlock(st),
+    rulesBlock(st),
     timeBlock(st),
     "Время в истории течёт естественно; не перескакивай дни без причины."].filter(Boolean).join("\n");}
 function motifBlock(st){const m=st.motifs||[];if(!m.length)return "";return "МОТИВЫ (рифмы истории; каждый проходит три шага: показать мелочью без объяснений → отозваться в другом месте или у другого человека → раскрыть смысл в сильный момент. Не чаще одного мотива за ответ, не в лоб, не объясняй их игроку):\n"+m.map(x=>"• "+x.name+": "+x.text).join("\n");}
@@ -681,7 +699,7 @@ function sideBlock(w,st,cast){const qs=st.questState||{},told=st.talesTold||{};c
       +(left!==null?"\n  Срок: "+(left>0?"осталось "+left+" дн. — мир не ждёт; если герой тянет, обстоятельства решают без него":"ВЫШЕЛ — покажи, что стало без героя"):"")
       +((q.failIf||[]).length?"\n  Может провалиться: "+q.failIf.join("; "):"")
       +((q.outcomes||[]).length?"\n  Исходы (удалась / частично / провал — все честные, провал тоже история): "+q.outcomes.map(o=>o.result+": "+o.what).join(" | "):"")
-      +"\n  Веди её постепенно, по шагу; не решай за героя; награда — не вещи, а то, что герой проживёт и что изменится в людях.");});
+      +(q.money?"\n  Деньги и цена в этой истории: "+q.money:"")+"\n  Веди её постепенно, по шагу; не решай за героя; награда — не вещи, а то, что герой проживёт и что изменится в людях.");});
   if(act.length<2){const av=(st.quests||[]).filter(q=>!qs[q.id]&&inActs(q,st)).sort((a,b)=>(names.includes(b.giver)?1:0)-(names.includes(a.giver)?1:0));
     const q0=av[0];if(q0)out.push("МОЖНО НАЧАТЬ ПОБОЧНУЮ ИСТОРИЮ, если сцена к этому располагает (не навязывай, не больше одной новой за раз): «"+q0.title+"»"+(q0.size==="малая"?" (малая — на одну сцену)":q0.size==="цепочка"?" (длинная, на несколько дней)":"")+" — "+q0.hook+(q0.kind==="заказ"?" Пусть "+q0.giver+" придёт с этим в мастерскую "+heroName(w)+", когда герой дома или в мастерской.":" (где: "+(q0.place||"—")+")")+" Герой вправе отказаться — это тоже исход.");}
   // отзвуки завершённых историй
@@ -709,6 +727,7 @@ ${(st.endings||[]).map(e=>"- "+e.key+" «"+e.title+"» (не раньше дня
 ПОБОЧНЫЕ ИСТОРИИ (id: название — состояние): ${(st.quests||[]).map(q=>q.id+": «"+q.title+"» — "+((st.questState||{})[q.id]||"не начата")+"; варианты: "+(q.choices||[]).map(c=>c.choice).join(" / ")).join("\n")||"нет"}
 РАССКАЗЫ У ОГНЯ (id: рассказчик «название»): ${(st.tales||[]).filter(t=>!(st.talesTold||{})[t.id]).map(t=>t.id+": "+t.teller+" «"+t.title+"»").join("; ")||"нет"}
 
+${st.money?"ДЕНЬГИ ГЕРОЯ СЕЙЧАС: "+fmtMoney(st.purse)+", долг "+fmtMoney(st.debt)+". Имущество (id): "+(ownedAssets(st).map(a=>a.id+" «"+a.name+"»").join(", ")||"нет")+"\n":""}${Object.keys(st.counterDefs||{}).length?"СЧЁТЧИКИ (id: что считать): "+Object.entries(st.counterDefs).map(([k,v])=>k+": "+v.text).join("; ")+"\n":""}
 ПОСЛЕДНЕЕ В ИСТОРИИ:
 ${recent}
 
@@ -722,10 +741,11 @@ ${recent}
 - "qStart": id побочных историй, которые начались в тексте; "qDone": [{"id":"","result":"удалась|частично|провал|отказ","choice":"чем кончилась, 3–10 слов"}] — которые завершились (провал — если сработало условие провала или вышел срок; отказ — если герой отказался браться);
 - "echoed": id отзвуков (вида "квест:номер"), которые случились в тексте;
 - "told": id рассказов, которые персонаж рассказал в тексте;
-- "why": 3–8 слов, почему.
-JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"echoed":[],"ending":"","why":""}`;
+${st.money?`- "money": {"delta": число (получил +, потратил/отдал −), "debt": изменение долга (только явная ссуда или возврат), "sold": [id проданного имущества], "lost": [id потерянного иначе], "why": 3–8 слов} — ТОЛЬКО то, что прямо случилось в ДВУХ ПОСЛЕДНИХ ответах рассказчика (всё раньше уже учтено). Суммы бери из текста; если названо не числом, оцени по ориентирам, не завышай. Нет денежных событий — delta 0. Еду на двоих не считай — это делается само.\n`:""}${Object.keys(st.counterDefs||{}).length?`- "count": [id счётчиков, которые выросли на 1 из-за событий в ДВУХ ПОСЛЕДНИХ ответах рассказчика; более ранние уже учтены; один и тот же случай дважды не считай];\n`:""}- "why": 3–8 слов, почему.
+JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
   const r=await askJSON(prompt,900,"story");
   const d0=st.day,p0=st.part;const d=Math.max(0,Math.min(7,parseInt(r.days)||0));if(d){st.day+=d;}
+  ensureMoney(st);if(d&&st.money&&st.money.upkeep)addMoney(st,-d*st.money.upkeep,"будни: еда на двоих");
   if(PARTS.includes(r.part))st.part=r.part;
   // мягкие часы: время двинулось — счёт ходов заново; если часть дня затянулась сверх меры — двигаем сами
   if(st.day!==d0||st.part!==p0)st.partMoves=0;else if((st.partMoves||0)>=PART_MAX){const i=PARTS.indexOf(st.part);if(i>=PARTS.length-1){st.day++;st.part=PARTS[0];}else st.part=PARTS[i+1];st.partMoves=0;r.days=r.days||(i>=PARTS.length-1?1:0);}
@@ -738,6 +758,13 @@ JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qSta
     w.events.push({t:now(),date:w.date,text:"История «"+q.title+"» — "+res+": "+(st.questEnd[id]||"—"),public:true,who:q.who||[]});qmsg="«"+q.title+"» — "+res;}});
   (Array.isArray(r.told)?r.told:[]).forEach(id=>{if((st.tales||[]).some(t=>t.id===id))st.talesTold[id]=st.day;});
   st.echoed=st.echoed||{};(Array.isArray(r.echoed)?r.echoed:[]).forEach(k=>{if(typeof k==="string"&&k.includes(":"))st.echoed[k]=st.day;});
+  if(st.money&&r.money&&typeof r.money==="object"){const dl=Math.max(-45,Math.min(45,Number(r.money.delta)||0));let mm="";
+    if(dl){const real=addMoney(st,dl,r.money.why);mm="💰 "+(real>0?"+":"")+fmtMoney(real)+(r.money.why?" · "+String(r.money.why).slice(0,40):"")+(real!==dl?" (не хватило)":"");}
+    const dd=Math.max(-60,Math.min(60,Number(r.money.debt)||0));if(dd){st.debt=Math.max(0,Math.round(((st.debt||0)+dd)*100)/100);mm=mm||"💰 долг: "+(dd>0?"+":"")+fmtMoney(dd);}
+    [...(Array.isArray(r.money.sold)?r.money.sold:[]),...(Array.isArray(r.money.lost)?r.money.lost:[])].forEach(id=>{const a=(st.money.assets||[]).find(x=>x.id===id);if(a&&(st.ownIds||[]).includes(id)){st.ownIds=st.ownIds.filter(x=>x!==id);mm=(mm?mm+" · ":"💰 ")+"больше нет: "+a.name;}});
+    if(mm)r._m=mm;}
+  if(st.counterDefs){st.counts=st.counts||{};(Array.isArray(r.count)?r.count:[]).forEach(id=>{if(st.counterDefs[id])st.counts[id]=(st.counts[id]||0)+1;});
+    Object.entries(st.counterDefs).forEach(([k,v])=>{if(v.flag&&(st.counts[k]||0)>=(v.gte||1)&&st.flagDefs&&st.flagDefs[v.flag])st.flags[v.flag]=true;});}
   if(qmsg)r._q=qmsg;
   const na=parseInt(r.act);if(na>st.act&&na<=st.acts.length)st.act=na;
   // по дням акт тоже сдвигается
@@ -748,7 +775,7 @@ JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qSta
 let storyBusy=false;
 function storyAfter(w,hist){{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
-  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
+  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
 function storyBanner(w,after){const st=storyOf(w);if(!st||!st.pending||st.done)return null;const e=(st.endings||[]).find(x=>x.key===st.pending.key);if(!e)return null;
   const b=el("div","block");b.style.borderLeft="3px solid var(--accent)";b.style.margin="8px 12px";
@@ -1171,6 +1198,7 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-heroes.json",patchId:"south-heroes",names:[],title:"Путь героев: исцеление Уилла и «нет» Фрейи",desc:"Позвоночник двух главных героев: забота Уилла становится оградой, ему нужно простить себя и отпустить; Фрейя учится говорить «нет» — деталями, которые надо заметить. Свирель Уилла, песни и звёзды Фрейи."},
   {file:"presets/addons/south-aitmatov.json",patchId:"south-aitmatov",names:["Старый Гарет"],title:"«Дольше века» — отсылка к Айтматову",desc:"Старый рыбак Гарет, у которого никого нет, умирает; Уилл везёт его целый день на Цаплиный мыс — а мыс огородил барон. Сказание о «непомнящих» и чайке, мотив имени."},
   {file:"presets/addons/south-godric.json",patchId:"south-godric",names:["Нелл"],title:"Годрик и его дочь Нелл",desc:"Новая линия Годрика: непризнанная дочь Нелл, письма матери, которые ему читает Тобиас, точка перелома — «хотела бы увидеть внуков». Встречи Уилла с Нелл на рынке, у каждого выбора своя цена."},
+  {file:"presets/addons/south-money.json",patchId:"south-money",names:[],title:"Деньги: дефицит, имущество, цена каждого выбора",desc:"Кошелёк в серебре, еда на двоих каждый день, имущество (конь, коровы, инструмент, мастерская, дом) как ступени вниз. У каждой истории своя цена; Нелл — повторяющиеся встречи со счётчиком; правило безопасности, когда Фрейя остаётся одна."},
   {file:"presets/addons/south-paths.json",patchId:"south-paths",names:[],title:"Пути всех персонажей",desc:"У каждого (кроме Уилла и Фрейи) — рана, чего хочет и что нужно на самом деле, недостаток, путь с точкой выбора, тайная радость и детали. Плюс правки внешности: Том не похож на Пипа, у женщин разные цвета."},
   {file:"presets/addons/south-looks.json",patchId:"south-looks",names:[],title:"Внешность под южный мир",desc:"Описания внешности и промпты для портретов у всех, кроме Уилла и Фрейи: южный свет, белый камень, красная черепица, кипарисы — вместо северного тумана."}]};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
@@ -1268,7 +1296,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
     if(d.charPatch&&typeof d.charPatch==="object")Object.entries(d.charPatch).forEach(([who,pt])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!pt)return;["look","lookEn"].forEach(k=>{if(typeof pt[k]==="string"&&pt[k].trim())c[k]=pt[k].trim();});if(Array.isArray(pt.endings))c.endings=pt.endings;if(typeof pt.short==="string"&&pt.short.trim())c.short=pt.short.trim();(Array.isArray(pt.coreReplace)?pt.coreReplace:[]).forEach(([a,b])=>{if(a&&(c.core||"").includes(a))c.core=c.core.split(a).join(b||"");});if(pt.coreSection&&typeof pt.coreSection.text==="string"){const cs=pt.coreSection;let core=c.core||"";let done=false;(cs.markers||[]).forEach(mk=>{if(done)return;const i=core.indexOf(mk);if(i<0)return;let j=core.indexOf("\n\n",i);if(j<0)j=core.length;core=core.slice(0,i)+cs.text.trim()+core.slice(j);done=true;});if(!done)core=(core.trim()+"\n\n"+cs.text.trim()).trim();c.core=core;}
     if(typeof pt.coreAdd==="string"&&pt.coreAdd.trim()&&!(c.core||"").includes(pt.coreAdd.trim().slice(0,60)))c.core=((c.core||"").trim()+"\n\n"+pt.coreAdd.trim()).trim();c.state=c.state||{};if(Array.isArray(pt.goalsSet))c.state.goals=pt.goalsSet.slice();if(typeof pt.secretsSet==="string")c.state.secrets=pt.secretsSet;if(Array.isArray(pt.goalsAdd)){c.state.goals=c.state.goals||[];pt.goalsAdd.forEach(g=>{if(!c.state.goals.includes(g))c.state.goals.push(g);});}if(pt.relSet&&typeof pt.relSet==="object"){c.state.relations=c.state.relations||{};Object.assign(c.state.relations,pt.relSet);}if(typeof pt.secretsAdd==="string"&&pt.secretsAdd.trim()&&!(c.state.secrets||"").includes(pt.secretsAdd.trim().slice(0,40)))c.state.secrets=((c.state.secrets||"").trim()+" "+pt.secretsAdd.trim()).trim();c.updated=Date.now();add++;});
     if(d.story&&typeof d.story==="object"&&Array.isArray(d.story.acts)){if(!tw.story||tw.story.id!==d.story.id||confirm("В мире уже есть сюжет «"+(tw.story.title||"")+"». Заменить его новым (с первого дня)?")){tw.story=JSON.parse(JSON.stringify(d.story));resetStory(tw.story);add++;}}
-    if(d.storyPatch&&typeof d.storyPatch==="object"){if(!tw.story){alert("Сначала добавь сюжет «"+(d.storyPatch.forTitle||"")+"» — это дополнение к нему.");}else{["quests","tales","events"].forEach(k=>{if(Array.isArray(d.storyPatch[k])){const cur=tw.story[k]||[];const byId=new Map(cur.map(x=>[x.id,x]));d.storyPatch[k].forEach(x=>{if(byId.has(x.id)){if(d.storyPatch.replace)Object.assign(byId.get(x.id),x);}else cur.push(x);});tw.story[k]=cur;}});if(typeof d.storyPatch.spine==="string"&&d.storyPatch.spine.trim())tw.story.spine=d.storyPatch.spine.trim();if(Array.isArray(d.storyPatch.motifs)){const cur=tw.story.motifs||[];d.storyPatch.motifs.forEach(m=>{const i=cur.findIndex(x=>x.name===m.name);if(i>=0)cur[i]=m;else cur.push(m);});tw.story.motifs=cur;}if(d.storyPatch.flagDefs&&typeof d.storyPatch.flagDefs==="object")tw.story.flagDefs=Object.assign(tw.story.flagDefs||{},d.storyPatch.flagDefs);tw.story.patches=[...new Set([...(tw.story.patches||[]),d.storyPatch.id])];add++;}}
+    if(d.storyPatch&&typeof d.storyPatch==="object"){if(!tw.story){alert("Сначала добавь сюжет «"+(d.storyPatch.forTitle||"")+"» — это дополнение к нему.");}else{["quests","tales","events"].forEach(k=>{if(Array.isArray(d.storyPatch[k])){const cur=tw.story[k]||[];const byId=new Map(cur.map(x=>[x.id,x]));d.storyPatch[k].forEach(x=>{if(byId.has(x.id)){if(d.storyPatch.replace)Object.assign(byId.get(x.id),x);}else cur.push(x);});tw.story[k]=cur;}});if(typeof d.storyPatch.spine==="string"&&d.storyPatch.spine.trim())tw.story.spine=d.storyPatch.spine.trim();if(Array.isArray(d.storyPatch.motifs)){const cur=tw.story.motifs||[];d.storyPatch.motifs.forEach(m=>{const i=cur.findIndex(x=>x.name===m.name);if(i>=0)cur[i]=m;else cur.push(m);});tw.story.motifs=cur;}if(d.storyPatch.flagDefs&&typeof d.storyPatch.flagDefs==="object")tw.story.flagDefs=Object.assign(tw.story.flagDefs||{},d.storyPatch.flagDefs);if(d.storyPatch.money&&typeof d.storyPatch.money==="object"){tw.story.money=Object.assign({},tw.story.money||{},JSON.parse(JSON.stringify(d.storyPatch.money)));if(tw.story.purse===undefined)initMoney(tw.story);}if(d.storyPatch.counterDefs&&typeof d.storyPatch.counterDefs==="object"){tw.story.counterDefs=Object.assign(tw.story.counterDefs||{},d.storyPatch.counterDefs);tw.story.counts=tw.story.counts||{};}if(Array.isArray(d.storyPatch.rulesAdd)){const cur=tw.story.rules||[];d.storyPatch.rulesAdd.forEach(r=>{if(!cur.includes(r))cur.push(r);});tw.story.rules=cur;}tw.story.patches=[...new Set([...(tw.story.patches||[]),d.storyPatch.id])];add++;}}
     if(d.heroName){const h=charsOf(tw.id).find(x=>x.name===d.heroName);if(h&&!tw.heroId){tw.heroId=h.id;add++;}}
     if(add){tw.updated=Date.now();save();toast("Мир дополнен.");}}}
   if(opt.open&&chars.length===1&&!worlds.length){if(route.draft)stack.pop();go({v:"charEdit",id:chars[0].id},true);return;}

@@ -10,7 +10,7 @@
 - Файлы через чат на телефоне у него не открываются — всё доставляй через репозиторий (пресеты, дополнения), а не файлами.
 
 ## Приложение
-- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас ~v126).
+- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас ~v127).
 - Проверка синтаксиса: вытащить `<script>` в файл и `node --check`.
 - Тест: `python3 -m http.server 8815` в корне + Playwright (Chromium есть). На старте может быть открыт диалог API (`#dlg`) — закрыть перед кликами.
 - Состояние `S`: `worlds`, `chars`, `scenes`, `api`, `sync`. Хранение — IndexedDB. Синхронизация — GitHub gist, слияние по `updated`.
@@ -21,6 +21,7 @@
 - **Герой** — тоже персонаж: `w.heroId` (Уилл). `npcsOf(wid)` — все, кроме героя.
 - **Главная история** — сцена `main:true` («История Уилла»). Рассказчик: `sceneStable/sceneDynamic`. Пишется **от третьего лица** (`styleRule`), стиль — `w.style`: ключ из `STYLES` («кино», «сдержанно», «ведьмак», «тепло», «сценарий») или свой текст.
 - **Сюжетный движок** `w.story`: `acts`, `events` (`day:[a,b]`, `if:флаг`), `flagDefs`, `endings` (`minDay`), `quests`, `tales`, `motifs`, `spine`, состояние (`day`, `part`, `act`, `flags`, `questState`, `partMoves`…). `storyTick` (дешёвая модель) раз в 2 ответа считает время/флаги/события. `storyBlock` вставляет в промпт: акт, «пора случиться», побочные истории, ПОЗВОНОЧНИК ГЕРОЕВ (`spine`), МОТИВЫ (`motifBlock`), мягкие часы (`timeBlock`: `PART_SOFT=8`, `PART_MAX=16` ходов на часть дня).
+- **Деньги и счётчики** (дополнение `south-money`): `story.money` (start, upkeep, goal, assets, prices, rules), `purse/debt/ownIds`, `counterDefs`+`counts` (флаг по порогу), `rules`; в квестах поле `money` (цены выбора). Хранитель правит их в `storyTick`, показ — в `storyLabel` (💰), блоки `moneyBlock/countersBlock/rulesBlock` в `storyBlock`. Подробности и числа — в `docs/КАНОН.md`, раздел «Деньги и дефицит».
 - **Начало истории**: `STORY_OPENINGS`, `STORY_OPENCAST` (`["Эдвин","Фрейя"]`), `STORY_STARTPART` («ночь»), плюс `story.opening` в пресете.
 - **Шаблон мира**: `tplOf(w)` = `w.tpl` или базовое имя. У мира есть `w.label` — «своё название (тема)», крупно на главной.
 
