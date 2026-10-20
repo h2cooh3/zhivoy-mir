@@ -587,7 +587,7 @@ function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
 const PARTS=["утро","день","вечер","ночь"];
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
-function resetStory(st){Object.assign(st,{day:1,part:"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});}
+function resetStory(st){Object.assign(st,{day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});}
 // родительный падеж имени для «История Уилла / Фрейи»
 function genName(n){n=String(n||"").trim();const w=n.split(/\s+/);const last=w.pop()||"";let g=last;
   if(/[бвгджзклмнпрстфхцчшщ]$/i.test(last))g=last+"а";else if(/й$/i.test(last))g=last.slice(0,-1)+"я";else if(/[гкхжчшщ]а$/i.test(last))g=last.slice(0,-1)+"и";else if(/а$/i.test(last))g=last.slice(0,-1)+"ы";else if(/я$/i.test(last))g=last.slice(0,-1)+"и";else if(/ь$/i.test(last))g=last.slice(0,-1)+"я";
@@ -615,14 +615,17 @@ function moveChatToMain(w,c){let x=mainStoryOf(w);const h=c.history.filter(m=>St
     x.updated=Date.now();save();toast("Разговор с "+c.name+" перенесён в «"+x.title+"» ("+copy.length+" сообщ.). Сам разговор остался как был.");go({v:"scene",id:x.id});};
   if(!x||!x.history.length){doIt("replace");return;}
   sheet([["Заменить «"+x.title+"» этим разговором ("+h.length+" сообщ.)",()=>{if(confirm("Текущие "+x.history.length+" сообщ. в «"+x.title+"» исчезнут. Заменить?"))doIt("replace");},true],["Дописать в конец «"+x.title+"»",()=>doIt("append")]]);}
+const STORY_OPENINGS={"south-freedom":"*Ночь. Шторм третий час ломится в ставни. Ты просыпаешься не от ветра — к ветру ты привык, — а от звука, которого в нём быть не должно: сквозь вой, рывками, долетает звон. Колокол. Не часовни — та звонит ровно и редко. Этот бьёт часто, захлёбываясь, и обрывается на полуударе.*\n\n*Ты выходишь на крыльцо. Дождь сечёт лицо, Тихий ручей ревёт под колесом мастерской. Внизу, за домом Эдвина, темно — бухта спит. А дальше, там, где ночью никогда не бывает огня, у Чёрных камней, качается свет. Гаснет. Вспыхивает снова — ниже. Молния на миг вырывает из темноты мачту: она стоит косо, как вбитый в камень гвоздь, и рядом с ней мечется второй огонь, который уже никто не держит.*\n\n*Деревня далеко и спит. До утра у камней никого не будет. До них — меньше версты по мокрому берегу, мимо спящей бухты.*"};
+const STORY_OPENCAST={"south-freedom":["Фрейя"]},STORY_STARTPART={"south-freedom":"ночь"};
 function mainStoryOf(w){return S.scenes.find(x=>x.worldId===w.id&&x.main)||null;}
 function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});return;}
   x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));
   // продолжить с самого длинного разговора (обычно — с Фреей)
   const best=npcsOf(w.id).map(c=>({c,n:c.history.length})).sort((a,b)=>b.n-a.n)[0];
-  if(best&&best.n>2&&confirm("Начать «"+x.title+"» с того места, где сейчас разговор с "+best.c.name+"?\n\nПоследние сообщения перейдут в общую историю, а разговор с "+best.c.name+" останется как есть — для разговоров наедине.\n\nОтмена — начать историю с чистого листа.")){
+  const st=storyOf(w);const opening=st&&(st.opening||STORY_OPENINGS[st.id]);
+  if(best&&best.n>2&&confirm("Начать «"+x.title+"» с того места, где сейчас разговор с "+best.c.name+"?\n\nПоследние сообщения перейдут в общую историю, а разговор с "+best.c.name+" останется как есть — для разговоров наедине.\n\nОтмена — начать историю с самого начала"+(opening?" (ночь шторма)":"")+".")){
     const c=best.c;x.history=c.history.map(m=>({role:m.role,content:m.content}));x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,x.history.length);x.charIds=[c.id,...(c.guests||[])];x.dirIdx=x.history.length;x.dramaIdx=x.history.length;}
-  else{x.setup=(w.story&&w.story.acts?"":"")||"";}
+  else if(opening){x.history=[{role:"assistant",content:opening}];const oc=(st.openCast||STORY_OPENCAST[st.id]||[]);oc.forEach(n=>{const c=npcsOf(w.id).find(o=>o.name===n);if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);});x.dirIdx=1;x.dramaIdx=1;if(st.day===1){st.part=st.startPart||STORY_STARTPART[st.id]||st.part;}}
   S.scenes.push(x);save();go({v:"scene",id:x.id});}
 function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";return "День "+st.day+" · "+st.part;}
 function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&(!e.if||(st.flags||{})[e.if]));}
@@ -1543,7 +1546,7 @@ function renderHome(){
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
   // готовые миры: грузятся одним нажатием из самого приложения
-  const PRESETS=[{file:"presets/south.json",world:"Южное побережье",title:"Южное побережье",desc:"Средневековое южное побережье, конец лета. Плотник Уилл нашёл на берегу Фрейю — северянку, выброшенную штормом. 16 персонажей: деревня, стража, друзья, враги. Сцена на берегу уже начата."}];
+  const PRESETS=[{file:"presets/south-clean.json",world:"Южное побережье",title:"Южное побережье",desc:"Южный берег, конец лета, ночь шторма. Плотник Уилл видит огни у Чёрных камней — там разбился невольничий корабль. 22 персонажа, сюжет «Свобода Фрейи», побочные истории, карты."}];
   const avail=PRESETS.filter(x=>!S.worlds.some(w=>w.name===x.world));
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
     avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt","нажми, чтобы добавить"));
@@ -2263,7 +2266,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
