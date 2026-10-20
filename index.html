@@ -592,6 +592,16 @@ function resetStory(st){Object.assign(st,{day:1,part:"утро",act:1,flags:{},p
 function genName(n){n=String(n||"").trim();const w=n.split(/\s+/);const last=w.pop()||"";let g=last;
   if(/[бвгджзклмнпрстфхцчшщ]$/i.test(last))g=last+"а";else if(/й$/i.test(last))g=last.slice(0,-1)+"я";else if(/[гкхжчшщ]а$/i.test(last))g=last.slice(0,-1)+"и";else if(/а$/i.test(last))g=last.slice(0,-1)+"ы";else if(/я$/i.test(last))g=last.slice(0,-1)+"и";else if(/ь$/i.test(last))g=last.slice(0,-1)+"я";
   return [...w,g].join(" ");}
+// перенести разговор с персонажем в главную историю: заменить её или дописать в конец
+function moveChatToMain(w,c){let x=mainStoryOf(w);const h=c.history.filter(m=>String(m.content||"").trim());if(!h.length){toast("В разговоре с "+c.name+" пусто.");return;}
+  const doIt=mode=>{if(!x){x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));S.scenes.push(x);}
+    const copy=h.map(m=>({role:m.role,content:m.content}));
+    if(mode==="replace"){x.history=copy;x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,copy.length);}
+    else{const base=x.history.length;x.history=[...x.history,{role:"user",content:"[Дальше история продолжается с разговора с "+c.name+".]"},...copy];if(c.summary&&!x.summary)x.summary=c.summary;}
+    x.dirIdx=x.history.length;x.dramaIdx=x.history.length;[c.id,...(c.guests||[])].forEach(id=>{if(!x.charIds.includes(id))x.charIds.push(id);});
+    x.updated=Date.now();save();toast("Разговор с "+c.name+" перенесён в «"+x.title+"» ("+copy.length+" сообщ.). Сам разговор остался как был.");go({v:"scene",id:x.id});};
+  if(!x||!x.history.length){doIt("replace");return;}
+  sheet([["Заменить «"+x.title+"» этим разговором ("+h.length+" сообщ.)",()=>{if(confirm("Текущие "+x.history.length+" сообщ. в «"+x.title+"» исчезнут. Заменить?"))doIt("replace");},true],["Дописать в конец «"+x.title+"»",()=>doIt("append")]]);}
 function mainStoryOf(w){return S.scenes.find(x=>x.worldId===w.id&&x.main)||null;}
 function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});return;}
   x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));
@@ -1267,11 +1277,12 @@ function renderProfile(){
   // действия
   const acts=el("div","row");acts.style.gap="8px";
   const go1=el("button","btn primary","Написать");go1.onclick=()=>go({v:"chat",id:c.id});
+  const mvm=el("button","btn","⇢ В «Историю "+genName(heroName(w))+"»");mvm.title="Перенести этот разговор в главную историю";mvm.onclick=()=>moveChatToMain(w,c);mvm.hidden=!w||c.id===w.heroId||c.history.length<2;
   const nc=el("button","btn","+ Новый разговор");nc.onclick=()=>newChatAsk(c,()=>{const x={id:uid(),title:"Разговор "+(c.chats.length+1),history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now()};c.chats.push(x);c.activeChat=x.id;save();go({v:"chat",id:c.id});});
   const ed=el("button","btn","Изменить");ed.onclick=()=>go({v:"charEdit",id:c.id});
   const ai=el("button","btn","Экспорт");ai.onclick=()=>exportChar(c);
   const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});
-  acts.append(go1,nc,ed,ai,co);p.append(acts);
+  acts.append(go1,mvm,nc,ed,ai,co);p.append(acts);
   // состояние
   const st=c.state;const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
   blk("Сейчас",st.now);blk("Настроение",st.mood);blk("К тебе",(st.relUser||"")+(st.relUser?"\n":"")+"Доверие: "+trustWord(st.trust));blk("История ваших отношений",st.arc);blk("Цели",(st.goals||[]).join("; "));
@@ -2145,6 +2156,7 @@ function renderScene(){
   function cutAfter(i){x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
+    if(x.main){const mv=el("button","btn sm","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};aside.append(mv);}
     if(dramaEvery()){const dd=x.drama;aside.append(el("h3",null,"Драматург"));aside.append(el("div","block",dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Вступит перед следующим ходом."));
       if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")+(dd.threads&&dd.threads.length?"\n\nНазревает:\n• "+dd.threads.join("\n• "):"")));aside.append(sp2);}
       const rb=el("button","btn sm","Сбросить драматурга");rb.onclick=()=>{x.drama=null;x.dramaIdx=x.history.length;save();drawAside();};aside.append(rb);}
