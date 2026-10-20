@@ -916,6 +916,9 @@ function fixAll(){S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld()
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
 // Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
 const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
+const ADDONS={"Южное побережье":[
+  {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
+  {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Управляющий Кадвал"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, управляющий Кадвал. Плюс правила мира о беглых, Палате возврата, дружине и оброке."}]};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
   if(!confirm("Создать параллельный мир «"+nm+"»?\n\nВсе персонажи и хроника начнутся с самого начала — никто ничего не помнит. Этот мир останется как есть, между ними можно переключаться."))return;
@@ -1375,6 +1378,11 @@ function tabChars(w,body){
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
   charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
+  // дополнения к готовому миру: лежат в самом приложении, добавляются одной кнопкой (без файлов)
+  {const list=(ADDONS[baseWorldName(w.name)]||[]).filter(x=>!x.names.every(n=>charsOf(w.id).some(c=>c.name===n)));
+    if(list.length){body.append(el("h3",null,"Дополнения к миру"));list.forEach(x=>{const it=el("div","block");it.style.marginBottom="8px";const bt=el("button","btn sm primary","＋ Добавить в мир");
+      bt.onclick=async()=>{bt.disabled=true;try{const r=await fetch(x.file,{cache:"no-store"});if(!r.ok)throw new Error(r.status);await importFile(await r.blob(),w.id);}catch(e){alert("Не удалось загрузить: "+e.message+". Проверь интернет.");bt.disabled=false;}};
+      it.append(el("b",null,x.title),el("div","note",x.desc),bt);body.append(it);});}}
   if(charsOf(w.id).length)body.append(el("p","note","Нажми на персонажа, чтобы поговорить. Он помнит всё, что было, и меняется от ваших разговоров — и от того, что происходит в мире без тебя (вкладка «Хроника» → «Прошло время»)."));
 }
 function helperContext(w){
