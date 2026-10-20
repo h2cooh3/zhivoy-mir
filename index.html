@@ -118,6 +118,15 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .bar .mini{width:44px;height:44px;border-radius:50%;background:var(--panel2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;font-size:18px;color:var(--muted)}
 .lightbox{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px}
 .lightbox img{max-width:100%;max-height:100%;border-radius:12px}
+.gallery .gnav{position:absolute;background:rgba(0,0,0,.45);color:#fff;border:0;border-radius:50%;width:44px;height:44px;font-size:26px;line-height:44px;cursor:pointer}
+.gallery .gprev{left:10px;top:50%;transform:translateY(-50%)}.gallery .gnext{right:10px;top:50%;transform:translateY(-50%)}.gallery .gclose{right:10px;top:10px;font-size:18px}
+.gallery .gcount{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#fff;font-size:13px;opacity:.8}
+.pstrip{display:flex;gap:6px;overflow-x:auto;margin-top:6px;padding-bottom:2px}.pstrip img{width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex:none}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:8px}
+.pthumb{position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--panel);cursor:pointer;padding:0}
+.pthumb img{width:100%;height:100%;object-fit:cover;display:block}.pthumb.main{outline:2px solid var(--accent)}
+.pthumb .pmain{position:absolute;left:4px;bottom:4px;font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:1px 5px}
+.padd{font-size:28px;color:var(--muted);display:flex;align-items:center;justify-content:center}
 .bar .mini img{width:100%;height:100%;object-fit:cover}
 .bar .who{flex:1 1 120px;min-width:110px}
 .bar .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -354,7 +363,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",layout:"split",frank:"adult",hero:"strict",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
   persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],helperArchive:[],helperMem:"",style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
-const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",short:"",tags:[],core:"",examples:"",greeting:"",
+const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",photos:[],short:"",tags:[],core:"",examples:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
 function wireChar(c){
   if(!Array.isArray(c.chats))c.chats=[];
@@ -1145,7 +1154,7 @@ function expChar(c){download((c.name||"персонаж")+".json",JSON.stringify
 function expWorld(w){const cs=charsOf(w.id),sc=S.scenes.filter(x=>x.worldId===w.id);download((w.name||"мир")+".json",JSON.stringify({app:"zhivoymir",kind:"world",version:1,worlds:[w],chars:cs,scenes:sc},null,1),"application/json");}
 function expAll(){download("zhivoy-mir-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({app:"zhivoymir",kind:"all",version:1,savedAt:new Date().toISOString(),persona:S.persona,worlds:S.worlds,chars:S.chars,scenes:S.scenes},null,1),"application/json");}
 const wTitle=w=>(w&&((w.label||"").trim()||w.name))||"Без названия";
-function fixAll(){S.worlds.forEach(w=>{try{if(!w.tpl&&WORLD_MAPS[baseWorldName(w.name)])w.tpl=baseWorldName(w.name);ensureLocalPlaces(w);}catch(e){}});S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
+function fixAll(){S.worlds.forEach(w=>{try{if(!w.tpl&&WORLD_MAPS[baseWorldName(w.name)])w.tpl=baseWorldName(w.name);ensureLocalPlaces(w);}catch(e){}});S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));if(!Array.isArray(c.photos))c.photos=[];if(c.avatar&&!c.photos.length)c.photos=[c.avatar];c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
   S.worlds.forEach(w=>{if(S.chars.filter(c=>c.worldId===w.id).every(c=>c.chats.every(x=>!x.history.length))&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length))w.base={events:JSON.parse(JSON.stringify(w.events||[])),date:w.date||""};});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
@@ -1193,9 +1202,23 @@ function fromTavern(d){const t=d&&d.data&&(d.spec||d.data.name)?d.data:(d&&(d.ch
   const shortSrc=sub(t.creator_notes||t.description).replace(/\s+/g," ");const short=(shortSrc.match(/^.{20,160}?[.!?](\s|$)/)||[shortSrc.slice(0,150)])[0].trim();
   return {name,short,tags:Array.isArray(t.tags)?t.tags.map(String).slice(0,8):[],core,examples:ex,greeting:sub(t.first_mes),state:{mood:"",now:"",goals:[],relUser:"",trust:0,secrets:""}};}
 async function avatarFromFile(file){return await new Promise(res=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);URL.revokeObjectURL(url);res(cv.toDataURL("image/jpeg",0.82));};img.onerror=()=>{URL.revokeObjectURL(url);res("");};img.src=url;});}
+
+// несколько фото у персонажа: c.photos — полные снимки (до 1280px), c.avatar — квадратная вырезка из главного (первого)
+function imgFromFile(file,max){return new Promise(res=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(url);res(cv.toDataURL("image/jpeg",0.8));};img.onerror=()=>{URL.revokeObjectURL(url);res("");};img.src=url;});}
+function squareFrom(src){return new Promise(res=>{const img=new Image();img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,Math.min(0,(Sz-ih)/2*0.4),iw,ih);res(cv.toDataURL("image/jpeg",0.82));};img.onerror=()=>res(src);img.src=src;});}
+const photosOf=c=>(c&&Array.isArray(c.photos)&&c.photos.length)?c.photos:(c&&c.avatar?[c.avatar]:[]);
+async function setMainPhoto(c,i){const p=c.photos.splice(i,1)[0];c.photos.unshift(p);c.avatar=await squareFrom(p);c.updated=Date.now();save();}
+function openGallery(list,i){if(!list.length)return;document.querySelectorAll(".lightbox").forEach(x=>x.remove());let k=Math.max(0,Math.min(i||0,list.length-1));
+  const lb=el("div","lightbox gallery");const im=document.createElement("img");const cnt=el("div","gcount");const prev=el("button","gnav gprev","‹"),next=el("button","gnav gnext","›"),x=el("button","gnav gclose","✕");
+  const show=()=>{im.src=list[k];cnt.textContent=list.length>1?(k+1)+" / "+list.length:"";prev.hidden=next.hidden=list.length<2;};
+  const go1=d=>{k=(k+d+list.length)%list.length;show();};
+  prev.onclick=e=>{e.stopPropagation();go1(-1);};next.onclick=e=>{e.stopPropagation();go1(1);};x.onclick=e=>{e.stopPropagation();lb.remove();};
+  im.onclick=e=>{e.stopPropagation();if(list.length>1)go1(1);else lb.remove();};lb.onclick=()=>lb.remove();
+  let sx=null;lb.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;},{passive:true});lb.addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>40){go1(dx<0?1:-1);}},{passive:true});
+  lb.append(im,prev,next,x,cnt);document.body.append(lb);show();}
 async function importFile(file,targetWorldId,opt){opt=opt||{};
   if(/\.png$/i.test(file.name||"")||file.type==="image/png"){const card=await readPngCard(file);const ch=card&&fromTavern(card);if(!ch){alert("В этой картинке нет карточки персонажа. Подходят PNG-карточки из SillyTavern и похожих приложений.");return;}
-    ch.avatar=await avatarFromFile(file);return importFile(new File([JSON.stringify({app:"zhivoymir",kind:"char",char:ch})],"card.json"),targetWorldId,opt);}
+    ch.avatar=await avatarFromFile(file);ch.photos=[await imgFromFile(file,1280)].filter(Boolean);return importFile(new File([JSON.stringify({app:"zhivoymir",kind:"char",char:ch})],"card.json"),targetWorldId,opt);}
   let d,raw="";try{const buf=new Uint8Array(await file.arrayBuffer());let t;if(buf[0]===0xFF&&buf[1]===0xFE)t=new TextDecoder("utf-16le").decode(buf);else if(buf[0]===0xFE&&buf[1]===0xFF)t=new TextDecoder("utf-16be").decode(buf);else t=new TextDecoder("utf-8").decode(buf);raw=t;
     t=t.replace(/^﻿/,"").trim();if(/^<(!doctype|html|pre|body)/i.test(t)){const dv=document.createElement("div");dv.innerHTML=t;t=(dv.textContent||"").trim();}if(t[0]!=="{"&&t[0]!=="["){const a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>=0&&z>a)t=t.slice(a,z+1);}d=JSON.parse(t);}catch(e){alert("Не получилось прочитать файл «"+(file.name||"без имени")+"» ("+Math.round((file.size||0)/1024)+" КБ).\nНужен файл .json, сохранённый через «Экспорт».\n\nНачало файла: "+String(raw||"").slice(0,120).replace(/\s+/g," ")+(String(raw||"").length>120?"…":""));return;}
   if(d&&d.kind==="chat"&&Array.isArray(d.history)){const w=W(targetWorldId||curWorldId())||S.worlds[0];if(!w){alert("Сначала нужен мир.");return;}importChatToMain(w,parseChatFile(JSON.stringify(d),w));return;}
@@ -1317,11 +1340,12 @@ function renderProfile(){
   // шапка
   const top=el("div","row");top.style.alignItems="flex-start";top.style.gap="16px";top.style.flexWrap="nowrap";
   const av=el("div","ava");av.style.width="112px";av.style.height="112px";av.style.fontSize="42px";av.style.cursor="pointer";avatarEl(av,c);
-  av.onclick=()=>{if(c.avatar){const lb=el("div","lightbox");const im=document.createElement("img");im.src=c.avatar;lb.append(im);lb.onclick=()=>lb.remove();document.body.append(lb);}else go({v:"charEdit",id:c.id});};
+  av.onclick=()=>{const ph=photosOf(c);if(ph.length)openGallery(ph,0);else go({v:"charEdit",id:c.id});};
   const info=el("div");info.style.display="flex";info.style.flexDirection="column";info.style.gap="4px";info.style.minWidth="0";
   const nm=el("div",null,c.name);nm.style.fontSize="22px";nm.style.fontWeight="700";info.append(nm);
   if(c.short)info.append(el("div","note",c.short));
   const meta=el("div","note",(w?wTitle(w)+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ. · "+c.chats.length+" разг.");info.append(meta);
+  {const ph=photosOf(c);if(ph.length>1){const strip=el("div","pstrip");ph.forEach((src,i)=>{const t=document.createElement("img");t.src=src;t.alt="";t.onclick=()=>openGallery(ph,i);strip.append(t);});info.append(strip);}}
   if(c.tags.length){const tg=el("div","row");c.tags.forEach(t=>tg.append(el("span","pill",t)));info.append(tg);}
   top.append(av,info);p.append(top);
   // действия
@@ -1968,9 +1992,14 @@ function renderWorldEdit(){
 // ---- РЕДАКТОР ПЕРСОНАЖА
 function renderCharEdit(){
   const c=route.draft||C(route.id);const w=W(c.worldId);$("hTitle").textContent=route.draft?"Новый персонаж":c.name;const p=el("div","page editor");
-  const ar=el("div","ava-row");const av=el("div","ava");avatarEl(av,c);const ab=el("button","btn","Загрузить аватар");const ad=el("button","btn ghost","Убрать");const fi=el("input");fi.type="file";fi.accept="image/*";fi.hidden=true;
-  ab.onclick=()=>fi.click();ad.onclick=()=>{c.avatar="";avatarEl(av,c);};fi.onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,(Sz-ih)/2,iw,ih);c.avatar=cv.toDataURL("image/jpeg",0.82);URL.revokeObjectURL(url);avatarEl(av,c);};img.src=url;};
-  const rr=el("div","row");rr.append(ab,ad,fi);ar.append(av,rr);
+  const ar=el("div","ava-row");ar.style.flexDirection="column";ar.style.alignItems="stretch";
+  if(!Array.isArray(c.photos))c.photos=[];if(c.avatar&&!c.photos.length)c.photos=[c.avatar];
+  const pg=el("div","pgrid");const fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.hidden=true;
+  const drawP=()=>{pg.innerHTML="";c.photos.forEach((src,i)=>{const t=el("div","pthumb"+(i===0?" main":""));const im=document.createElement("img");im.src=src;im.alt="";t.append(im);if(i===0)t.append(el("span","pmain","главное"));
+      t.onclick=()=>sheet([["Открыть",()=>openGallery(c.photos,i)],...(i>0?[["★ Сделать главным (аватар)",async()=>{await setMainPhoto(c,i);drawP();}]]:[]),["Удалить фото",async()=>{c.photos.splice(i,1);c.avatar=c.photos.length?await squareFrom(c.photos[0]):"";c.updated=Date.now();save();drawP();}]]);pg.append(t);});
+    const add=el("button","pthumb padd","＋");add.type="button";add.title="Добавить фото";add.onclick=()=>fi.click();pg.append(add);};
+  fi.onchange=async e=>{const fs=[...e.target.files];fi.value="";if(!fs.length)return;toast("Добавляю фото…");for(const f of fs){const d=await imgFromFile(f,1280);if(d)c.photos.push(d);}if(c.photos.length&&(!c.avatar||c.photos.length===fs.length))c.avatar=await squareFrom(c.photos[0]);c.updated=Date.now();save();drawP();};
+  drawP();ar.append(el("div","note","Фото персонажа — сколько угодно. Первое — главное, из него аватар. Нажми на фото, чтобы открыть, сделать главным или удалить."),pg,fi);
   if(route.draft){const im=el("div","block");im.style.marginBottom="12px";const ib=el("button","btn","📂 Загрузить персонажа из файла");ib.onclick=()=>pickFile(f=>importFile(f,c.worldId,{open:true}));
     im.append(ib,el("div","note","Файл персонажа из «Живого мира» (.json, через «Экспорт персонажа») или карточка из SillyTavern и похожих приложений (.png или .json). Или заполни поля ниже вручную."));p.append(im);}
   p.append(ar);
