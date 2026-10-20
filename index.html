@@ -372,6 +372,15 @@ const heroChar=w=>w&&w.heroId?C(w.heroId):null;
 const heroName=w=>(heroChar(w)&&heroChar(w).name)||(w&&w.hero.name.trim())||S.persona.name.trim()||"Герой";
 function heroDesc(w){const h=heroChar(w);if(h)return [h.short,(h.look?"ВНЕШНОСТЬ: "+h.look:""),h.core.slice(0,2600)].filter(Boolean).join("\n");return ((w&&w.hero.desc)||"").trim();}
 // персонажи мира без того, за кого играет пользователь
+// кто уже появлялся в истории (рассказчик его представил); при первом запуске — все, кто уже встречался в разговорах и сценах
+function shownOf(w){if(!w)return {};if(!w.shown){w.shown={};const txt=[...charsOf(w.id).flatMap(c=>c.chats.flatMap(x=>x.history.map(m=>m.content))),...S.scenes.filter(x=>x.worldId===w.id).flatMap(x=>x.history.map(m=>m.content))].join("\n");
+  charsOf(w.id).forEach(c=>{if(c.chats.some(x=>x.history.length)||nameIn(c.name,txt))w.shown[c.id]=true;});}return w.shown;}
+function nameStem(n){const nm=String(n||"").replace(/^(Сестра|Капитан|Сэр|Барон|Управляющий)\s+/i,"").split(/\s+/)[0];return nm.length>4?nm.slice(0,nm.length-1):nm;}
+function nameIn(n,t){const st=nameStem(n);if(st.length<3)return false;return new RegExp("(?<![А-Яа-яЁёA-Za-z])"+st.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[а-яё]{0,3}(?![А-Яа-яЁёA-Za-z])").test(String(t||""));}
+function markShown(w,text){if(!w||!text)return;const sh=shownOf(w);let ch=false;charsOf(w.id).forEach(c=>{if(!sh[c.id]&&nameIn(c.name,text)){sh[c.id]=true;ch=true;}});if(ch)w.updated=Date.now();}
+const isNew=(w,c)=>w&&c&&!shownOf(w)[c.id]&&c.id!==w.heroId;
+const FIRST_RULE="ПЕРВОЕ ПОЯВЛЕНИЕ: когда в истории впервые появляется человек с пометкой «впервые», представь его так, как его видит герой — 2–4 фразы, художественно: конкретные детали внешности, одна-две выдающие привычки или жеста (что крутит в руках, как смотрит, как стоит), как он держится. Не пересказывай биографию и не называй черты характера прямо — пусть их выдаёт поведение. Если герой давно знает этого человека, покажи через знакомое: что в нём всегда было и что сегодня иначе. Дальше этого человека уже не представляй заново.";
+const lookCue=c=>c.look?" Внешность: "+c.look.replace(/\s+/g," ").slice(0,420):"";
 const npcsOf=wid=>{const w=W(wid);const hid=w&&w.heroId;return charsOf(wid).filter(c=>c.id!==hid);};
 const fill=(t,w,c)=>esc(t).replaceAll("{{user}}",heroName(w)).replaceAll("{{char}}",c?c.name:"");
 const now=()=>new Date().toISOString().slice(0,16).replace("T"," ");
@@ -538,12 +547,12 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
   guestsBlock(c),
   peopleBlock(c),
   lenRule(),
-  layoutRule(),frankRule(),LOGIC_RULE,knowRule(w),
+  layoutRule(),frankRule(),LOGIC_RULE,knowRule(w),FIRST_RULE,
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Оставайся в роли. Главный голос — "+c.name+(guestsOf(c).length?"; присутствующих рядом играешь тоже (их реплики — с именем: «Имя: …»)":"")+". Ты пишешь и окружение: если по ходу сцены естественно появляется другой человек — пришёл по своему делу, его позвал герой, он живёт рядом, проходил мимо, — коротко сыграй и его: реплику подписывай именем, характер бери из списка людей мира. Не приводи людей без причины и не держи их дольше, чем нужно сцене; помни, где кто должен быть по своим делам. "+heroRule(w)+" Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+(guestsOf(c).length?"; реплики присутствующих — с новой строки: Имя: «текст»":"")+". Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника."].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 function peopleBlock(c){const w=W(c.worldId);if(!w)return "";const gs=c.guests||[];const others=npcsOf(w.id).filter(o=>o.id!==c.id&&!gs.includes(o.id));if(!others.length)return "";
-  return "ЛЮДИ МИРА (не рядом сейчас; могут появиться, только если это естественно):\n"+others.map(o=>"• "+o.name+(o.short?" — "+o.short.replace(/\s+/g," ").slice(0,140):"")).join("\n");}
+  return "ЛЮДИ МИРА (не рядом сейчас; могут появиться, только если это естественно):\n"+others.map(o=>"• "+o.name+(o.short?" — "+o.short.replace(/\s+/g," ").slice(0,140):"")+(isNew(w,o)?" [впервые]"+lookCue(o):"")).join("\n");}
 // Кто вошёл в сцену: имя в действии героя (*зову Пипа*) или подписанная реплика в ответе (Пип: «…») — добавляем в «рядом», чтобы модель знала его характер и память
 function autoGuests(c,text,fromReply){const w=W(c.worldId);if(!w||!text)return [];const g=(c.guests||[]).slice();const added=[];
   const scope=fromReply?(String(text).match(/(^|\n)\s*\**[А-ЯЁA-Z][^:«»*\n]{1,30}\**\s*:/g)||[]).join(" "):(String(text).match(/\*[^*]+\*/g)||[]).join(" ");
@@ -551,14 +560,14 @@ function autoGuests(c,text,fromReply){const w=W(c.worldId);if(!w||!text)return [
   npcsOf(w.id).forEach(o=>{if(o.id===c.id||g.includes(o.id)||g.length>=4)return;const nm=o.name.replace(/^(Сестра|Капитан|Сэр|Барон|Управляющий)\s+/i,"").split(/\s+/)[0];if(nm.length<3)return;
     const st=nm.length>4?nm.slice(0,nm.length-1):nm;if(new RegExp("(?<![А-Яа-яЁёA-Za-z])"+st.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[а-яё]{0,3}(?![А-Яа-яЁёA-Za-z])").test(scope)){g.push(o.id);added.push(o.name);}});
   if(added.length){c.guests=g;}return added;}
-function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
+function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(isNew(w,g)?" [впервые — представь его]":"")+(g.short?" — "+g.short:"")+" ===\n"+fill(g.core,w,g).slice(0,1800)+(g.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
 const PARTS=["утро","день","вечер","ночь"];
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
-function resetStory(st){Object.assign(st,{day:1,part:"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});}
+function resetStory(st){Object.assign(st,{day:1,part:"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});}
 function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";return "День "+st.day+" · "+st.part;}
 function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&(!e.if||(st.flags||{})[e.if]));}
-function storyBlock(w){const st=storyOf(w);if(!st)return "";
+function storyBlock(w,cast){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
   if(st.done){const e=(st.endings||[]).find(x=>x.key===st.ending)||{};return "ИСТОРИЯ ЗАВЕРШЕНА: финал «"+(e.title||"")+"». Это жизнь после истории: сюжетных событий и больших новых конфликтов больше нет; люди живут с последствиями финала.";}
   const act=st.acts[st.act-1]||{};const due=storyDue(st);
   const where=npcsOf(w.id).filter(c=>c.loc).map(c=>c.name+" — "+c.loc).join("; ");
@@ -566,7 +575,23 @@ function storyBlock(w){const st=storyOf(w);if(!st)return "";
     "Сейчас: день "+st.day+", "+st.part+". Акт "+st.act+" «"+(act.title||"")+"»: "+(act.goal||""),
     due.length?"ПОРА СЛУЧИТЬСЯ (если это рядом с героем — покажи естественно, без спешки; если далеко — пусть дойдёт слухом, вестью, следами; не всё сразу):\n"+due.map(e=>"• "+e.text+(st.day>e.day[1]?" (уже запаздывает)":"")).join("\n"):"",
     where?"ГДЕ КТО СЕЙЧАС (по своим делам): "+where:"",
+    sideBlock(w,st,cast),
     "Время в истории течёт естественно; не перескакивай дни без причины."].filter(Boolean).join("\n");}
+// побочные истории (квесты) и рассказы у огня — как в «Ведьмаке»: каждая со своей сутью, перекликается с главной
+const inActs=(x,st)=>!x.acts||(st.act>=x.acts[0]&&st.act<=x.acts[x.acts.length-1]);
+function sideBlock(w,st,cast){const qs=st.questState||{},told=st.talesTold||{};const names=cast.map(c=>c.name);const out=[];
+  const act=(st.quests||[]).filter(q=>qs[q.id]==="active");
+  act.forEach(q=>{const left=q.deadline?((st.questStart||{})[q.id]||st.day)+q.deadline-st.day:null;
+    out.push("ИДЁТ ПОБОЧНАЯ ИСТОРИЯ «"+q.title+"» (суть: "+q.essence+").\n  Ход: "+(q.beats||[]).join(" → ")+"\n  Развязку выбирает герой; возможные: "+(q.choices||[]).map(c=>c.choice+" (цена: "+c.cost+")").join("; ")
+      +(left!==null?"\n  Срок: "+(left>0?"осталось "+left+" дн. — мир не ждёт; если герой тянет, обстоятельства решают без него":"ВЫШЕЛ — покажи, что стало без героя"):"")
+      +((q.failIf||[]).length?"\n  Может провалиться: "+q.failIf.join("; "):"")
+      +((q.outcomes||[]).length?"\n  Исходы (удалась / частично / провал — все честные, провал тоже история): "+q.outcomes.map(o=>o.result+": "+o.what).join(" | "):"")
+      +"\n  Веди её постепенно, по шагу; не решай за героя; награда — не вещи, а то, что герой проживёт и что изменится в людях.");});
+  if(act.length<2){const av=(st.quests||[]).filter(q=>!qs[q.id]&&inActs(q,st)).sort((a,b)=>(names.includes(b.giver)?1:0)-(names.includes(a.giver)?1:0));
+    if(av[0])out.push("МОЖНО НАЧАТЬ ПОБОЧНУЮ ИСТОРИЮ, если сцена к этому располагает (не навязывай, не больше одной новой за раз; если "+av[0].giver+" не рядом — пусть повод дойдёт иначе): «"+av[0].title+"» — "+av[0].hook+" (где: "+(av[0].place||"—")+")");}
+  const tl=(st.tales||[]).filter(t=>!told[t.id]&&inActs(t,st)&&names.includes(t.teller)).slice(0,2);
+  tl.forEach(t=>out.push("ИСТОРИЯ К МЕСТУ: если разговор подойдёт ("+t.when+"), "+t.teller+" может рассказать «"+t.title+"» ("+t.kind+") — своими словами, не дословно, с паузами и реакцией слушателя:\n«"+t.text+"»\n  (Для тебя, не для игрока: "+t.reveals+")"));
+  return out.join("\n");}
 // хранитель сюжета: после ходов двигает время, отмечает события и флаги, следит за финалом
 async function storyTick(w,recent){const st=storyOf(w);if(!st||st.done||st.pending)return null;
   const act=st.acts[st.act-1]||{};
@@ -582,6 +607,8 @@ ${(st.events||[]).map(e=>"- "+e.id+": "+e.text.slice(0,140)+" [дни "+e.day.jo
 ФИНАЛЫ:
 ${(st.endings||[]).map(e=>"- "+e.key+" «"+e.title+"» (не раньше дня "+(e.minDay||1)+"): "+e.when).join("\n")}
 ЛЮДИ И ГДЕ ОНИ БЫЛИ: ${npcsOf(w.id).map(c=>c.name+(c.loc?" — "+c.loc:"")).join("; ")}
+ПОБОЧНЫЕ ИСТОРИИ (id: название — состояние): ${(st.quests||[]).map(q=>q.id+": «"+q.title+"» — "+((st.questState||{})[q.id]||"не начата")+"; варианты: "+(q.choices||[]).map(c=>c.choice).join(" / ")).join("\n")||"нет"}
+РАССКАЗЫ У ОГНЯ (id: рассказчик «название»): ${(st.tales||[]).filter(t=>!(st.talesTold||{})[t.id]).map(t=>t.id+": "+t.teller+" «"+t.title+"»").join("; ")||"нет"}
 
 ПОСЛЕДНЕЕ В ИСТОРИИ:
 ${recent}
@@ -593,14 +620,22 @@ ${recent}
 - "fired": id событий, которые уже произошли в тексте;
 - "act": номер акта сейчас (не уменьшай; повышай, только если выполнено условие выхода или наступили его дни);
 - "ending": ключ финала, ТОЛЬКО если он явно и необратимо случился в тексте и день не меньше его minDay; иначе пусто;
+- "qStart": id побочных историй, которые начались в тексте; "qDone": [{"id":"","result":"удалась|частично|провал","choice":"чем кончилась, 3–10 слов"}] — которые завершились (провал — если сработало условие провала или вышел срок и это показано в тексте);
+- "told": id рассказов, которые персонаж рассказал в тексте;
 - "why": 3–8 слов, почему.
-JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"ending":"","why":""}`;
+JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"ending":"","why":""}`;
   const r=await askJSON(prompt,900,"story");
   const d=Math.max(0,Math.min(7,parseInt(r.days)||0));if(d){st.day+=d;}
   if(PARTS.includes(r.part))st.part=r.part;
   if(r.where&&typeof r.where==="object")Object.entries(r.where).forEach(([n,pl])=>{const c=byName(w.id,n);if(c&&typeof pl==="string"&&pl.trim()&&c.id!==w.heroId){c.loc=pl.trim().slice(0,120);c.updated=Date.now();}});
   st.flags=st.flags||{};(Array.isArray(r.flags)?r.flags:[]).forEach(f=>{if(st.flagDefs&&st.flagDefs[f])st.flags[f]=true;});
   (Array.isArray(r.fired)?r.fired:[]).forEach(id=>{const e=(st.events||[]).find(x=>x.id===id);if(e&&!e.fired){e.fired=true;e.firedDay=st.day;}});
+  st.questState=st.questState||{};st.talesTold=st.talesTold||{};let qmsg="";
+  (Array.isArray(r.qStart)?r.qStart:[]).forEach(id=>{const q=(st.quests||[]).find(x=>x.id===id);if(q&&!st.questState[id]){st.questState[id]="active";st.questStart=st.questStart||{};st.questStart[id]=st.day;qmsg="Новая история: «"+q.title+"»";}});
+  (Array.isArray(r.qDone)?r.qDone:[]).forEach(o=>{const id=o&&(o.id||o);const q=(st.quests||[]).find(x=>x.id===id);if(q&&st.questState[id]!=="done"){st.questState[id]="done";const res=["удалась","частично","провал"].includes(o&&o.result)?o.result:"удалась";st.questEnd=st.questEnd||{};st.questEnd[id]=String((o&&o.choice)||"").slice(0,120);st.questRes=st.questRes||{};st.questRes[id]=res;if(q.flag)st.flags[q.flag+(res==="провал"?"_fail":res==="частично"?"_part":"")]=true;
+    w.events.push({t:now(),date:w.date,text:"История «"+q.title+"» — "+res+": "+(st.questEnd[id]||"—"),public:true,who:q.who||[]});qmsg="«"+q.title+"» — "+res;}});
+  (Array.isArray(r.told)?r.told:[]).forEach(id=>{if((st.tales||[]).some(t=>t.id===id))st.talesTold[id]=st.day;});
+  if(qmsg)r._q=qmsg;
   const na=parseInt(r.act);if(na>st.act&&na<=st.acts.length)st.act=na;
   // по дням акт тоже сдвигается
   while(st.act<st.acts.length&&st.day>(st.acts[st.act-1].days||[0,999])[1]+2)st.act++;
@@ -608,9 +643,9 @@ JSON: {"days":0,"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"endi
   if(en&&st.day>=(en.minDay||1)&&!((st.rejected||{})[en.key]>=st.day))st.pending={key:en.key,why:String(r.why||"").slice(0,120)};
   w.updated=Date.now();save();return r;}
 let storyBusy=false;
-function storyAfter(w,hist){const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
+function storyAfter(w,hist){{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
-  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&parseInt(r.days)>0)toast(storyLabel(w));staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
+  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
 function storyBanner(w,after){const st=storyOf(w);if(!st||!st.pending||st.done)return null;const e=(st.endings||[]).find(x=>x.key===st.pending.key);if(!e)return null;
   const b=el("div","block");b.style.borderLeft="3px solid var(--accent)";b.style.margin="8px 12px";
@@ -633,17 +668,17 @@ ${cs.map(c=>"• "+c.name+" — "+(c.state.mood||"")+"; "+(c.state.now||"").slic
   w.chapters.push({id:uid(),title,text,t:now()});st.done=true;st.ending=key;st.pending=null;st.doneDay=st.day;
   w.events.push({t:now(),date:w.date,text:"История завершилась: финал «"+e.title+"».",public:true,who:[]});w.updated=Date.now();save();return w.chapters[w.chapters.length-1];}
 function dramaBlock(d){if(!d||!(d.direction||d.plan))return "";const p=["УКАЗАНИЯ РЕЖИССЁРА (скрыты от игрока; выполняй через поведение и подтекст, не объявляй):","Напряжение: "+(d.tension||5)+"/10, фаза: "+(d.beat||"—")+".",d.direction||""];if(d.plan)p.push("ПЛАН АВТОРА (обязателен): "+d.plan+" Запланированное на потом случается в срок; раньше — только с внятной причиной, показанной в тексте.");if(d.event)p.push("Происшествие вокруг: "+d.event);if(d.cue)p.push(d.cue);return p.join("\n");}
-function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),storyBlock(w),isWatch(lastUser)?watchNote(w):isPass(lastUser)?passNote(w):"",lenReminder(false),knowReminder(w),heroReminder(w)].filter(Boolean).join("\n\n");}
+function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),isNew(w,c)?"ПЕРВОЕ ПОЯВЛЕНИЕ "+c.name+" в истории: если он ещё не описан в разговоре — представь его по правилу первого появления."+lookCue(c):"",storyBlock(w,[c,...gs]),isWatch(lastUser)?watchNote(w):isPass(lastUser)?passNote(w):"",lenReminder(false),knowReminder(w),heroReminder(w)].filter(Boolean).join("\n\n");}
 function charBrief(c){const st=c.state;return "• "+c.name+(c.short?" — "+c.short:"")+"\n  Основа: "+c.core.slice(0,600).replace(/\s+/g," ")+(st.now?"\n  Сейчас: "+st.now:"")+(st.mood?"\n  Настроение: "+st.mood:"")+(st.goals&&st.goals.length?"\n  Цели: "+st.goals.join("; "):"")+(st.relUser?"\n  К герою: "+st.relUser+" (доверие "+(st.trust??0)+", от −10 до 10)":"")+(st.arc?"\n  История с героем: "+st.arc:"")+
   (Object.keys(st.relations||{}).length?"\n  Отношения: "+Object.entries(st.relations).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:"";}).filter(Boolean).join(" | "):"")+(st.secrets?"\n  Скрывает: "+st.secrets:"");}
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldBlock(w),"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
-  cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
+  cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+(isNew(w,c)?" [впервые — представь его]"+lookCue(c):"")+" ===\nЛИЧНОСТЬ: "+fill(c.core,w,c)+(c.examples.trim()?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   sceneLenRule(),
-  layoutRule(),frankRule(),LOGIC_RULE,knowRule(w),
+  layoutRule(),frankRule(),LOGIC_RULE,knowRule(w),FIRST_RULE,
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+(x.noHero?absentRule(w):heroRule(w))+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
-function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
+function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
@@ -1021,7 +1056,8 @@ const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"}
 const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
   {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Управляющий Кадвал"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, управляющий Кадвал. Плюс правила мира о беглых, Палате возврата, дружине и оброке."},
-  {file:"presets/addons/south-story.json",storyId:"south-freedom",names:[],title:"Сюжет «Свобода Фрейи»: акты, события, финалы, Уилл-персонаж",desc:"Часы мира и 5 актов; события по дням (корабль Ведмарка, срок Книги найденных, оброк, возвратчик — если слух дойдёт до севера); 6 финалов и свои судьбы у каждого персонажа; подробная внешность всех для картинок; Уилл — отдельный персонаж, ты играешь за него. Лучше добавить после двух дополнений выше."}]};
+  {file:"presets/addons/south-story.json",storyId:"south-freedom",names:[],title:"Сюжет «Свобода Фрейи»: акты, события, финалы, Уилл-персонаж",desc:"Часы мира и 5 актов; события по дням (корабль Ведмарка, срок Книги найденных, оброк, возвратчик — если слух дойдёт до севера); 6 финалов и свои судьбы у каждого персонажа; подробная внешность всех для картинок; Уилл — отдельный персонаж, ты играешь за него. Лучше добавить после двух дополнений выше."},
+  {file:"presets/addons/south-side.json",patchId:"south-side",names:[],title:"Побочные истории и рассказы у огня",desc:"Истории в духе «Ведьмака»: у каждой своя суть, и в каждой придётся выбирать. Плюс рассказы у огня: личные, услышанные, сказки и легенды, через которые люди объясняют свои решения. Нужен сюжет «Свобода Фрейи»."}]};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
   if(!confirm("Создать параллельный мир «"+nm+"»?\n\nВсе персонажи и хроника начнутся с самого начала — никто ничего не помнит. Этот мир останется как есть, между ними можно переключаться."))return;
@@ -1067,7 +1103,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
   if(!chars.length&&!d.worlds){const tv=fromTavern(d);if(tv)chars.push(tv);}
   // старый формат «Мои персонажи»: chars с prompt вместо core
   chars.forEach(c=>{if(c.prompt&&!c.core){c.core=[c.prompt,c.scenario?"Сценарий: "+c.scenario:""].filter(Boolean).join("\n\n");if(c.mem&&!c.facts)c.facts=String(c.mem).split("\n").filter(Boolean);}});
-  if(!chars.length&&!worlds.length&&!(d.story&&targetWorldId)&&!(d.charPatch&&targetWorldId)){alert("В файле нет ни миров, ни персонажей.");return;}
+  if(!chars.length&&!worlds.length&&!((d.story||d.storyPatch||d.charPatch)&&targetWorldId)){alert("В файле нет ни миров, ни персонажей.");return;}
   // --- режим
   let mode="add";
   if(d.kind==="all"||(worlds.length&&!d.kind&&!targetWorldId)){mode=confirm("Это полная копия.\nOK — заменить всё.\nОтмена — добавить к текущим.")?"replace":"add";}
@@ -1099,6 +1135,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
     if(d.relAdd&&typeof d.relAdd==="object")Object.entries(d.relAdd).forEach(([who,rels])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!rels)return;c.state.relations=c.state.relations||{};Object.entries(rels).forEach(([k,v])=>{if(!c.state.relations[k]){c.state.relations[k]=String(v);add++;}});c.updated=Date.now();});
     if(d.charPatch&&typeof d.charPatch==="object")Object.entries(d.charPatch).forEach(([who,pt])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!pt)return;["look","lookEn"].forEach(k=>{if(typeof pt[k]==="string"&&pt[k].trim())c[k]=pt[k].trim();});if(Array.isArray(pt.endings))c.endings=pt.endings;c.updated=Date.now();add++;});
     if(d.story&&typeof d.story==="object"&&Array.isArray(d.story.acts)){if(!tw.story||tw.story.id!==d.story.id||confirm("В мире уже есть сюжет «"+(tw.story.title||"")+"». Заменить его новым (с первого дня)?")){tw.story=JSON.parse(JSON.stringify(d.story));resetStory(tw.story);add++;}}
+    if(d.storyPatch&&typeof d.storyPatch==="object"){if(!tw.story){alert("Сначала добавь сюжет «"+(d.storyPatch.forTitle||"")+"» — это дополнение к нему.");}else{["quests","tales"].forEach(k=>{if(Array.isArray(d.storyPatch[k])){const have=new Set((tw.story[k]||[]).map(x=>x.id));tw.story[k]=[...(tw.story[k]||[]),...d.storyPatch[k].filter(x=>!have.has(x.id))];}});tw.story.patches=[...new Set([...(tw.story.patches||[]),d.storyPatch.id])];add++;}}
     if(d.heroName){const h=charsOf(tw.id).find(x=>x.name===d.heroName);if(h&&!tw.heroId){tw.heroId=h.id;add++;}}
     if(add){tw.updated=Date.now();save();toast("Мир дополнен.");}}}
   if(opt.open&&chars.length===1&&!worlds.length){if(route.draft)stack.pop();go({v:"charEdit",id:chars[0].id},true);return;}
@@ -1495,13 +1532,17 @@ function tabChars(w,body){
   {const hb=el("div","block");hb.style.marginBottom="10px";const hc=heroChar(w);hb.append(el("b",null,"Ты играешь за: "+heroName(w)),el("div","note",hc?"Герой — персонаж мира со своей карточкой. Все остальные — живые люди вокруг него.":"Герой описан в настройках мира («Изменить мир»)."));
     const chg=el("button","btn sm","Сменить героя");chg.onclick=()=>sheet([["Свой герой из описания мира"+(w.heroId?"":" ✓"),()=>{w.heroId="";w.updated=Date.now();save();render();}],...charsOf(w.id).map(o=>[(w.heroId===o.id?"✓ ":"")+o.name,()=>{w.heroId=o.id;w.updated=Date.now();save();toast("Теперь ты играешь за "+o.name+".");render();}])]);hb.append(chg);
     const st=storyOf(w);if(st){const act=st.acts[st.act-1]||{};hb.append(el("div","note",st.done?"Сюжет «"+st.title+"»: история рассказана — финал «"+(((st.endings||[]).find(e=>e.key===st.ending))||{}).title+"». Эпилог — во вкладке историй.":"Сюжет «"+st.title+"»: день "+st.day+", "+st.part+" · акт "+st.act+" из "+st.acts.length+" — «"+act.title+"»"));
+      if((st.quests||[]).length){const qs=st.questState||{};const dd=el("details","sp");const nd=Object.values(qs).filter(v=>v==="done").length;dd.append(el("summary",null,"📜 Журнал историй — пройдено "+nd+" из "+st.quests.length));
+        const shown=st.quests.filter(q=>qs[q.id]);if(!shown.length)dd.append(el("div","note","Пока ни одна не началась. Истории начинаются сами, когда герой оказывается рядом с нужными людьми."));
+        shown.forEach(q=>{const it=el("div","block");it.style.marginTop="6px";const res=(st.questRes||{})[q.id];const mark=qs[q.id]!=="done"?"… ":res==="провал"?"✗ ":res==="частично"?"◐ ":"✓ ";
+          it.append(el("b",null,mark+q.title+(res?" — "+res:"")),el("div","note",qs[q.id]==="done"?(q.essence+((st.questEnd||{})[q.id]?"\nЧем кончилось: "+st.questEnd[q.id]:"")):q.hook));dd.append(it);});hb.append(dd);}
       const rs=el("button","btn sm ghost warn","Сбросить сюжет на день 1");rs.onclick=()=>{if(!confirm("Начать сюжет заново с первого дня? Разговоры и память персонажей не трогаются — только часы, акты, события и финал."))return;resetStory(st);w.updated=Date.now();save();render();};hb.append(rs);}
     body.append(hb);}
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
   charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
   // дополнения к готовому миру: лежат в самом приложении, добавляются одной кнопкой (без файлов)
-  {const list=(ADDONS[baseWorldName(w.name)]||[]).filter(x=>x.storyId?!(w.story&&w.story.id===x.storyId):!x.names.every(n=>charsOf(w.id).some(c=>c.name===n)));
+  {const list=(ADDONS[baseWorldName(w.name)]||[]).filter(x=>x.patchId?(!!w.story&&!(w.story.patches||[]).includes(x.patchId)):x.storyId?!(w.story&&w.story.id===x.storyId):!x.names.every(n=>charsOf(w.id).some(c=>c.name===n)));
     if(list.length){body.append(el("h3",null,"Дополнения к миру"));list.forEach(x=>{const it=el("div","block");it.style.marginBottom="8px";const bt=el("button","btn sm primary","＋ Добавить в мир");
       bt.onclick=async()=>{bt.disabled=true;try{const r=await fetch(x.file,{cache:"no-store"});if(!r.ok)throw new Error(r.status);await importFile(await r.blob(),w.id);}catch(e){alert("Не удалось загрузить: "+e.message+". Проверь интернет.");bt.disabled=false;}};
       it.append(el("b",null,x.title),el("div","note",x.desc),bt);body.append(it);});}}
@@ -1981,7 +2022,7 @@ function renderChat(){
       const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:replyTokens()};
       let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
-      {const ad=autoGuests(c,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}
+      {const ad=autoGuests(c,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}shownOf(w)[c.id]=true;
     }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
@@ -2065,7 +2106,7 @@ function renderScene(){
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=x.history.slice(x.sumIdx);const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?(x.noHero?"[Продолжай сцену. Героя здесь нет.]":"[Герой молчит и наблюдает. Продолжай сцену.]"):"[Сцена начинается. Опиши место и то, что делают персонажи.]"});
       const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:replyTokens(),purpose:"scene",cacheMsgs:true};
-      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});x.history.push({role:"assistant",content:text.trim()});if(x.drama)x.drama.cue="";}
+      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});x.history.push({role:"assistant",content:text.trim()});x.charIds.forEach(id=>{shownOf(w)[id]=true;});if(x.drama)x.drama.cue="";}
     catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
