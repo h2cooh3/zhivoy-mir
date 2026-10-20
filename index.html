@@ -1221,6 +1221,9 @@ async function applyAllAddons(w,btn){btn.disabled=true;let n=0,prev="";try{for(l
   catch(e){alert("Остановился: "+e.message+". Проверь интернет и нажми ещё раз.");}
   btn.disabled=false;toast("Мир достроен: добавлено дополнений — "+n+", персонажей в мире — "+charsOf(w.id).length);render();}
 const addonsLeft=missingAddons;
+// порядок персонажей по значимости для сюжета: герой первым, дальше по списку, неизвестные в конце
+const CHAR_RANK={"Южное побережье":["Фрейя","Капитан Ведмарк","Барон Освальд","Сэр Годрик Вэйн","Хёг","Эдвин","Сестра Агнесса","Брам","Тобиас","Лив","Бесс","Сигурд Хват","Нелл","Олдос","Управляющий Кадвал","Марта","Ханна","Элинор","Пип","Старый Гарет","Лиз","Чингиз","Том","Мэг","Энни"]};
+const byPlot=(w,cs)=>{const r=CHAR_RANK[tplOf(w)]||[];const k=c=>c.id===w.heroId?-1:(r.indexOf(c.name)<0?999:r.indexOf(c.name));return cs.slice().sort((a,b)=>k(a)-k(b)||(b.updated||0)-(a.updated||0));};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 const tplOf=w=>(w&&w.tpl)||baseWorldName(w&&w.name);
 async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
@@ -1444,8 +1447,8 @@ function renderAllChars(){
   tools.append(q,nb);p.append(tools);
   const box=el("div");p.append(box);
   const draw=()=>{box.innerHTML="";const f=q.value.trim().toLowerCase();
-    S.worlds.forEach(w=>{const cs=charsOf(w.id).filter(c=>!f||(c.name+" "+c.short+" "+c.tags.join(" ")).toLowerCase().includes(f)).sort((a,b)=>(b.updated||0)-(a.updated||0));if(!cs.length)return;
-      const hd=el("h2",null,wTitle(w));hd.style.cursor="pointer";hd.onclick=()=>go({v:"world",id:w.id,tab:"chars"});box.append(hd);const g=el("div","grid");cs.forEach(c=>g.append(charCard(c,false)));box.append(g);});
+    S.worlds.forEach(w=>{const cs=charsOf(w.id).filter(c=>!f||(c.name+" "+c.short+" "+c.tags.join(" ")).toLowerCase().includes(f)).sort((a,b)=>(b.updated||0)-(a.updated||0));if(!cs.length)return;const csP=byPlot(w,cs);
+      const hd=el("h2",null,wTitle(w));hd.style.cursor="pointer";hd.onclick=()=>go({v:"world",id:w.id,tab:"chars"});box.append(hd);const g=el("div","grid");csP.forEach(c=>g.append(charCard(c,false)));box.append(g);});
     if(!S.chars.length)box.append(el("p","note","Персонажей пока нет. Нажми «+ Персонаж» или создай пример мира на главной."));};
   q.addEventListener("input",draw);draw();$("view").append(p);
 }
@@ -1650,7 +1653,7 @@ function renderHome(){
   const tools=el("div","row between");const h=el("h2",null,"Миры");h.style.margin="0";const nb=el("button","btn primary","+ Новый мир");nb.onclick=()=>{const w=blankWorld();go({v:"worldEdit",id:w.id,draft:w});};const ib=el("button","btn","Загрузить из файла");ib.onclick=()=>pickFile(f=>importFile(f));tools.append(h,ib,nb);p.append(tools);
   const g=el("div","grid wgrid");
   S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";const lb=(w.label||"").trim();c.append(el("div","nm"+(lb?" big":""),wTitle(w)));if(lb)c.append(el("div","tp",w.name||""));c.append(el("div","ds",w.desc||""));
-    {const cs=charsOf(w.id).slice().sort((x,y)=>(y.id===w.heroId)-(x.id===w.heroId));const nm=n=>{n=n%100;const m=n%10;return n>10&&n<20?"персонажей":m===1?"персонаж":m>=2&&m<=4?"персонажа":"персонажей";};
+    {const cs=byPlot(w,charsOf(w.id));const nm=n=>{n=n%100;const m=n%10;return n>10&&n<20?"персонажей":m===1?"персонаж":m>=2&&m<=4?"персонажа":"персонажей";};
       const row=el("div","wav");cs.slice(0,10).forEach(ch=>{const a=el("div","wav1");a.title=ch.name;if(ch.avatar){const im=el("img");im.src=ch.avatar;im.alt=ch.name;a.append(im);}else a.textContent=(ch.name||"?").trim().slice(0,1).toUpperCase();row.append(a);});
       if(cs.length>10){const more=el("div","wav1 wavm","+"+(cs.length-10));row.append(more);}
       c.append(el("div","wcnt",cs.length+" "+nm(cs.length)+(w.date?" · "+w.date:"")));if(cs.length)c.append(row);
@@ -1735,7 +1738,7 @@ function tabChars(w,body){
   {const miss=missingAddons(w);if(miss.length){const bn=el("div","block");bn.style.borderLeft="3px solid var(--accent)";bn.style.margin="0 0 10px";const ab=el("button","btn sm primary","⬆ Достроить мир до актуальной версии");ab.onclick=()=>applyAllAddons(w,ab);
     bn.append(el("b",null,"В мире не хватает дополнений ("+miss.length+")"),el("div","note","Недостающие персонажи, сюжет, истории и деньги добавятся одним нажатием, по порядку. Твои разговоры и память не затрагиваются."),ab);body.append(bn);}}
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
-  charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>g.append(charCard(c,false)));
+  byPlot(w,charsOf(w.id)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
   // дополнения к готовому миру: лежат в самом приложении, добавляются одной кнопкой (без файлов)
   {const list=missingAddons(w);
