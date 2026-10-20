@@ -1260,6 +1260,26 @@ async function avatarFromFile(file){return await new Promise(res=>{const img=new
 // несколько фото у персонажа: c.photos — полные снимки (до 1280px), c.avatar — квадратная вырезка из главного (первого)
 function imgFromFile(file,max){return new Promise(res=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(url);res(cv.toDataURL("image/jpeg",0.8));};img.onerror=()=>{URL.revokeObjectURL(url);res("");};img.src=url;});}
 function squareFrom(src){return new Promise(res=>{const img=new Image();img.onload=()=>{const Sz=640,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;const k=Math.max(Sz/img.width,Sz/img.height),iw=img.width*k,ih=img.height*k;cv.getContext("2d").drawImage(img,(Sz-iw)/2,Math.min(0,(Sz-ih)/2*0.4),iw,ih);res(cv.toDataURL("image/jpeg",0.82));};img.onerror=()=>res(src);img.src=src;});}
+// подгонка аватара: тянешь картинку внутри круга и меняешь масштаб — получается новый аватар из главного фото
+function cropAvatar(c,after){const src=photosOf(c)[0];if(!src){toast("Сначала добавь фото.");return;}
+  const img=new Image();img.onload=()=>{const V=Math.min(300,Math.round(window.innerWidth*0.72));const w0=img.naturalWidth,h0=img.naturalHeight;const k0=Math.max(V/w0,V/h0);let zoom=1,ox=(V-w0*k0)/2,oy=Math.min(0,(V-h0*k0)/2*0.4);
+    const clamp=()=>{const sc=k0*zoom;ox=Math.min(0,Math.max(V-w0*sc,ox));oy=Math.min(0,Math.max(V-h0*sc,oy));};
+    $("repTitle").textContent="Подогнать аватар";const b=$("repBody");b.innerHTML="";
+    b.append(el("p","note","Тяни картинку пальцем и меняй масштаб ползунком, чтобы лицо оказалось в круге."));
+    const box=el("div");box.style.cssText="width:"+V+"px;height:"+V+"px;border-radius:50%;overflow:hidden;margin:10px auto;position:relative;touch-action:none;background:#000;cursor:grab;border:2px solid var(--accent)";
+    const im=document.createElement("img");im.src=src;im.draggable=false;im.style.cssText="position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none";box.append(im);
+    const apply=()=>{clamp();const sc=k0*zoom;im.style.width=w0+"px";im.style.height=h0+"px";im.style.transform="translate("+ox+"px,"+oy+"px) scale("+sc+")";};apply();
+    let dr=null;box.onpointerdown=e=>{dr={x:e.clientX,y:e.clientY,ox,oy};box.setPointerCapture(e.pointerId);box.style.cursor="grabbing";};
+    box.onpointermove=e=>{if(!dr)return;ox=dr.ox+(e.clientX-dr.x);oy=dr.oy+(e.clientY-dr.y);apply();};
+    box.onpointerup=box.onpointercancel=()=>{dr=null;box.style.cursor="grab";};
+    const z=document.createElement("input");z.type="range";z.min="1";z.max="4";z.step="0.02";z.value="1";z.style.cssText="width:100%;margin:6px 0";
+    z.oninput=()=>{const old=k0*zoom;const cx=(V/2-ox)/old,cy=(V/2-oy)/old;zoom=parseFloat(z.value);const sc=k0*zoom;ox=V/2-cx*sc;oy=V/2-cy*sc;apply();};
+    box.addEventListener("wheel",e=>{e.preventDefault();z.value=Math.min(4,Math.max(1,parseFloat(z.value)+(e.deltaY<0?0.15:-0.15)));z.oninput();},{passive:false});
+    const row=el("div","row");row.style.cssText="justify-content:center;gap:10px;margin-top:8px";
+    const ok=el("button","btn primary","Сохранить");const no=el("button","btn","Отмена");no.onclick=()=>$("rep").close();
+    ok.onclick=()=>{const Sz=640,r=Sz/V,sc=k0*zoom,cv=document.createElement("canvas");cv.width=Sz;cv.height=Sz;cv.getContext("2d").drawImage(img,ox*r,oy*r,w0*sc*r,h0*sc*r);c.avatar=cv.toDataURL("image/jpeg",0.85);c.updated=Date.now();save();$("rep").close();toast("Аватар обновлён.");if(after)after();else render();};
+    row.append(ok,no);b.append(box,z,row);$("rep").showModal();};
+  img.onerror=()=>toast("Не удалось открыть фото.");img.src=src;}
 const photosOf=c=>(c&&Array.isArray(c.photos)&&c.photos.length)?c.photos:(c&&c.avatar?[c.avatar]:[]);
 async function setMainPhoto(c,i){const p=c.photos.splice(i,1)[0];c.photos.unshift(p);c.avatar=await squareFrom(p);c.updated=Date.now();save();}
 function openGallery(list,i){if(!list.length)return;document.querySelectorAll(".lightbox").forEach(x=>x.remove());let k=Math.max(0,Math.min(i||0,list.length-1));
@@ -1411,7 +1431,8 @@ function renderProfile(){
   const ed=el("button","btn","Изменить");ed.onclick=()=>go({v:"charEdit",id:c.id});
   const ai=el("button","btn","Экспорт");ai.onclick=()=>exportChar(c);
   const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});
-  acts.append(go1,mvm,nc,ed,ai,co);p.append(acts);
+  const avb=el("button","btn","✂ Аватар");avb.title="Подогнать аватар: двигать и увеличивать";avb.onclick=()=>cropAvatar(c);
+  acts.append(go1,mvm,nc,ed,avb,ai,co);p.append(acts);
   // состояние
   const st=c.state;const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
   blk("Сейчас",st.now);blk("Настроение",st.mood);blk("К тебе",(st.relUser||"")+(st.relUser?"\n":"")+"Доверие: "+trustWord(st.trust));blk("История ваших отношений",st.arc);blk("Цели",(st.goals||[]).join("; "));
@@ -2059,7 +2080,7 @@ function renderCharEdit(){
   if(!Array.isArray(c.photos))c.photos=[];if(c.avatar&&!c.photos.length)c.photos=[c.avatar];
   const pg=el("div","pgrid");const fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.hidden=true;
   const drawP=()=>{pg.innerHTML="";c.photos.forEach((src,i)=>{const t=el("div","pthumb"+(i===0?" main":""));const im=document.createElement("img");im.src=src;im.alt="";t.append(im);if(i===0)t.append(el("span","pmain","главное"));
-      t.onclick=()=>sheet([["Открыть",()=>openGallery(c.photos,i)],...(i>0?[["★ Сделать главным (аватар)",async()=>{await setMainPhoto(c,i);drawP();}]]:[]),["Удалить фото",async()=>{c.photos.splice(i,1);c.avatar=c.photos.length?await squareFrom(c.photos[0]):"";c.updated=Date.now();save();drawP();}]]);pg.append(t);});
+      t.onclick=()=>sheet([["Открыть",()=>openGallery(c.photos,i)],...(i===0?[["✂ Подогнать аватар",()=>setTimeout(()=>cropAvatar(c,drawP),50)]]:[]),...(i>0?[["★ Сделать главным (аватар)",async()=>{await setMainPhoto(c,i);drawP();}]]:[]),["Удалить фото",async()=>{c.photos.splice(i,1);c.avatar=c.photos.length?await squareFrom(c.photos[0]):"";c.updated=Date.now();save();drawP();}]]);pg.append(t);});
     const add=el("button","pthumb padd","＋");add.type="button";add.title="Добавить фото";add.onclick=()=>fi.click();pg.append(add);};
   fi.onchange=async e=>{const fs=[...e.target.files];fi.value="";if(!fs.length)return;toast("Добавляю фото…");for(const f of fs){const d=await imgFromFile(f,1280);if(d)c.photos.push(d);}if(c.photos.length&&(!c.avatar||c.photos.length===fs.length))c.avatar=await squareFrom(c.photos[0]);c.updated=Date.now();save();drawP();};
   drawP();ar.append(el("div","note","Фото персонажа — сколько угодно. Первое — главное, из него аватар. Нажми на фото, чтобы открыть, сделать главным или удалить."),pg,fi);
