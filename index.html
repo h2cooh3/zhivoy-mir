@@ -84,6 +84,11 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .wcard .nm{font-weight:600;font-size:16px}
 .wcard .nm.big{font-size:20px;line-height:1.2}
 .wgrid{grid-template-columns:1fr!important}
+.wcard .wcnt{font-weight:600;font-size:14px;margin-top:2px}
+.wav{display:flex;flex-wrap:wrap;gap:4px}
+.wav1{width:34px;height:34px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+.wav1 img{width:100%;height:100%;object-fit:cover}
+.wavm{font-size:12px}
 .wcard .mt{font-size:12px;color:var(--muted)}
 .wcard .mt.addn{color:var(--accent);font-weight:600}
 .wcard .tp{font-size:12px;color:var(--accent);margin-top:-4px}
@@ -1644,7 +1649,12 @@ function renderHome(){
   if(!S.api.key){const b=el("div","banner","Нет API-ключа. Открой «Настройки» и вставь ключ — без него персонажи не ответят.");p.append(b);}
   const tools=el("div","row between");const h=el("h2",null,"Миры");h.style.margin="0";const nb=el("button","btn primary","+ Новый мир");nb.onclick=()=>{const w=blankWorld();go({v:"worldEdit",id:w.id,draft:w});};const ib=el("button","btn","Загрузить из файла");ib.onclick=()=>pickFile(f=>importFile(f));tools.append(h,ib,nb);p.append(tools);
   const g=el("div","grid wgrid");
-  S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";const lb=(w.label||"").trim();c.append(el("div","nm"+(lb?" big":""),wTitle(w)));if(lb)c.append(el("div","tp",w.name||""));c.append(el("div","ds",w.desc||""),el("div","mt",charsOf(w.id).length+" перс."+(w.date?" · "+w.date:"")));
+  S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";const lb=(w.label||"").trim();c.append(el("div","nm"+(lb?" big":""),wTitle(w)));if(lb)c.append(el("div","tp",w.name||""));c.append(el("div","ds",w.desc||""));
+    {const cs=charsOf(w.id).slice().sort((x,y)=>(y.id===w.heroId)-(x.id===w.heroId));const nm=n=>{n=n%100;const m=n%10;return n>10&&n<20?"персонажей":m===1?"персонаж":m>=2&&m<=4?"персонажа":"персонажей";};
+      const row=el("div","wav");cs.slice(0,10).forEach(ch=>{const a=el("div","wav1");a.title=ch.name;if(ch.avatar){const im=el("img");im.src=ch.avatar;im.alt=ch.name;a.append(im);}else a.textContent=(ch.name||"?").trim().slice(0,1).toUpperCase();row.append(a);});
+      if(cs.length>10){const more=el("div","wav1 wavm","+"+(cs.length-10));row.append(more);}
+      c.append(el("div","wcnt",cs.length+" "+nm(cs.length)+(w.date?" · "+w.date:"")));if(cs.length)c.append(row);
+      if(cs.length)c.append(el("div","mt",cs.slice(0,8).map(x=>x.name).join(", ")+(cs.length>8?" и ещё "+(cs.length-8):"")));}
     {const sl=storyLabel(w);if(sl)c.append(el("div","mt",sl));const nl=addonsLeft(w).length;if(nl){const ad=el("div","mt addn","＋ Новых дополнений: "+nl+". Открой мир и нажми «⬆ Достроить мир».");c.append(ad);}}
     const del=el("button","more","⋯");del.title="Экспорт, удаление";del.style.position="absolute";del.style.top="6px";del.style.right="6px";const rmW=()=>{if(!confirm("Удалить мир «"+wTitle(w)+"» со всеми персонажами, разговорами, сценами и главами? Это нельзя отменить."))return;S.chars=S.chars.filter(x=>x.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();render();};del.onclick=e=>{e.stopPropagation();sheet([["✎ Своё название (тема)",()=>setTimeout(()=>{const v=prompt("Своё название этого мира — крупно на главной. Чтобы отличать копии одного мира («"+(w.name||"")+"»). Пусто — убрать.",w.label||"");if(v===null)return;w.label=v.trim();w.updated=Date.now();save();render();},50)],["⟲ Начать мир заново (параллельная линия)",()=>startOver(w)],["Экспорт мира…",()=>setTimeout(()=>exportWorld(w),50)],["Изменить мир",()=>go({v:"worldEdit",id:w.id})],["Удалить мир",rmW]]);};
     c.append(del);c.onclick=()=>go({v:"world",id:w.id,tab:"chars"});g.append(c);});
