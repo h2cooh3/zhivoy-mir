@@ -426,7 +426,7 @@ const STYLES={
  "тепло":["Тепло и подробно","тёплая подробная проза, третье лицо, прошедшее время; запахи, свет, фактура вещей, мелкие жесты; внутренний мир персонажей (кроме героя) слышен в деталях; неспешно, с паузами, но без воды"],
  "сценарий":["Как сценарий","как литературный сценарий, настоящее время: только то, что видит камера и слышит микрофон — место, свет, действие, реплика; никаких мыслей и чувств, только поведение; короткие абзацы-кадры, иногда крупный план одной детали"]};
 const styleText=w=>{const v=(w&&w.style||"").trim();return STYLES[v]?STYLES[v][1]:(v||STYLES["кино"][1]);};
-function styleRule(w){return "СТИЛЬ ПОВЕСТВОВАНИЯ: "+styleText(w)+". ГЕРОЙ "+heroName(w)+" — в третьем лице, по имени или «он»; никогда не обращайся к игроку на «ты». Если игрок пишет «я…», понимай это как действия "+heroName(w)+" (но всё равно не пиши за него сверх его сообщения).";}
+function styleRule(w){return "СТИЛЬ ПОВЕСТВОВАНИЯ: "+styleText(w)+". ГЕРОЙ "+heroName(w)+" — в третьем лице, по имени или «он»; никогда не обращайся к игроку на «ты». Если игрок пишет «я…», понимай это как действия "+heroName(w)+" (но всё равно не пиши за него сверх его сообщения). ФОРМАТ РЕПЛИК: каждая реплика целиком в кавычках «…». Слова автора вставляй через тире ВНУТРИ тех же кавычек: «Видал? — кричит Эдвин. — Корабль!». Если речь продолжается после слов автора, она остаётся внутри тех же кавычек: кавычку посреди реплики не закрывай и не пиши продолжение без кавычек. Диалог через тире без кавычек не используй. Реплика нового говорящего — с новой строки.";}
 function styleChips(w,input){const row=el("div","row");row.style.flexWrap="wrap";row.style.gap="6px";row.style.marginTop="6px";
   Object.entries(STYLES).forEach(([k,[t]])=>{const b=el("button","btn sm"+((w.style||"").trim()===k?" primary":""),t);b.type="button";b.onclick=()=>{w.style=k;if(input)input.value=k;w.updated=Date.now();save();render();};row.append(b);});
   return row;}
@@ -1587,6 +1587,10 @@ function ttsJump(dir){if(!TTS.on)return;const q=TTS.q;const at=Math.min(TTS.i,q.
   if(dir>0){j=at;while(j<q.length&&q[j].mi===cur)j++;}else if(at>k)j=k;else{j=k;if(j>0){const pm=q[j-1].mi;while(j>0&&q[j-1].mi===pm)j--;}}
   TTS.i=Math.max(0,Math.min(q.length,j));TTS.tok++;try{speechSynthesis.cancel();}catch(e){}if(!TTS.paused)setTimeout(ttsSpeak,60);else ttsMark();}
 function ttsStop(finished){TTS.on=false;TTS.tok++;try{speechSynthesis.cancel();}catch(e){}if(TTS.bar){TTS.bar.remove();TTS.bar=null;}document.querySelectorAll(".msg.tts-now").forEach(x=>x.classList.remove("tts-now"));ttsLock(false);if(finished)toast("Дочитал до конца.");}
+// тире в реплике: переключает «речь/автор» только после знака препинания; тире посреди предложения («брюхом — я слышал») речь не прерывает
+const dashTg=p=>/[,.!?…:;»”]\s*$/.test(p);
+// модель иногда закрывает кавычку посреди реплики: «Видал?» — кричит. — Корабль.» — склеиваем в одну реплику
+function fixQ(line){let prev;do{prev=line;line=line.replace(/«([^«»\n]*)»(\s+[—–]\s[^«»\n]*?[.!?…]\s[—–]\s[^«»\n]*)»/,"«$1$2»");}while(line!==prev);return line;}
 function fmt(e,text,opt){
   // *описание* — обычный текст; реплики в «», “”, „“, "" и через тире — цветом говорящего
   const main=opt&&opt.user?((FMT&&FMT.hero)||null):(FMT&&FMT.main)||null;
@@ -1596,8 +1600,8 @@ function fmt(e,text,opt){
     if(!/[,!?…]\s[-—–]\s/.test(inner))return sayPlain(t,col);
     // чередование: речь — автор — речь…; слова автора обычным текстом, вложенные кавычки в них — цитатой
     const f=document.createDocumentFragment();const open=t[0],close=/[»”“"]$/.test(t)?t[t.length-1]:"";
-    const segs=inner.split(/(\s[-—–]\s)/);let speech=true;let first=true;
-    segs.forEach((sg,k)=>{if(/^\s[-—–]\s$/.test(sg)){f.append(document.createTextNode(sg));speech=!speech;return;}if(!sg)return;
+    const segs=inner.split(/(\s[-—–]\s)/);let speech=true;let first=true;let prv="";
+    segs.forEach((sg,k)=>{if(/^\s[-—–]\s$/.test(sg)){const tgl=dashTg(prv);if(!tgl&&speech)f.append(sayPlain(sg,col));else f.append(document.createTextNode(sg));if(tgl)speech=!speech;return;}if(!sg)return;prv=sg;
       const last=k===segs.length-1;const piece=(first?open:"")+sg+(last&&speech?close:"");first=false;
       if(speech)f.append(sayPlain(piece,col));else{f.append(narSpanPlain(piece));if(last&&close)f.append(sayPlain(close,col));}});
     return f;};
@@ -1621,7 +1625,7 @@ function fmt(e,text,opt){
         if(who)lastWho=who;e.append(say(q,who?nameColor(who):col));sinceQ="";}
       else{e.append(txt(q));sinceQ+=q;}});};
   const plain=(part,col)=>{part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(narSpan(p.slice(1,-1)));sinceQ+=p;return;}quotes(p,col);});};
-  String(text).split("\n").forEach((line,li)=>{if(li)e.append(document.createTextNode("\n"));sinceQ="";lastWho=null;
+  String(text).split("\n").forEach((line,li)=>{line=fixQ(line);if(li)e.append(document.createTextNode("\n"));sinceQ="";lastWho=null;
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
@@ -1630,8 +1634,8 @@ function fmt(e,text,opt){
     if(labeled&&!/[«“„"]/.test(rest)&&!/^\s*([—–]|-\s)/.test(rest)){rest.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(narSpan(p.slice(1,-1)));}else e.append(say(p,col));});return;}
     // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
     const d=rest.match(/^(\s*)([—–]|-(?=\s))\s*(.*)$/);
-    if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;
-      segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){e.append(document.createTextNode(sg));speech=!speech;return;}if(!sg)return;if(speech)e.append(say(sg,col));else plain(sg,col);});return;}
+    if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;let prv="";
+      segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){const tgl=dashTg(prv);if(!tgl&&speech)e.append(say(sg,col));else e.append(document.createTextNode(sg));if(tgl)speech=!speech;return;}if(!sg)return;prv=sg;if(speech)e.append(say(sg,col));else plain(sg,col);});return;}
     plain(rest,col);});
 }
 function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
