@@ -82,6 +82,8 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .wcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:6px}
 .wcard:hover{border-color:var(--accent)}
 .wcard .nm{font-weight:600;font-size:16px}
+.wcard .nm.big{font-size:20px;line-height:1.2}
+.wcard .tp{font-size:12px;color:var(--accent);margin-top:-4px}
 .wcard .ds{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
 .list{display:flex;flex-direction:column;gap:8px}
@@ -384,12 +386,12 @@ function markShown(w,text){if(!w||!text)return;const sh=shownOf(w);let ch=false;
 const isNew=(w,c)=>w&&c&&!shownOf(w)[c.id]&&c.id!==w.heroId;
 // ============ КАРТА МИРА ============
 const WORLD_MAPS={"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.svg"},{t:"Побережье",src:"presets/maps/south.svg"}]};
-const mapsOf=w=>{if(!w)return [];const l=(WORLD_MAPS[baseWorldName(w.name)]||[]).slice();if(w.map)l.unshift({t:"Своя карта",src:w.map});return l;};
+const mapsOf=w=>{if(!w)return [];const l=(WORLD_MAPS[tplOf(w)]||[]).slice();if(w.map)l.unshift({t:"Своя карта",src:w.map});return l;};
 const mapOf=w=>(mapsOf(w)[0]||{}).src||"";
 // названия и расположение мест вокруг деревни — один раз дописываем в лор мира
 const LOCAL_PLACES={"Южное побережье":"ОКРЕСТНОСТИ СОЛТХЭМА: двор Уилла — на отшибе, на самом западном краю деревни у Тихого ручья: дом, мастерская с водяным колесом, сеновал, загон с двумя коровами и конём; сюда редко кто заглядывает. Выше двора, к полям, — двор Лиз и Пипа с овечьим загоном. Ниже, у берега, — Рыбацкая бухта: дом Эдвина и Бесс, лодки, сети на шестах. От двора Уилла до площади с рынком — минут десять пешком мимо часовни Морской Матери и кладбища. В самой деревне: рынок с колодцем, лавка Марты у рынка, «Якорь» у берега, пристань. Чёрные камни — в море к западу от Рыбацкой бухты."};
 const NATURE={"Южное побережье":"ПРИРОДА: это южный берег — дубовые и буковые рощи, кипарисы у часовни, на кладбище и вдоль дорог, виноградники к востоку от деревни, масличная роща у дороги к Вороньей крепости, светлые каменные дома под красной черепицей (у бедных дворов — солома). Ели — редкость, только в глубине Глухолесья. Летом жарко и сухо, трава выгорает; шторма приходят с северного моря."};
-function ensureLocalPlaces(w){let ch=false;const b=baseWorldName(w.name);const t=LOCAL_PLACES[b];if(t&&!(w.places||"").includes("ОКРЕСТНОСТИ СОЛТХЭМА")){w.places=((w.places||"").trim()+"\n"+t).trim();ch=true;}
+function ensureLocalPlaces(w){let ch=false;const b=tplOf(w);const t=LOCAL_PLACES[b];if(t&&!(w.places||"").includes("ОКРЕСТНОСТИ СОЛТХЭМА")){w.places=((w.places||"").trim()+"\n"+t).trim();ch=true;}
   const n=NATURE[b];if(n&&!(w.places||"").includes("ПРИРОДА: это южный берег")){w.places=((w.places||"").trim()+"\n"+n).trim();ch=true;}return ch;}
 // в тексте кто-то достаёт или разворачивает карту — показываем её прямо в ленте
 const MAP_RX=/(разв[её]рн|разворач|доста[её]т|достал|достаю|расстел|расправ|разглаж|глян|смотр|разгляд|показыва|протяг|кладёт|кладу|положил|вынима|вынул|изуча|склони)[а-яё]*[^.!?«»\n]{0,40}карт[ауеыо]|карт[ауеы][^.!?«»\n]{0,30}(разв[её]рнут|лежит|на столе|расстелен)/i;
@@ -611,7 +613,7 @@ function moveChatToMain(w,c){let x=mainStoryOf(w);const h=c.history.filter(m=>St
     const copy=h.map(m=>({role:m.role,content:m.content}));
     if(mode==="replace"){x.history=copy;x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,copy.length);}
     else{const base=x.history.length;x.history=[...x.history,{role:"user",content:"[Дальше история продолжается с разговора с "+c.name+".]"},...copy];if(c.summary&&!x.summary)x.summary=c.summary;}
-    x.dirIdx=x.history.length;x.dramaIdx=x.history.length;[c.id,...(c.guests||[])].forEach(id=>{if(!x.charIds.includes(id))x.charIds.push(id);});
+    x.dirIdx=x.history.length;x.dramaIdx=x.history.length;[c.id,...(c.guests||[])].forEach(id=>{if(C(id)&&!x.charIds.includes(id))x.charIds.push(id);});
     let cleared=false;if(confirm("Перенесено в «"+x.title+"»: "+copy.length+" сообщ.\n\nОчистить личный чат «"+c.name+"»? Память, состояние и отношение к герою останутся — пропадёт только переписка в личном чате (она уже в истории).")){c.history=[];c.summary="";c.sumIdx=0;c.dirIdx=0;c.dramaIdx=0;c.drama=null;c.guests=[];c.updated=Date.now();cleared=true;}
     x.updated=Date.now();save();toast("Переписка «"+c.name+"» перенесена в «"+x.title+"»"+(cleared?", личный чат очищен.":"."));go({v:"scene",id:x.id});};
   if(!x||!x.history.length){doIt("replace");return;}
@@ -625,7 +627,7 @@ function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});ret
   const best=npcsOf(w.id).map(c=>({c,n:c.history.length})).sort((a,b)=>b.n-a.n)[0];
   const st=storyOf(w);const opening=st&&(st.opening||STORY_OPENINGS[st.id]);
   if(best&&best.n>2&&confirm("Начать «"+x.title+"» с того места, где сейчас разговор с "+best.c.name+"?\n\nПоследние сообщения перейдут в общую историю, а разговор с "+best.c.name+" останется как есть — для разговоров наедине.\n\nОтмена — начать историю с самого начала"+(opening?" (ночь шторма)":"")+".")){
-    const c=best.c;x.history=c.history.map(m=>({role:m.role,content:m.content}));x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,x.history.length);x.charIds=[c.id,...(c.guests||[])];x.dirIdx=x.history.length;x.dramaIdx=x.history.length;}
+    const c=best.c;x.history=c.history.map(m=>({role:m.role,content:m.content}));x.summary=c.summary||"";x.sumIdx=Math.min(c.sumIdx||0,x.history.length);x.charIds=[c.id,...(c.guests||[])].filter(id=>C(id));x.dirIdx=x.history.length;x.dramaIdx=x.history.length;}
   else if(opening){x.history=[{role:"assistant",content:opening}];const oc=(st.openCast||STORY_OPENCAST[st.id]||[]);oc.forEach(n=>{const c=npcsOf(w.id).find(o=>o.name===n);if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);});x.dirIdx=1;x.dramaIdx=1;if(st.day===1){st.part=st.startPart||STORY_STARTPART[st.id]||st.part;}}
   S.scenes.push(x);save();go({v:"scene",id:x.id});}
 function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";return "День "+st.day+" · "+st.part;}
@@ -1119,7 +1121,8 @@ setInterval(syncTick,20000);window.addEventListener("online",()=>{syncTick();if(
 function expChar(c){download((c.name||"персонаж")+".json",JSON.stringify({app:"zhivoymir",kind:"char",version:1,char:c},null,1),"application/json");}
 function expWorld(w){const cs=charsOf(w.id),sc=S.scenes.filter(x=>x.worldId===w.id);download((w.name||"мир")+".json",JSON.stringify({app:"zhivoymir",kind:"world",version:1,worlds:[w],chars:cs,scenes:sc},null,1),"application/json");}
 function expAll(){download("zhivoy-mir-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({app:"zhivoymir",kind:"all",version:1,savedAt:new Date().toISOString(),persona:S.persona,worlds:S.worlds,chars:S.chars,scenes:S.scenes},null,1),"application/json");}
-function fixAll(){S.worlds.forEach(w=>{try{ensureLocalPlaces(w);}catch(e){}});S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
+const wTitle=w=>(w&&((w.label||"").trim()||w.name))||"Без названия";
+function fixAll(){S.worlds.forEach(w=>{try{if(!w.tpl&&WORLD_MAPS[baseWorldName(w.name)])w.tpl=baseWorldName(w.name);ensureLocalPlaces(w);}catch(e){}});S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
   S.worlds.forEach(w=>{if(S.chars.filter(c=>c.worldId===w.id).every(c=>c.chats.every(x=>!x.history.length))&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length))w.base={events:JSON.parse(JSON.stringify(w.events||[])),date:w.date||""};});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
@@ -1132,9 +1135,10 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-side.json",patchId:"south-side",names:[],title:"Побочные истории и рассказы у огня",desc:"Истории в духе «Ведьмака»: у каждой своя суть, и в каждой придётся выбирать. Плюс рассказы у огня: личные, услышанные, сказки и легенды, через которые люди объясняют свои решения. Нужен сюжет «Свобода Фрейи»."},
   {file:"presets/addons/south-side-2.json",patchId:"south-side-2",names:[],title:"Обновление историй: заказы, отзвуки, длинная цепочка",desc:"14 историй вместо 9: люди приходят с заказами в мастерскую, у каждой есть отказ и отзвуки, которые аукнутся позже; 4 малые истории на одну сцену и длинная цепочка «Дверь у Трёх Ясеней» через несколько актов. Нужен сюжет «Свобода Фрейи» и дополнение «Побочные истории»."}]};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
+const tplOf=w=>(w&&w.tpl)||baseWorldName(w&&w.name);
 async function startOver(w,openChar){const bn=baseWorldName(w.name);let n=2;while(S.worlds.some(x=>x.name===bn+" · линия "+n))n++;const nm=bn+" · линия "+n;
   if(!confirm("Создать параллельный мир «"+nm+"»?\n\nВсе персонажи и хроника начнутся с самого начала — никто ничего не помнит. Этот мир останется как есть, между ними можно переключаться."))return;
-  let ref=null;if(CLEAN_PRESETS[bn]){try{const r=await fetch(CLEAN_PRESETS[bn],{cache:"no-store"});if(r.ok)ref=await r.json();}catch(e){}}
+  let ref=null;const tk=tplOf(w);if(CLEAN_PRESETS[tk]){try{const r=await fetch(CLEAN_PRESETS[tk],{cache:"no-store"});if(r.ok)ref=await r.json();}catch(e){}}
   const sameName=(a,b)=>{a=String(a||"").toLowerCase().trim();b=String(b||"").toLowerCase().trim();return !!a&&!!b&&(a===b||(Math.min(a.length,b.length)>=4&&(a.startsWith(b)||b.startsWith(a))));};
   const rc=name=>ref&&((ref.chars||[]).find(x=>x.name===name)||(ref.chars||[]).find(x=>sameName(x.name,name))),rw=ref&&ref.worlds&&ref.worlds[0];
   const cs=S.chars.filter(c=>c.worldId===w.id).map(c=>{const o=JSON.parse(JSON.stringify(c));const pc=rc(c.name);const b=c.base;
@@ -1224,6 +1228,7 @@ function pasteImport(cb){$("repTitle").textContent="Вставить данны�
   const ta=el("textarea");ta.rows=10;ta.style.width="100%";ta.placeholder='{"app":"zhivoymir", ...}';b.append(ta);const r=el("div","row");r.style.marginTop="10px";const ok=el("button","btn primary","Загрузить");
   ok.onclick=()=>{const t=ta.value.trim();if(!t)return;$("rep").close();cb({name:"вставка.json",text:async()=>t});};r.append(ok);b.append(r);$("rep").showModal();setTimeout(()=>ta.focus(),50);}
 const pickFile=(cb)=>sheet([["Выбрать файл",()=>chooseFile(cb)],["Вставить скопированный текст",()=>setTimeout(()=>pasteImport(cb),50)]]);
+// код вида ABCD-EFGH-JKLM: первая группа — имя файла, весь код — пароль (PBKDF2 → AES-GCM), внутри gzip с JSON
 // ============ НАВИГАЦИЯ ============
 let route={v:"home"};const stack=[];
 // История браузера: каждый переход — запись, системная «Назад» ведёт на предыдущий экран, а не закрывает приложение
@@ -1290,7 +1295,7 @@ function renderProfile(){
   const info=el("div");info.style.display="flex";info.style.flexDirection="column";info.style.gap="4px";info.style.minWidth="0";
   const nm=el("div",null,c.name);nm.style.fontSize="22px";nm.style.fontWeight="700";info.append(nm);
   if(c.short)info.append(el("div","note",c.short));
-  const meta=el("div","note",(w?w.name+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ. · "+c.chats.length+" разг.");info.append(meta);
+  const meta=el("div","note",(w?wTitle(w)+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ. · "+c.chats.length+" разг.");info.append(meta);
   if(c.tags.length){const tg=el("div","row");c.tags.forEach(t=>tg.append(el("span","pill",t)));info.append(tg);}
   top.append(av,info);p.append(top);
   // действия
@@ -1338,7 +1343,7 @@ function renderAllChars(){
   const box=el("div");p.append(box);
   const draw=()=>{box.innerHTML="";const f=q.value.trim().toLowerCase();
     S.worlds.forEach(w=>{const cs=charsOf(w.id).filter(c=>!f||(c.name+" "+c.short+" "+c.tags.join(" ")).toLowerCase().includes(f)).sort((a,b)=>(b.updated||0)-(a.updated||0));if(!cs.length)return;
-      const hd=el("h2",null,w.name);hd.style.cursor="pointer";hd.onclick=()=>go({v:"world",id:w.id,tab:"chars"});box.append(hd);const g=el("div","grid");cs.forEach(c=>g.append(charCard(c,false)));box.append(g);});
+      const hd=el("h2",null,wTitle(w));hd.style.cursor="pointer";hd.onclick=()=>go({v:"world",id:w.id,tab:"chars"});box.append(hd);const g=el("div","grid");cs.forEach(c=>g.append(charCard(c,false)));box.append(g);});
     if(!S.chars.length)box.append(el("p","note","Персонажей пока нет. Нажми «+ Персонаж» или создай пример мира на главной."));};
   q.addEventListener("input",draw);draw();$("view").append(p);
 }
@@ -1542,8 +1547,8 @@ function renderHome(){
   if(!S.api.key){const b=el("div","banner","Нет API-ключа. Открой «Настройки» и вставь ключ — без него персонажи не ответят.");p.append(b);}
   const tools=el("div","row between");const h=el("h2",null,"Миры");h.style.margin="0";const nb=el("button","btn primary","+ Новый мир");nb.onclick=()=>{const w=blankWorld();go({v:"worldEdit",id:w.id,draft:w});};const ib=el("button","btn","Загрузить из файла");ib.onclick=()=>pickFile(f=>importFile(f));tools.append(h,ib,nb);p.append(tools);
   const g=el("div","grid");
-  S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";c.append(el("div","nm",w.name||"Без названия"),el("div","ds",w.desc||""),el("div","mt",charsOf(w.id).length+" перс. · "+w.events.length+" событий · "+w.chapters.length+" глав"+(w.date?" · "+w.date:"")));
-    const del=el("button","more","⋯");del.title="Экспорт, удаление";del.style.position="absolute";del.style.top="6px";del.style.right="6px";const rmW=()=>{if(!confirm("Удалить мир «"+(w.name||"без названия")+"» со всеми персонажами, разговорами, сценами и главами? Это нельзя отменить."))return;S.chars=S.chars.filter(x=>x.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();render();};del.onclick=e=>{e.stopPropagation();sheet([["⟲ Начать мир заново (параллельная линия)",()=>startOver(w)],["Экспорт мира…",()=>setTimeout(()=>exportWorld(w),50)],["Изменить мир",()=>go({v:"worldEdit",id:w.id})],["Удалить мир",rmW]]);};
+  S.worlds.sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(w=>{const c=el("div","wcard");c.style.position="relative";c.style.cursor="pointer";const lb=(w.label||"").trim();c.append(el("div","nm"+(lb?" big":""),wTitle(w)));if(lb)c.append(el("div","tp",w.name||""));c.append(el("div","ds",w.desc||""),el("div","mt",charsOf(w.id).length+" перс. · "+w.events.length+" событий · "+w.chapters.length+" глав"+(w.date?" · "+w.date:"")));
+    const del=el("button","more","⋯");del.title="Экспорт, удаление";del.style.position="absolute";del.style.top="6px";del.style.right="6px";const rmW=()=>{if(!confirm("Удалить мир «"+wTitle(w)+"» со всеми персонажами, разговорами, сценами и главами? Это нельзя отменить."))return;S.chars=S.chars.filter(x=>x.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();render();};del.onclick=e=>{e.stopPropagation();sheet([["✎ Своё название (тема)",()=>setTimeout(()=>{const v=prompt("Своё название этого мира — крупно на главной. Чтобы отличать копии одного мира («"+(w.name||"")+"»). Пусто — убрать.",w.label||"");if(v===null)return;w.label=v.trim();w.updated=Date.now();save();render();},50)],["⟲ Начать мир заново (параллельная линия)",()=>startOver(w)],["Экспорт мира…",()=>setTimeout(()=>exportWorld(w),50)],["Изменить мир",()=>go({v:"worldEdit",id:w.id})],["Удалить мир",rmW]]);};
     c.append(del);c.onclick=()=>go({v:"world",id:w.id,tab:"chars"});g.append(c);});
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
@@ -1590,7 +1595,7 @@ function makeExample(){
 // ---- МИР
 function renderWorld(){
   const w=W(route.id);if(!w){go({v:"home"},true);return;}S.lastWorld=w.id;
-  $("hTitle").textContent=w.name||"Мир";const p=el("div","page");
+  $("hTitle").textContent=wTitle(w);const p=el("div","page");
   const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelperEntry],["story","Истории",tabStory],["about","О мире",tabAbout]];
   const tabs=el("div","tabs");tabs.style.position="sticky";tabs.style.top="0";tabs.style.background="var(--bg)";tabs.style.zIndex="2";
   SECTIONS.forEach(([k,t])=>{const b=el("button",null,t);b.dataset.sec=k;b.onclick=()=>{route.tab=k;const s=p.querySelector("#sec-"+k);if(s)s.scrollIntoView({behavior:"smooth",block:"start"});};tabs.append(b);});p.append(tabs);
@@ -1623,7 +1628,7 @@ function tabChars(w,body){
   charsOf(w.id).sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
   // дополнения к готовому миру: лежат в самом приложении, добавляются одной кнопкой (без файлов)
-  {const list=(ADDONS[baseWorldName(w.name)]||[]).filter(x=>x.patchId?(!!w.story&&!(w.story.patches||[]).includes(x.patchId)):x.storyId?!(w.story&&w.story.id===x.storyId):!x.names.every(n=>charsOf(w.id).some(c=>c.name===n)));
+  {const list=(ADDONS[tplOf(w)]||[]).filter(x=>x.patchId?(!!w.story&&!(w.story.patches||[]).includes(x.patchId)):x.storyId?!(w.story&&w.story.id===x.storyId):!x.names.every(n=>charsOf(w.id).some(c=>c.name===n)));
     if(list.length){body.append(el("h3",null,"Дополнения к миру"));list.forEach(x=>{const it=el("div","block");it.style.marginBottom="8px";const bt=el("button","btn sm primary","＋ Добавить в мир");
       bt.onclick=async()=>{bt.disabled=true;try{const r=await fetch(x.file,{cache:"no-store"});if(!r.ok)throw new Error(r.status);await importFile(await r.blob(),w.id);}catch(e){alert("Не удалось загрузить: "+e.message+". Проверь интернет.");bt.disabled=false;}};
       it.append(el("b",null,x.title),el("div","note",x.desc),bt);body.append(it);});}}
@@ -1784,7 +1789,7 @@ function chatEditCard(b,w,box,ask){const d=b.data||{};const c=(w&&charsOf(w.id).
     c.updated=Date.now();save();toast(note);btn.textContent="Применено — открыть разговор";btn.onclick=()=>go({v:"chat",id:c.id});undoBtn.hidden=false;};
   const apply=btn.onclick;if(!undoBtn.hidden){btn.textContent="Применено — открыть разговор";btn.onclick=()=>go({v:"chat",id:c.id});}
   box.append(btn,undoBtn);return box;}
-function pickWorld(cb){if(!S.worlds.length){alert("Сначала создай мир (можно попросить ИИ придумать его).");return;}if(S.worlds.length===1){cb(S.worlds[0]);return;}sheet(S.worlds.map(w=>[w.name,()=>cb(w)]));}
+function pickWorld(cb){if(!S.worlds.length){alert("Сначала создай мир (можно попросить ИИ придумать его).");return;}if(S.worlds.length===1){cb(S.worlds[0]);return;}sheet(S.worlds.map(w=>[wTitle(w)+((w.label||"").trim()?" · "+w.name:""),()=>cb(w)]));}
 function addCharFrom(d,w){const c=blankChar();c.worldId=w.id;c.name=String(d.name||"Персонаж");c.short=String(d.short||"");c.tags=Array.isArray(d.tags)?d.tags.map(String):[];c.core=String(d.core||"");c.examples=String(d.examples||"");c.greeting=String(d.greeting||"");if(d.inertia)c.inertia=Math.max(1,Math.min(10,parseInt(d.inertia)||5));if(d.state){const s=d.state;Object.assign(c.state,{mood:s.mood||"",now:s.now||"",goals:Array.isArray(s.goals)?s.goals.map(String):[],relUser:s.relUser||"",trust:typeof s.trust==="number"?s.trust:0,secrets:s.secrets||""});}S.chars.push(c);save();return c;}
 function blockCard(b,w,ask){const box=el("div","block");box.style.marginTop="10px";box.style.borderLeft="3px solid var(--accent)";const d=b.data;
   if(b.kind==="chatedit")return chatEditCard(b,w,box,ask);
@@ -1923,7 +1928,7 @@ $("repClose").onclick=()=>$("rep").close();
 function renderWorldEdit(){
   const w=route.draft||W(route.id);$("hTitle").textContent=route.draft?"Новый мир":"Мир";const p=el("div","page editor");
   const f=(lbl,hint,key,ta,rows)=>{const l=el("label");l.append(document.createTextNode(lbl));if(hint){l.append(el("span","hint",hint));}const i=ta?el("textarea"):el("input");if(!ta)i.type="text";if(rows)i.rows=rows;i.value=key.split(".").reduce((o,k)=>o[k],w)||"";i.oninput=()=>{const ks=key.split(".");let o=w;ks.slice(0,-1).forEach(k=>o=o[k]);o[ks[ks.length-1]]=i.value;};l.append(i);p.append(l);return i;};
-  const nm=f("Название","", "name");const ds=f("Описание мира","Где, когда, атмосфера, что происходит сейчас","desc",true,5);
+  const lbI=f("Своё название (тема)","Крупно на главной — чтобы отличать копии одного мира, напр. «У побережья». Можно пусто","label");const nm=f("Название мира","Название самого мира — по нему ИИ и дополнения узнают мир","name");const ds=f("Описание мира","Где, когда, атмосфера, что происходит сейчас","desc",true,5);
   const gb=el("button","btn","✨ Придумать мир по названию и идее");gb.onclick=withBusy(gb,async()=>{const r=await genWorld(w);if(r.name&&!w.name)w.name=r.name;w.desc=r.desc||w.desc;w.rules=r.rules||"";w.places=r.places||"";w.date=r.date||"";if(r.hero)w.hero.desc=r.hero;w._starters=r.starters||[];render();});p.append(gb);
   f("Правила и условия жизни","Экономика, законы, обычаи, опасности — каждое с новой строки","rules",true,5);f("Места","Название — что там, кто бывает","places",true,4);f("Сейчас в мире","Дата или время, с которого начинается история","date");
   p.append(el("h2",null,"Твой герой в этом мире"));f("Имя","Пусто — возьмётся из настроек","hero.name");f("Кто ты здесь","Персонажи это «видят»","hero.desc",true,3);
