@@ -1194,7 +1194,7 @@ function fixAll(){S.worlds.forEach(w=>{try{if(!w.tpl&&WORLD_MAPS[baseWorldName(w
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
 // Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
-const CLEAN_PRESETS={};
+const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
 const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
   {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Управляющий Кадвал"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, управляющий Кадвал. Плюс правила мира о беглых, Палате возврата, дружине и оброке."},
@@ -1664,7 +1664,7 @@ function renderHome(){
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
   // готовые миры: грузятся одним нажатием из самого приложения
-  const PRESETS=[]; // готовых миров в списке пока нет
+  const PRESETS=[{file:"presets/south-clean.json",world:"Южное побережье",title:"Южное побережье",desc:"Южный берег, конец лета, ночь шторма. Плотник Уилл видит огни у Чёрных камней — там разбился невольничий корабль. 26 персонажей, сюжет «Свобода Фрейи», побочные истории, карты."}];
   const avail=PRESETS.filter(x=>!S.worlds.some(w=>w.name===x.world));
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
     avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt","нажми, чтобы добавить"));
@@ -2393,7 +2393,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();applyTheme();pushHist();render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
