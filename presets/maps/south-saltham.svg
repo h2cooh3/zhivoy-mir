@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1050" font-family="Georgia, 'Times New Roman', serif">
+<defs>
+<filter id="paper" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="4" seed="9" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.55 0 0 0 0 0.43 0 0 0 0 0.25 0 0 0 0.33 0" result="t"/><feComposite in="t" in2="SourceGraphic" operator="in" result="s"/><feBlend in="SourceGraphic" in2="s" mode="multiply"/></filter>
+<filter id="rough"><feTurbulence type="turbulence" baseFrequency="0.035" numOctaves="2" seed="4" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="3"/></filter>
+<pattern id="waves" width="54" height="22" patternUnits="userSpaceOnUse"><path d="M2 12 q7 -7 14 0 t14 0" fill="none" stroke="#6d6248" stroke-width="1.1" opacity=".42"/></pattern>
+<pattern id="fa" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(25)"><line x1="0" y1="0" x2="0" y2="12" stroke="#7a6a45" stroke-width="1.1" opacity=".5"/></pattern>
+<pattern id="fb" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)"><line x1="0" y1="0" x2="0" y2="12" stroke="#7a6a45" stroke-width="1.1" opacity=".42"/></pattern>
+<pattern id="grass" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M3 12 l2 -5 M8 13 l1 -6 M12 12 l2 -5" stroke="#7d7650" stroke-width=".9" opacity=".45" fill="none"/></pattern>
+<g id="tree"><path d="M0 -18 L-9 3 L-4 3 L-10 13 L10 13 L4 3 L9 3 Z" fill="#5d5636" opacity=".88"/><line x1="0" y1="13" x2="0" y2="18" stroke="#4a3a28" stroke-width="1.6"/></g>
+<g id="tree2"><circle cx="0" cy="-4" r="9" fill="#6a6340" opacity=".82"/><line x1="0" y1="5" x2="0" y2="13" stroke="#4a3a28" stroke-width="1.6"/></g>
+<g id="h"><path d="M-9 0 L0 -9 L9 0 Z" fill="#4a3a28"/><rect x="-8" y="0" width="16" height="10" fill="#dccba2" stroke="#4a3a28" stroke-width="1.3"/></g>
+<g id="hs"><path d="M-7 0 L0 -6 L7 0 Z" fill="#4a3a28"/><rect x="-6" y="0" width="12" height="8" fill="#dccba2" stroke="#4a3a28" stroke-width="1.2"/></g>
+<g id="rock"><path d="M-12 5 L-7 -8 L3 -10 L11 -3 L12 6 Z" fill="#3b352b" stroke="#2a251e" stroke-width="1"/></g>
+<g id="boat"><path d="M-16 0 Q0 9 16 0 Z" fill="#dccba2" stroke="#4a3a28" stroke-width="1.2"/></g>
+<g id="sheep"><ellipse rx="4" ry="2.8" fill="#f2ead6" stroke="#4a3a28" stroke-width=".8"/><circle cx="4" cy="-.5" r="1.4" fill="#4a3a28"/></g>
+<g id="cow"><ellipse rx="6" ry="3.4" fill="#8a6a48" stroke="#4a3a28" stroke-width=".8"/><circle cx="6" cy="-1" r="2" fill="#6b4f35"/></g>
+<g id="cross"><line x1="0" y1="-6" x2="0" y2="5" stroke="#4a3a28" stroke-width="1.3"/><line x1="-3" y1="-3" x2="3" y2="-3" stroke="#4a3a28" stroke-width="1.3"/></g>
+</defs>
+<rect width="1600" height="1050" fill="#e9dbb7" filter="url(#paper)"/>
+<rect x="16" y="16" width="1568" height="1018" fill="none" stroke="#4a3a28" stroke-width="3"/><rect x="26" y="26" width="1548" height="998" fill="none" stroke="#4a3a28" stroke-width="1.1"/>
+<g filter="url(#rough)">
+<path d="M26 690 C100 675 180 700 250 684 C290 676 305 660 320 630 C340 590 380 575 430 572 C480 570 520 590 540 625 C555 655 600 668 680 662 C760 656 840 652 905 662 C980 672 1060 660 1140 668 C1250 678 1350 668 1450 672 C1510 674 1550 666 1574 668 L1574 1024 L26 1024 Z" fill="#cfc7a5"/><path d="M26 690 C100 675 180 700 250 684 C290 676 305 660 320 630 C340 590 380 575 430 572 C480 570 520 590 540 625 C555 655 600 668 680 662 C760 656 840 652 905 662 C980 672 1060 660 1140 668 C1250 678 1350 668 1450 672 C1510 674 1550 666 1574 668 L1574 1024 L26 1024 Z" fill="url(#waves)"/>
+<path d="M26 690 C100 675 180 700 250 684 C290 676 305 660 320 630 C340 590 380 575 430 572 C480 570 520 590 540 625 C555 655 600 668 680 662 C760 656 840 652 905 662 C980 672 1060 660 1140 668 C1250 678 1350 668 1450 672 C1510 674 1550 666 1574 668" fill="none" stroke="#4a3a28" stroke-width="2.6"/>
+<path d="M26 26 L1574 26 L1574 120 C1450 135 1350 110 1240 128 C1120 146 1000 118 880 132 C760 146 640 120 520 136 C400 150 280 122 160 140 C110 146 60 136 26 140 Z" fill="#cdbf92" opacity=".5"/>
+<rect x="26" y="140" width="1548" height="520" fill="url(#grass)" opacity=".7"/>
+<path d="M420 40 C400 120 450 190 430 260 C410 330 455 380 445 430 C438 480 452 530 446 574" fill="none" stroke="#5f6a63" stroke-width="3" opacity=".85"/>
+<path d="M1390 30 C1370 110 1420 180 1400 260 C1380 340 1430 420 1410 500 C1395 560 1420 620 1428 672" fill="none" stroke="#5f6a63" stroke-width="4.5" opacity=".85"/>
+<g fill="none" stroke="#7a6038" stroke-dasharray="7 6" stroke-width="2">
+<path d="M470 470 C540 482 600 500 650 505 C700 510 740 522 790 532"/><path d="M455 365 C465 400 468 430 470 470" stroke-width="1.4"/><path d="M432 548 C440 520 455 495 470 470" stroke-width="1.4"/>
+<path d="M880 520 C900 440 880 330 905 240 C920 180 900 110 915 30"/>
+<path d="M990 560 C1080 548 1180 552 1300 560 C1400 566 1480 560 1574 548"/>
+
+</g>
+</g>
+<use href="#tree2" x="966" y="105"/>
+<use href="#tree" x="993" y="91"/>
+<use href="#tree" x="1242" y="58"/>
+<use href="#tree" x="1088" y="94"/>
+<use href="#tree" x="421" y="46"/>
+<use href="#tree" x="330" y="45"/>
+<use href="#tree" x="1460" y="115"/>
+<use href="#tree" x="851" y="91"/>
+<use href="#tree" x="1300" y="117"/>
+<use href="#tree" x="70" y="101"/>
+<use href="#tree2" x="113" y="58"/>
+<use href="#tree2" x="1268" y="37"/>
+<use href="#tree" x="708" y="90"/>
+<use href="#tree" x="440" y="100"/>
+<use href="#tree" x="642" y="97"/>
+<use href="#tree" x="214" y="92"/>
+<use href="#tree2" x="873" y="104"/>
+<use href="#tree" x="210" y="124"/>
+<use href="#tree" x="510" y="99"/>
+<use href="#tree2" x="183" y="106"/>
+<use href="#tree2" x="860" y="47"/>
+<use href="#tree2" x="831" y="42"/>
+<use href="#tree" x="1442" y="34"/>
+<use href="#tree" x="147" y="94"/>
+<use href="#tree" x="1491" y="84"/>
+<use href="#tree" x="1199" y="114"/>
+<use href="#tree" x="1422" y="68"/>
+<use href="#tree" x="677" y="76"/>
+<use href="#tree" x="879" y="49"/>
+<use href="#tree" x="1487" y="46"/>
+<use href="#tree" x="992" y="96"/>
+<use href="#tree" x="1185" y="58"/>
+<use href="#tree2" x="430" y="127"/>
+<use href="#tree" x="898" y="116"/>
+<use href="#tree2" x="848" y="87"/>
+<use href="#tree2" x="40" y="68"/>
+<use href="#tree2" x="1253" y="72"/>
+<use href="#tree" x="80" y="60"/>
+<use href="#tree" x="1272" y="116"/>
+<use href="#tree" x="126" y="52"/>
+<use href="#tree2" x="568" y="35"/>
+<use href="#tree" x="713" y="71"/>
+<use href="#tree" x="192" y="45"/>
+<use href="#tree" x="1343" y="65"/>
+<use href="#tree" x="795" y="81"/>
+<use href="#tree" x="300" y="109"/>
+<use href="#tree2" x="1216" y="51"/>
+<use href="#tree" x="414" y="114"/>
+<use href="#tree" x="507" y="112"/>
+<use href="#tree2" x="428" y="54"/>
+<use href="#tree" x="1174" y="59"/>
+<use href="#tree" x="835" y="95"/>
+<use href="#tree" x="903" y="40"/>
+<use href="#tree2" x="119" y="99"/>
+<use href="#tree2" x="528" y="128"/>
+<use href="#tree2" x="566" y="87"/>
+<use href="#tree" x="1261" y="96"/>
+<use href="#tree2" x="399" y="126"/>
+<use href="#tree" x="298" y="63"/>
+<use href="#tree" x="1378" y="112"/>
+<use href="#tree2" x="613" y="61"/>
+<use href="#tree" x="457" y="36"/>
+<use href="#tree" x="882" y="91"/>
+<use href="#tree" x="135" y="56"/>
+<use href="#tree2" x="1127" y="107"/>
+<use href="#tree" x="228" y="80"/>
+<use href="#tree" x="962" y="76"/>
+<use href="#tree" x="1455" y="100"/>
+<use href="#tree" x="327" y="109"/>
+<use href="#tree2" x="76" y="94"/>
+<path d="M540 176 L700 170 L706 260 L544 266 Z" fill="url(#fb)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M705 171 L860 165 L866 255 L709 261 Z" fill="url(#fa)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M940 176 L1100 170 L1106 265 L944 271 Z" fill="url(#fb)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M1105 181 L1260 175 L1266 270 L1109 276 Z" fill="url(#fa)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M560 286 L720 280 L726 380 L564 386 Z" fill="url(#fb)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M725 281 L860 275 L866 370 L729 376 Z" fill="url(#fa)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M950 296 L1110 290 L1116 385 L954 391 Z" fill="url(#fb)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M1115 301 L1270 295 L1276 385 L1119 391 Z" fill="url(#fa)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<path d="M1290 186 L1370 180 L1376 300 L1294 306 Z" fill="url(#fb)" stroke="#4a3a28" stroke-width="1.1" opacity=".95"/>
+<g transform="translate(1440,300)"><use href="#h"/><g stroke="#4a3a28" stroke-width="1.6"><line x1="0" y1="-4" x2="-13" y2="-17"/><line x1="0" y1="-4" x2="13" y2="-17"/><line x1="0" y1="-4" x2="-13" y2="9"/><line x1="0" y1="-4" x2="13" y2="9"/></g></g>
+<g transform="translate(1490,170)"><use href="#hs"/>
+<rect x="16" y="4" width="6" height="7" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/>
+<rect x="26" y="8" width="6" height="7" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/>
+<rect x="18" y="14" width="6" height="7" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/>
+<rect x="30" y="16" width="6" height="7" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/>
+<rect x="22" y="22" width="6" height="7" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/>
+</g>
+<g>
+<g transform="translate(400,478) scale(1.35)"><use href="#h"/></g>
+<g transform="translate(468,452)"><rect x="-14" y="-8" width="28" height="16" fill="#dccba2" stroke="#4a3a28" stroke-width="1.4"/><path d="M-16 -8 L0 -18 L16 -8 Z" fill="#4a3a28"/></g>
+<g transform="translate(448,452)"><circle r="9" fill="none" stroke="#4a3a28" stroke-width="1.5"/><line x1="0" y1="0" x2="9.0" y2="0.0" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="6.4" y2="6.4" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="0.0" y2="9.0" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="-6.4" y2="6.4" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="-9.0" y2="0.0" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="-6.4" y2="-6.4" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="-0.0" y2="-9.0" stroke="#4a3a28" stroke-width="1"/><line x1="0" y1="0" x2="6.4" y2="-6.4" stroke="#4a3a28" stroke-width="1"/></g>
+<g transform="translate(352,448)"><rect x="-12" y="-7" width="24" height="15" fill="#dccba2" stroke="#4a3a28" stroke-width="1.3"/><path d="M-13 -7 L0 -15 L13 -7 Z" fill="#4a3a28"/></g>
+<ellipse cx="328" cy="478" rx="8" ry="6" fill="#c9b27a" stroke="#4a3a28" stroke-width="1"/>
+<rect x="270" y="388" width="92" height="38" fill="none" stroke="#4a3a28" stroke-width="1.1" stroke-dasharray="3 3"/>
+<use href="#cow" x="295" y="402"/><use href="#cow" x="325" y="414"/>
+<g transform="translate(347,400)"><ellipse rx="6" ry="3" fill="#5a4130"/><line x1="5" y1="-1" x2="9" y2="-6" stroke="#5a4130" stroke-width="2"/></g>
+<use href="#tree2" x="500" y="500"/><use href="#tree2" x="300" y="520"/><use href="#tree2" x="380" y="520"/>
+</g>
+<g transform="translate(398,556) scale(1.15)"><use href="#h"/></g>
+<g transform="translate(372,560)"><rect x="-6" y="-4" width="12" height="8" fill="#dccba2" stroke="#4a3a28" stroke-width="1"/></g>
+<line x1="478" y1="548" x2="478" y2="566" stroke="#4a3a28" stroke-width="1.3"/>
+<line x1="494" y1="548" x2="494" y2="566" stroke="#4a3a28" stroke-width="1.3"/>
+<line x1="510" y1="548" x2="510" y2="566" stroke="#4a3a28" stroke-width="1.3"/>
+<path d="M478 552 L510 552 M478 558 L510 558 M484 552 L484 564 M496 552 L496 564" stroke="#4a3a28" stroke-width=".7" opacity=".8"/>
+<use href="#boat" x="420" y="610"/>
+<use href="#boat" x="465" y="622"/>
+<use href="#boat" x="390" y="640"/>
+<g transform="translate(450,352)"><use href="#hs"/></g>
+<rect x="472" y="300" width="74" height="40" rx="10" fill="none" stroke="#4a3a28" stroke-width="1.1" stroke-dasharray="3 3"/>
+<use href="#sheep" x="524" y="317"/>
+<use href="#sheep" x="482" y="308"/>
+<use href="#sheep" x="518" y="328"/>
+<use href="#sheep" x="484" y="323"/>
+<use href="#sheep" x="484" y="331"/>
+<use href="#sheep" x="499" y="318"/>
+<use href="#sheep" x="488" y="310"/>
+<use href="#sheep" x="484" y="322"/>
+<use href="#sheep" x="514" y="319"/>
+<use href="#sheep" x="527" y="309"/>
+<use href="#sheep" x="537" y="331"/>
+<use href="#sheep" x="527" y="330"/>
+<use href="#sheep" x="488" y="333"/>
+<use href="#sheep" x="538" y="318"/>
+<use href="#rock" x="150" y="760"/>
+<use href="#rock" x="185" y="782"/>
+<use href="#rock" x="130" y="795"/>
+<use href="#rock" x="215" y="805"/>
+<use href="#rock" x="170" y="818"/>
+<use href="#rock" x="110" y="770"/>
+<use href="#rock" x="240" y="780"/>
+<use href="#rock" x="200" y="840"/>
+<use href="#rock" x="150" y="850"/>
+<g stroke="#3b352b" stroke-width="2" opacity=".75"><line x1="255" y1="765" x2="276" y2="756"/><line x1="262" y1="792" x2="285" y2="800"/><path d="M276 822 l10 -16"/><path d="M230 735 l18 6"/></g>
+<g>
+<g transform="translate(700,470)"><path d="M-12 8 L-12 -8 L0 -18 L12 -8 L12 8 Z" fill="#dccba2" stroke="#4a3a28" stroke-width="1.5"/><line x1="0" y1="-18" x2="0" y2="-34" stroke="#4a3a28" stroke-width="1.7"/><line x1="-6" y1="-27" x2="6" y2="-27" stroke="#4a3a28" stroke-width="1.7"/></g>
+<rect x="640" y="430" width="44" height="30" fill="none" stroke="#4a3a28" stroke-width="1" stroke-dasharray="2 3"/>
+<use href="#cross" x="650" y="440"/>
+<use href="#cross" x="662" y="446"/>
+<use href="#cross" x="674" y="440"/>
+<use href="#cross" x="656" y="454"/>
+<use href="#cross" x="670" y="455"/>
+<rect x="805" y="445" width="70" height="44" fill="none" stroke="#4a3a28" stroke-width="1.2"/><circle cx="840" cy="467" r="5" fill="none" stroke="#4a3a28" stroke-width="1.4"/>
+<use href="#h" x="760" y="420"/>
+<use href="#h" x="785" y="410"/>
+<use href="#h" x="810" y="420"/>
+<use href="#h" x="900" y="420"/>
+<use href="#h" x="925" y="410"/>
+<use href="#h" x="950" y="422"/>
+<use href="#h" x="760" y="450"/>
+<use href="#h" x="780" y="470"/>
+<use href="#h" x="760" y="500"/>
+<use href="#h" x="785" y="515"/>
+<use href="#h" x="900" y="455"/>
+<use href="#h" x="930" y="470"/>
+<use href="#h" x="955" y="450"/>
+<use href="#h" x="900" y="500"/>
+<use href="#h" x="930" y="515"/>
+<use href="#h" x="810" y="510"/>
+<use href="#h" x="835" y="520"/>
+<use href="#h" x="870" y="425"/>
+<use href="#h" x="975" y="480"/>
+<use href="#h" x="745" y="535"/>
+<use href="#h" x="990" y="520"/>
+<use href="#h" x="880" y="540"/>
+<use href="#h" x="812" y="395"/>
+<use href="#h" x="860" y="398"/>
+<use href="#h" x="940" y="390"/>
+<g transform="translate(830,430)"><use href="#h"/><path d="M-12 10 L12 10 L15 15 L-15 15 Z" fill="#c9b27a" stroke="#4a3a28" stroke-width="1"/></g>
+<g transform="translate(905,600)"><rect x="-22" y="-10" width="44" height="20" fill="#dccba2" stroke="#4a3a28" stroke-width="1.5"/><path d="M-25 -10 L0 -24 L25 -10 Z" fill="#4a3a28"/>
+<g transform="translate(30,-4)" stroke="#4a3a28" stroke-width="1.3" fill="none"><line x1="0" y1="-7" x2="0" y2="6"/><path d="M-5 3 Q0 9 5 3"/><line x1="-3" y1="-4" x2="3" y2="-4"/></g></g>
+</g>
+<g stroke="#4a3a28" stroke-width="3"><line x1="960" y1="660" x2="968" y2="760"/><line x1="948" y1="760" x2="990" y2="760"/></g>
+<g transform="translate(1000,795)"><path d="M-34 0 Q0 16 34 0 Z" fill="#dccba2" stroke="#4a3a28" stroke-width="1.5"/><line x1="0" y1="2" x2="0" y2="-46" stroke="#4a3a28" stroke-width="1.6"/><path d="M0 -44 L22 -12 L0 -12 Z" fill="#dccba2" stroke="#4a3a28" stroke-width="1.2"/><path d="M0 -44 L-18 -14 L0 -14 Z" fill="#dccba2" stroke="#4a3a28" stroke-width="1.2"/></g>
+<use href="#boat" x="1030" y="700"/><use href="#boat" x="870" y="700"/>
+<g fill="#3d2f1f" font-style="italic"><text x="330" y="160" font-size="17" text-anchor="middle" opacity="0.8" letter-spacing="2">опушка Глухолесья</text><text x="860" y="385" font-size="30" text-anchor="middle" opacity="1" letter-spacing="0">Солтхэм</text><text x="840" y="505" font-size="13" text-anchor="middle" opacity="1" letter-spacing="0">рынок</text><text x="905" y="628" font-size="14" text-anchor="middle" opacity="1" letter-spacing="0">«Якорь»</text><text x="662" y="424" font-size="11" text-anchor="middle" opacity="0.9" letter-spacing="0">кладбище</text><text x="700" y="495" font-size="12" text-anchor="middle" opacity="1" letter-spacing="0">часовня</text><text x="1000" y="850" font-size="14" text-anchor="middle" opacity="1" letter-spacing="0">пристань</text><text x="440" y="670" font-size="17" text-anchor="middle" opacity="1" letter-spacing="0">Рыбацкая бухта</text><text x="494" y="544" font-size="10" text-anchor="middle" opacity="0.8" letter-spacing="0">сети</text><text x="185" y="880" font-size="20" text-anchor="middle" opacity="1" letter-spacing="0">Чёрные камни</text><text x="428" y="230" font-size="14" text-anchor="middle" opacity="1" letter-spacing="0" transform="rotate(80 428 230)">Тихий ручей</text><text x="1430" y="230" font-size="16" text-anchor="middle" opacity="1" letter-spacing="0" transform="rotate(80 1430 230)">р. Брин</text><text x="1440" y="335" font-size="13" text-anchor="middle" opacity="1" letter-spacing="0">мельница</text><text x="1520" y="215" font-size="12" text-anchor="middle" opacity="1" letter-spacing="0">пасека</text><text x="900" y="280" font-size="17" text-anchor="middle" opacity="0.9" letter-spacing="0">Длинные полосы</text><text x="1540" y="535" font-size="13" text-anchor="end" opacity="1" letter-spacing="0">к Вороньей крепости →</text><text x="40" y="640" font-size="12" text-anchor="start" opacity="1" letter-spacing="0">← к Лисьей бухте</text><text x="918" y="160" font-size="13" text-anchor="start" opacity="1" letter-spacing="0">↑ на юг, через лес — в Эшфорд</text><text x="800" y="960" font-size="38" text-anchor="middle" opacity="0.5" letter-spacing="12">СЕРОЕ МОРЕ</text></g>
+<g transform="translate(1340,960)" stroke="#4a3a28" fill="#4a3a28"><rect x="0" y="0" width="60" height="6" fill="#4a3a28"/><rect x="60" y="0" width="60" height="6" fill="#e9dbb7"/><rect x="0" y="0" width="120" height="6" fill="none" stroke-width="1"/><text x="60" y="24" font-size="12" text-anchor="middle" stroke="none" font-style="italic">десять минут пешком</text></g>
+<g transform="translate(200,975)"><rect x="-150" y="-36" width="300" height="52" fill="#ecdfbf" stroke="#4a3a28" stroke-width="1.6"/><rect x="-143" y="-29" width="286" height="38" fill="none" stroke="#4a3a28" stroke-width=".8"/><text x="0" y="-3" font-size="20" text-anchor="middle" fill="#3d2f1f" font-style="italic">Солтхэм и окрестности</text></g>
+<g transform="translate(1520,90) rotate(180)" stroke="#4a3a28" fill="#4a3a28"><circle r="26" fill="none" stroke-width="1"/><path d="M0 -36 L6 0 L0 36 L-6 0 Z" fill="#d9c79e" stroke-width="1"/><path d="M0 -36 L6 0 L-6 0 Z"/><path d="M-36 0 L0 5 L36 0 L0 -5 Z" fill="#d9c79e" stroke-width="1"/><text y="-40" font-size="14" text-anchor="middle" stroke="none" transform="rotate(180 0 -44)">С</text></g>
+</svg>
