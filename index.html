@@ -448,7 +448,8 @@ function openingDescribed(w,names){names.forEach(n=>{const c=npcsOf(w.id).find(o
 function lookNext(w,c){const k=knowOf(w,c),ch=lookChunks(c);if(!k||!k.n||k.look>=ch.length)return "";return ch[k.look];}
 const isNew=(w,c)=>w&&c&&!shownOf(w)[c.id]&&c.id!==w.heroId;
 // ============ КАРТА МИРА ============
-const WORLD_MAPS={"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.svg"},{t:"Побережье",src:"presets/maps/south.svg"}]};
+// карты убраны по просьбе автора; файлы лежат в presets/maps/ — вернуть: {"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.svg"},{t:"Побережье",src:"presets/maps/south.svg"}]}
+const WORLD_MAPS={};
 const mapsOf=w=>{if(!w)return [];const l=(WORLD_MAPS[tplOf(w)]||[]).slice();if(w.map)l.unshift({t:"Своя карта",src:w.map});return l;};
 const mapOf=w=>(mapsOf(w)[0]||{}).src||"";
 // гербы мира: часть мира, не отдельная функция. Показываем только то, что герой может знать (без Трёх Ясеней и Палаты возврата — это сюжетные тайны)
