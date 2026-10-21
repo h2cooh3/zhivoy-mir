@@ -1446,6 +1446,16 @@ function cropAvatar(c,after){const src=photosOf(c)[0];if(!src){toast("Снача
   img.onerror=()=>toast("Не удалось открыть фото.");img.src=src;}
 const photosOf=c=>(c&&Array.isArray(c.photos)&&c.photos.length)?c.photos:(c&&c.avatar?[c.avatar]:[]);
 async function setMainPhoto(c,i){const p=c.photos.splice(i,1)[0];c.photos.unshift(p);c.avatar=await squareFrom(p);c.updated=Date.now();save();}
+// быстрая правка фото прямо в профиле (без захода в «Изменить»)
+function photoMenu(c){if(!Array.isArray(c.photos))c.photos=[];if(c.avatar&&!c.photos.length)c.photos=[c.avatar];
+  const pick=(multi,cb)=>{const i=document.createElement("input");i.type="file";i.accept="image/*";i.multiple=!!multi;i.style.display="none";document.body.append(i);i.onchange=()=>{const fs=[...i.files];i.remove();if(fs.length)cb(fs);};i.click();};
+  const done=()=>{c.updated=Date.now();save();render();};
+  const acts=[["Новое главное фото (заменить аватар)",()=>pick(false,async fs=>{toast("Загружаю…");const d=await imgFromFile(fs[0],1280);if(!d)return;c.photos.unshift(d);c.avatar=await squareFrom(d);done();})],
+    ["Добавить фото в галерею",()=>pick(true,async fs=>{toast("Добавляю…");for(const f of fs){const d=await imgFromFile(f,1280);if(d)c.photos.push(d);}if(!c.avatar&&c.photos.length)c.avatar=await squareFrom(c.photos[0]);done();})]];
+  if(c.photos.length)acts.push(["✂ Подогнать аватар",()=>setTimeout(()=>cropAvatar(c,render),50)]);
+  if(c.photos.length>1)acts.push(["★ Выбрать главным из галереи",()=>sheet(c.photos.slice(1).map((s,k)=>["Фото "+(k+2),async()=>{await setMainPhoto(c,k+1);render();}]))]);
+  if(c.photos.length)acts.push(["Удалить главное фото",async()=>{c.photos.shift();c.avatar=c.photos.length?await squareFrom(c.photos[0]):"";done();}]);
+  sheet(acts);}
 function openGallery(list,i){if(!list.length)return;document.querySelectorAll(".lightbox").forEach(x=>x.remove());let k=Math.max(0,Math.min(i||0,list.length-1));
   const lb=el("div","lightbox gallery");const im=document.createElement("img");const cnt=el("div","gcount");const prev=el("button","gnav gprev","‹"),next=el("button","gnav gnext","›"),x=el("button","gnav gclose","✕");
   const show=()=>{im.src=list[k];cnt.textContent=list.length>1?(k+1)+" / "+list.length:"";prev.hidden=next.hidden=list.length<2;};
@@ -1596,7 +1606,7 @@ function renderProfile(){
   const ed=el("button","btn","Изменить");ed.onclick=()=>go({v:"charEdit",id:c.id});
   const ai=el("button","btn","Экспорт");ai.onclick=()=>exportChar(c);
   const co=el("button","btn","Соавтор");co.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});
-  const avb=el("button","btn","✂ Аватар");avb.title="Подогнать аватар: двигать и увеличивать";avb.onclick=()=>cropAvatar(c);
+  const avb=el("button","btn","📷 Фото");avb.title="Сменить, добавить или подогнать фото и аватар";avb.onclick=()=>photoMenu(c);
   acts.append(go1,mvm,nc,ed,avb,ai,co);p.append(acts);
   // состояние
   const st=c.state;const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
