@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250" width="400" height="500"><defs><clipPath id="c9"><path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z"/></clipPath></defs>
-<path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="#4b3a2a"/><g clip-path="url(#c9)"><g stroke="#e0b84a" stroke-width="9" stroke-linecap="round"><path d="M55,60 L145,170"/></g>
-<path d="M145,60 L55,170" stroke="#d4d8da" stroke-width="9" stroke-linecap="round"/>
-<path d="M55,60 C30,55 28,85 52,92 Z" fill="#d4d8da"/><rect x="132" y="150" width="30" height="16" rx="3" transform="rotate(40 147 158)" fill="#e0b84a"/>
-<text x="100" y="222" text-anchor="middle" font-family="Georgia,serif" font-size="34" fill="#e0b84a" font-weight="bold">У</text></g>
-<path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="none" stroke="#d9c9a0" stroke-width="5" stroke-linejoin="round"/><path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.5"/></svg>

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250" width="400" height="500"><defs><clipPath id="c5"><path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z"/></clipPath></defs>
-<path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="#3a6f94"/><g clip-path="url(#c5)"><g transform="translate(100,50)" fill="#f1ede0"><path d="M0,-22 L5,-5 L22,0 L5,5 L0,22 L-5,5 L-22,0 L-5,-5 Z"/><path d="M-15,-15 L-4,-4 M15,-15 L4,-4 M-15,15 L-4,4 M15,15 L4,4" stroke="#f1ede0" stroke-width="3"/></g>
-<path d="M100,170 C55,160 50,110 100,100 C150,110 145,160 100,170 Z" fill="#f1ede0"/>
-<g stroke="#3a6f94" stroke-width="3" fill="none"><path d="M100,170 L100,104"/><path d="M100,170 L72,120"/><path d="M100,170 L128,120"/><path d="M100,170 L60,146"/><path d="M100,170 L140,146"/></g>
-<circle cx="100" cy="192" r="8" fill="#fbf7ea"/></g>
-<path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="none" stroke="#d9c9a0" stroke-width="5" stroke-linejoin="round"/><path d="M10,10 H190 V120 C190,185 140,225 100,240 C60,225 10,185 10,120 Z" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.5"/></svg>
