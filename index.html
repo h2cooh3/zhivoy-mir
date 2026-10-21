@@ -2606,7 +2606,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();if(fixOpening())save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;}catch(e){}if(fixOpening()||_m)save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
