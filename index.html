@@ -451,6 +451,17 @@ const isNew=(w,c)=>w&&c&&!shownOf(w)[c.id]&&c.id!==w.heroId;
 const WORLD_MAPS={"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.svg"},{t:"Побережье",src:"presets/maps/south.svg"}]};
 const mapsOf=w=>{if(!w)return [];const l=(WORLD_MAPS[tplOf(w)]||[]).slice();if(w.map)l.unshift({t:"Своя карта",src:w.map});return l;};
 const mapOf=w=>(mapsOf(w)[0]||{}).src||"";
+// гербы мира: часть мира, не отдельная функция. Показываем только то, что герой может знать (без Трёх Ясеней и Палаты возврата — это сюжетные тайны)
+const HERALDRY={"Южное побережье":[
+  {id:"south_crown",t:"Королевство Юга",m:"«Закон и хлеб»",d:"Червлёное поле; золотая корона над двумя золотыми колосьями; серебряные весы — знак королевского суда."},
+  {id:"baron",t:"Дом барона Освальда",m:"«Счёт сходится»",d:"Багровое поле; серебряная башня на мысу над чёрными волнами; золотой ключ в дверях.",who:["Барон Освальд"]},
+  {id:"saltham",t:"Солтхэм",m:"«Берег держит»",d:"Синее поле; золотая рыбацкая лодка килем вверх над тремя серебряными волнами."},
+  {id:"chapel",t:"Часовня Морской Матери",m:"«Море возвращает»",d:"Лазурное поле; серебряная раковина над жемчужиной; сверху звезда с восемью лучами.",who:["Сестра Агнесса"]},
+  {id:"vedmark",t:"«Серая Чайка» — капитан Ведмарк",m:"«Попутный груз»",d:"Серое поле; чёрная чайка с раскинутыми крыльями; под ней серебряная цепь.",who:["Капитан Ведмарк"]},
+  {id:"north",t:"Северные короли",m:"«Своё берём сами»",d:"Чёрное поле; серебряный топор с лезвием вниз между тремя льдистыми звёздами."},
+  {id:"will",t:"Мастерская Уилла",m:"«Ровно»",d:"Золотой топор и рубанок накрест, внизу «У». Не герб, а клеймо мастера — ставится на мебели и лодочных досках.",who:["Уилл"]}]};
+const crestsOf=w=>w?(HERALDRY[tplOf(w)]||[]):[];
+const crestSrc=c=>"presets/heraldry/"+c.id+".svg";
 // названия и расположение мест вокруг деревни — один раз дописываем в лор мира
 const LOCAL_PLACES={"Южное побережье":"ОКРЕСТНОСТИ СОЛТХЭМА: двор Уилла — на отшибе, на самом западном краю деревни у Тихого ручья: дом, мастерская с водяным колесом, сеновал, загон с двумя коровами и конём; сюда редко кто заглядывает. Выше двора, к полям, — двор Лиз и Пипа с овечьим загоном. Ниже, у берега, — Рыбацкая бухта: дом Эдвина и Бесс, лодки, сети на шестах. От двора Уилла до площади с рынком — минут десять пешком мимо часовни Морской Матери и кладбища. В самой деревне: рынок с колодцем, лавка Марты у рынка, «Якорь» у берега, пристань. Чёрные скалы — в море к западу от Рыбацкой бухты."};
 const NATURE={"Южное побережье":"ПРИРОДА: это южный берег — дубовые и буковые рощи, кипарисы у часовни, на кладбище и вдоль дорог, виноградники к востоку от деревни, масличная роща у дороги к Вороньей крепости, светлые каменные дома под красной черепицей (у бедных дворов — солома). Ели — редкость, только в глубине Глухолесья. Летом жарко и сухо, трава выгорает; шторма приходят с северного моря."};
@@ -1562,6 +1573,7 @@ function renderProfile(){
   av.onclick=()=>{const ph=photosOf(c);if(ph.length)openGallery(ph,0);else go({v:"charEdit",id:c.id});};
   const info=el("div");info.style.display="flex";info.style.flexDirection="column";info.style.gap="4px";info.style.minWidth="0";
   const nm=el("div",null,c.name);nm.style.fontSize="22px";nm.style.fontWeight="700";info.append(nm);
+  {const cr=crestsOf(w).find(x=>(x.who||[]).includes(c.name));if(cr){const im=document.createElement("img");im.src=crestSrc(cr);im.alt=cr.t;im.title=cr.t+" "+cr.m;im.style.cssText="width:40px;height:auto;margin:2px 0";info.append(im);}}
   if(c.short)info.append(el("div","note",c.short));if((c.pub||"").trim()){const pb=el("div","note",c.pub.trim());pb.style.whiteSpace="pre-wrap";pb.style.marginTop="6px";info.append(pb);}
   const meta=el("div","note",(w?wTitle(w)+" · ":"")+c.chats.reduce((n,x)=>n+x.history.length,0)+" сообщ. · "+c.chats.length+" разг.");info.append(meta);
   {const ph=photosOf(c);if(ph.length>1){const strip=el("div","pstrip");ph.forEach((src,i)=>{const t=document.createElement("img");t.src=src;t.alt="";t.onclick=()=>openGallery(ph,i);strip.append(t);});info.append(strip);}}
@@ -2199,6 +2211,8 @@ function tabAbout(w,body){
   const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
   blk("Описание",w.desc);blk("Правила и условия",w.rules);blk("Места",w.places);blk("Твой герой",(w.hero.name?w.hero.name+". ":"")+(w.hero.desc||""));
   body.append(kv);
+  {const cr=crestsOf(w);if(cr.length){const dd=el("details","sp");dd.append(el("summary",null,"🛡 Гербы мира ("+cr.length+")"));const g=el("div");g.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px";
+    cr.forEach(c=>{const it=el("div","block");it.style.textAlign="center";const im=document.createElement("img");im.src=crestSrc(c);im.alt=c.t;im.loading="lazy";im.style.cssText="width:84px;height:auto";const b=el("b",null,c.t);b.style.display="block";b.style.fontSize="13px";const m=el("div","note",c.m);m.style.fontStyle="italic";it.title=c.d;it.append(im,b,m);it.onclick=()=>alert(c.t+" "+c.m+"\n\n"+c.d);g.append(it);});dd.append(g);body.append(dd);}}
   const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const sob=el("button","btn","⟲ Начать заново");sob.title="Параллельная линия: копия мира, где все с самого начала";sob.onclick=()=>startOver(w);r.append(sob);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
 }
 function download(name,data,type){
