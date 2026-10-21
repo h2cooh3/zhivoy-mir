@@ -176,7 +176,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg textarea{min-height:90px;min-width:min(260px,80vw);width:100%}
 .err{max-width:760px;margin:0 auto;width:100%;color:var(--danger);font-size:13px}
 .prologue{max-width:760px;width:100%;margin:4px auto 18px;border-left:3px solid var(--speech);padding-left:12px}.prologue .plabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 2px}.prologue .pedit{margin-left:10px;background:none;border:0;color:var(--muted);font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0}.prologue textarea{font:inherit;line-height:1.5}
-.prologue .b{font-size:1.02em;line-height:1.62;background:transparent;border:0;padding:6px 4px 6px 2px}
+.prologue .b{white-space:pre-wrap;word-wrap:break-word;font-size:1.02em;line-height:1.62;background:transparent;border:0;padding:6px 4px 6px 2px}
 .divider{max-width:760px;width:100%;margin:0 auto;font-size:12px;color:var(--muted);text-align:center;border-top:1px dashed var(--line);padding-top:6px}
 .compose{border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
 .compose .inner{position:relative;z-index:2}
@@ -1597,9 +1597,9 @@ function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push(
 let FMT=null; // {main:"Имя главного персонажа", names:[...]} — задаёт экран чата/сцены
 // у каждого персонажа мира свой цвет (по порядку в мире), главный в разговоре — голубой
 const PALETTE=[[28,80],[140,55],[280,60],[48,85],[330,65],[0,70],[95,55],[305,55],[65,70],[15,60],[120,45],[345,55],[160,50],[80,45],[295,40],[40,55],[170,45],[265,50],[110,60],[355,45]]; // без оттенков, похожих на голубой главного (212)
-function nameColor(n){if(!n)return "";const low=n.toLowerCase();if(FMT&&FMT.main&&low===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";
+function nameColor(n){if(!n)return "";const low=n.toLowerCase();if(FMT&&FMT.fixed){const k=Object.keys(FMT.fixed).find(z=>z.toLowerCase()===low);if(k)return FMT.fixed[k];}if(FMT&&FMT.main&&low===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";
   const list=((FMT&&FMT.names)||[]).filter(x=>!(FMT.main&&x.toLowerCase()===FMT.main.toLowerCase()));let i=list.findIndex(x=>x.toLowerCase()===low);
-  if(i<0){let h=0;for(const ch of low)h=(h*31+ch.charCodeAt(0))>>>0;i=h;}const [hu,sa]=PALETTE[i%PALETTE.length];return "hsl("+hu+" "+sa+"% var(--sayL))";}
+  if(i<0){let h=0;for(const ch of low)h=(h*31+ch.charCodeAt(0))>>>0;i=h;}const pal=(FMT&&FMT.fixed)?PALETTE.filter(p=>Math.abs(p[0]-46)>22&&Math.abs(p[0]-212)>30):PALETTE;const [hu,sa]=pal[i%pal.length];return "hsl("+hu+" "+sa+"% var(--sayL))";}
 function knownName(raw){const n=raw.replace(/\*+/g,"").trim();if(!n||n.length>28)return null;const list=(FMT&&FMT.names)||[];const low=n.toLowerCase();const hit=list.find(x=>x.toLowerCase()===low)||list.find(x=>low.startsWith(x.toLowerCase())||x.toLowerCase().startsWith(low));return hit||(/^[А-ЯЁA-Z][а-яёa-z\-]+( [А-ЯЁA-Z][а-яёa-z\-]+)?$/.test(n)&&list.length?null:null);}
 const TITLES=["барон","баронесса","граф","графиня","герцог","герцогиня","король","королева","князь","княгиня","принц","принцесса","лорд","леди","сэр","шериф","староста","капитан","мэр","бургомистр","аббат","аббатиса","настоятель","настоятельница","епископ","жрец","жрица","священник","кузнец","мельник","трактирщик","трактирщица","лекарь","знахарь","знахарка","травница","пасечница","швея","управляющий","стражник","сотник","атаман","хан","бек","султан","визирь","шейх"];
 // имя персонажа в тексте — ссылка на его карточку
@@ -2374,7 +2374,7 @@ function renderSceneEdit(){
 }
 // ---- ГРУППОВАЯ СЦЕНА
 function renderScene(){
-  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
+  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),fixed:Object.assign({},heroName(w)?{[heroName(w)]:"hsl(46 85% var(--sayL))"}:{},charsOf(x.worldId).some(c=>c.name==="Фрейя")?{"Фрейя":"hsl(212 75% var(--sayL))"}:{}),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.main?x.title:x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.main?("Рядом: "+(x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")||"никого")):(x.setup||"")));const dchip=el("small","daychip",storyLabel(w));if(storyLabel(w))who.append(dchip);
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId});bar.append(who,mpb,cob,eb,sb);}main.append(bar);
   const log=el("div");log.id="log";main.append(log);
