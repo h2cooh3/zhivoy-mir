@@ -459,10 +459,19 @@ function ensureLocalPlaces(w){let ch=false;const b=tplOf(w);const t=LOCAL_PLACES
 // в тексте кто-то достаёт или разворачивает карту — показываем её прямо в ленте
 const MAP_RX=/(разв[её]рн|разворач|доста[её]т|достал|достаю|расстел|расправ|разглаж|глян|смотр|разгляд|показыва|протяг|кладёт|кладу|положил|вынима|вынул|изуча|склони)[а-яё]*[^.!?«»\n]{0,40}карт[ауеыо]|карт[ауеы][^.!?«»\n]{0,30}(разв[её]рнут|лежит|на столе|расстелен)/i;
 function mapCard(w,text){const src=mapOf(w);if(!src||!MAP_RX.test(String(text||"")))return null;const b=el("button","mapcard");const im=document.createElement("img");im.src=src;im.alt="Карта";b.append(im,el("span",null,"🗺 Карта — открыть"));b.onclick=e=>{e.stopPropagation();openMap(w);};return b;}
+// скачать карту как PNG (в галерею телефона); если можно — через системное «Поделиться»
+async function saveMapImg(im){try{const src=im.currentSrc||im.src;const img=new Image();img.src=src;await img.decode();
+  const W=2400,r=(img.naturalHeight||img.height||700)/(img.naturalWidth||img.width||1000);const c=document.createElement("canvas");c.width=W;c.height=Math.round(W*r);
+  const g=c.getContext("2d");g.drawImage(img,0,0,c.width,c.height);
+  const blob=await new Promise(res=>c.toBlob(res,"image/png"));if(!blob)throw 0;
+  const name="karta-"+(src.split("/").pop().replace(/\.svg.*/,"")||"mira")+".png";const f=new File([blob],name,{type:"image/png"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Карта мира"});return;}catch(e){if(e&&e.name==="AbortError")return;}}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);toast("Карта сохранена");
+ }catch(e){toast("Не получилось сохранить. Открой карту и сделай скриншот.");}}
 function openMap(w){const maps=mapsOf(w);if(!maps.length){toast("У этого мира нет карты. Её можно загрузить в мире: «Карта мира».");return;}
   const lb=el("div","mapview");const sc=el("div","mapscroll");const im=document.createElement("img");im.src=maps[0].src;im.alt="Карта мира";sc.append(im);let z=1;const setZ=k=>{z=Math.max(1,Math.min(5,k));im.style.width=(z*100)+"%";};
   if(maps.length>1){const tabs=el("div","maptabs");maps.forEach((m,i)=>{const b=el("button",i?null:"on",m.t);b.onclick=e=>{e.stopPropagation();im.src=m.src;tabs.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");sc.scrollTo(0,0);};tabs.append(b);});lb.append(tabs);}
-  const bar=el("div","mapbar");const mk=(t,f)=>{const x=el("button",null,t);x.onclick=e=>{e.stopPropagation();f();};bar.append(x);};mk("－",()=>setZ(z-0.5));mk("＋",()=>setZ(z+0.5));mk("✕",()=>lb.remove());
+  const bar=el("div","mapbar");const mk=(t,f)=>{const x=el("button",null,t);x.onclick=e=>{e.stopPropagation();f();};bar.append(x);};mk("－",()=>setZ(z-0.5));mk("＋",()=>setZ(z+0.5));mk("⤓ Скачать",()=>saveMapImg(im));mk("✕",()=>lb.remove());
   im.ondblclick=()=>setZ(z>1?1:2.5);lb.append(sc,bar);document.body.append(lb);setZ(window.innerWidth<700?2.4:1);}
 // стили повествования: ключ — готовый стиль, иначе w.style — свой текст
 const STYLES={
