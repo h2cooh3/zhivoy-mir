@@ -395,7 +395,7 @@ const heroName=w=>(heroChar(w)&&heroChar(w).name)||(w&&w.hero.name.trim())||S.pe
 // ВИДИМОСТЬ: pub — описание для игрока (профиль), seen — что о персонаже известно ДРУГИМ (внешность, репутация), core — только для ИИ.
 // Другим персонажам герой подаётся через seen; личное героя (желания, страхи, прошлое) — только рассказчику и с пометкой.
 function viewOf(c){return (c.seen&&c.seen.trim())||[c.short,(c.look?"ВНЕШНОСТЬ: "+c.look:"")].filter(Boolean).join("\n");}
-function heroDesc(w,ext){const h=heroChar(w);if(h){if(ext)return viewOf(h);const sn=(h.seen||"").trim();const priv=[h.short,(h.look?"ВНЕШНОСТЬ: "+h.look:""),h.core.slice(0,2600)].filter(Boolean).join("\n");return sn?"КАК ЕГО ВИДЯТ ЛЮДИ (то, что известно другим):\n"+sn+"\n\nЛИЧНОЕ ГЕРОЯ — ТОЛЬКО ДЛЯ РАССКАЗЧИКА (персонажи этого не знают и не угадывают; не озвучивай это за героя):\n"+priv:priv;}return ((w&&w.hero.desc)||"").trim();}
+function heroDesc(w,ext){const h=heroChar(w);if(h){if(ext)return viewOf(h);const sn=(h.seen||"").trim();const priv=[h.short,(h.look?"ВНЕШНОСТЬ: "+h.look:""),h.core.slice(0,2600)].filter(Boolean).join("\n");const bio=(h.facts||[]).slice(-30);const bt=bio.length?"\n\nБИОГРАФИЯ ГЕРОЯ ПО ХОДУ ИСТОРИИ (что он уже сделал и пережил; персонажи знают об этом только то, что видели сами или что стало известно в тексте):\n- "+bio.join("\n- "):"";return (sn?"КАК ЕГО ВИДЯТ ЛЮДИ (то, что известно другим):\n"+sn+"\n\nЛИЧНОЕ ГЕРОЯ — ТОЛЬКО ДЛЯ РАССКАЗЧИКА (персонажи этого не знают и не угадывают; не озвучивай это за героя):\n"+priv:priv)+bt;}return ((w&&w.hero.desc)||"").trim();}
 // персонажи мира без того, за кого играет пользователь
 // кто уже появлялся в истории (рассказчик его представил); при первом запуске — все, кто уже встречался в разговорах и сценах
 function shownOf(w){if(!w)return {};if(!w.shown){w.shown={};const txt=[...charsOf(w.id).flatMap(c=>c.chats.flatMap(x=>x.history.map(m=>m.content))),...S.scenes.filter(x=>x.worldId===w.id).flatMap(x=>x.history.map(m=>m.content))].join("\n");
@@ -997,15 +997,18 @@ ${transcript(since,w,c.name)}
  "facts":["новые конкретные факты, которые персонаж теперь помнит: имена, предметы, обещания, что сказал о себе собеседник, важные детали; коротко; только НОВОЕ"],
  "state":{"mood":"настроение сейчас","now":"каков он сейчас и что в нём изменилось с учётом прежнего (1-3 предложения, можно к худшему; если impact мал — повтори прежнее)","goals":["актуальные цели"],"relUser":"отношение к ${heroName(w)} (1-2 предложения)","trust":${c.state.trust??0},"arc":"накопленная история отношений с ${heroName(w)}: что между вами было важного, по порядку, 2-5 предложений; дополняй прежнюю, не переписывай","relations":{"Имя другого персонажа":"изменившееся отношение — только если фрагмент это задел"},"secrets":"что скрывает"},
  "log":["заметные изменения в персонаже, каждое с причиной: «стал меньше доверять герою: тот соврал про деньги». Пусто, если ничего важного"],
+ "hero":["биография героя: что ${heroName(w)} САМ сделал, решил, сказал или пережил в этом фрагменте и что останется в его жизни навсегда; коротко, от третьего лица, в прошедшем времени, без пересказа мыслей; пусто, если ничего важного"],
  "events":[{"text":"событие, о котором может узнать мир (слух, поступок, встреча)","public":true}],
  "others":[{"name":"имя другого персонажа","effect":"как это его коснётся или что он узнает (если никого — пусто)"}],
  "guests":[{"name":"имя присутствовавшего","impact":1,"facts":[],"state":{"mood":"","now":"","relUser":"","trust":0,"relations":{}},"log":[]}]}
 Развитие в любую сторону, не обязательно к лучшему. Не выдумывай того, чего не было во фрагменте. Если изменений нет — верни пустые массивы и прежнее состояние.`;
   const r=await askJSON(prompt,2500);
-  applyCharUpdate(c,r,w,"сцена с "+heroName(w));
+  applyCharUpdate(c,r,w,"сцена с "+heroName(w));addHeroFacts(w,r.hero,c.name);
   (r.guests||[]).forEach(u=>{const g=byName(w.id,u.name);if(g&&g.id!==c.id&&(c.guests||[]).includes(g.id))applyCharUpdate(g,{impact:u.impact,facts:u.facts,state:u.state,log:u.log},w,"разговор "+c.name+" с "+heroName(w));});
   c.dirIdx=c.history.length;c.updated=Date.now();save();try{await condenseFacts(c);}catch(e){}return r;
 }
+// Биография героя: что он сам сделал — копится в facts героя (видит только рассказчик; другие персонажи узнают лишь то, что видели сами)
+function addHeroFacts(w,arr,src){const h=heroChar(w);if(!h||!Array.isArray(arr))return;if(!Array.isArray(h.facts))h.facts=[];arr.forEach(f=>{f=String(f||"").trim();if(f&&f.length<400&&!h.facts.includes(f))h.facts.push(f);});if(h.facts.length>120)h.facts=h.facts.slice(-120);h.updated=Date.now();}
 function applyCharUpdate(c,r,w,src){
   if(!r)return;const st=c.state;const impact=Math.max(1,Math.min(10,parseInt(r.impact)||5));const inertia=c.inertia||5;
   if(r.state&&impact<inertia&&!r.force){const s2=r.state;r.state={mood:s2.mood,goals:s2.goals};r.log=[];}
@@ -1032,10 +1035,12 @@ ${cs.map(charBrief).join("\n")}
 ${transcript(since,w,"Рассказчик")}
 
 Верни JSON: {"chars":[{"name":"имя персонажа","facts":["новые факты, которые он теперь помнит"],"state":{"mood":"","now":"каков он сейчас, с учётом прежнего","goals":[],"relUser":"отношение к ${heroName(w)}","relations":{"Имя другого":"изменившееся отношение"},"secrets":""},"log":["изменения с причиной"]}],
+ "hero":["биография героя: что ${heroName(w)} САМ сделал, решил, сказал или пережил в этом фрагменте и что останется в его жизни навсегда; коротко, от третьего лица, в прошедшем времени, без пересказа мыслей; пусто, если ничего важного"],
  "events":[{"text":"событие для хроники мира","public":true}]}
 Только для персонажей, которых сцена действительно задела. Люди меняются медленно: для каждого укажи "impact" 1–10 (1 — ничего особенного, 10 — определяет человека навсегда); при impact ниже 5 меняй только mood и facts. Доверие ("trust", от −10 до 10) сдвигай не больше чем на impact/3. Не выдумывай того, чего не было.`;
   const r=await askJSON(prompt,3000);
   (r.chars||[]).forEach(u=>{const c=byName(w.id,u.name);if(c)applyCharUpdate(c,{impact:u.impact,facts:u.facts,state:u.state,log:u.log},w,"сцена «"+(x.title||"без названия")+"»");});
+  addHeroFacts(w,r.hero,x.title||"сцена");
   (r.events||[]).forEach(e=>{if(e&&e.text)w.events.push({t:now(),date:w.date,text:String(e.text),public:e.public!==false,who:cs.map(c=>c.name)});});
   x.dirIdx=x.history.length;save();return r;
 }
