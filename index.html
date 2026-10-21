@@ -449,7 +449,7 @@ function lookNext(w,c){const k=knowOf(w,c),ch=lookChunks(c);if(!k||!k.n||k.look>
 const isNew=(w,c)=>w&&c&&!shownOf(w)[c.id]&&c.id!==w.heroId;
 // ============ КАРТА МИРА ============
 // карты убраны по просьбе автора; файлы лежат в presets/maps/ — вернуть: {"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.svg"},{t:"Побережье",src:"presets/maps/south.svg"}]}
-const WORLD_MAPS={};
+const WORLD_MAPS={"Южное побережье":[{t:"Солтхэм и окрестности",src:"presets/maps/south-saltham.jpg"}]};
 const mapsOf=w=>{if(!w)return [];const l=(WORLD_MAPS[tplOf(w)]||[]).slice();if(w.map)l.unshift({t:"Своя карта",src:w.map});return l;};
 const mapOf=w=>(mapsOf(w)[0]||{}).src||"";
 // гербы мира: часть мира, не отдельная функция. Показываем только то, что герой может знать (без Трёх Ясеней и Палаты возврата — это сюжетные тайны)
@@ -473,7 +473,7 @@ const MAP_RX=/(разв[её]рн|разворач|доста[её]т|доста
 function mapCard(w,text){const src=mapOf(w);if(!src||!MAP_RX.test(String(text||"")))return null;const b=el("button","mapcard");const im=document.createElement("img");im.src=src;im.alt="Карта";b.append(im,el("span",null,"🗺 Карта — открыть"));b.onclick=e=>{e.stopPropagation();openMap(w);};return b;}
 // скачать карту как PNG (в галерею телефона); готовим картинку заранее, чтобы «Поделиться» сработало сразу по нажатию
 const MAPF={};
-function mapFile(src){if(MAPF[src])return MAPF[src];return MAPF[src]=(async()=>{const txt=await (await fetch(src,{cache:"force-cache"})).text();
+function mapFile(src){if(MAPF[src])return MAPF[src];return MAPF[src]=(async()=>{if(!/\.svg(\?|$)/i.test(src)){const bl=await (await fetch(src,{cache:"force-cache"})).blob();return new File([bl],src.split("/").pop().split("?")[0]||"karta.jpg",{type:bl.type||"image/jpeg"});}const txt=await (await fetch(src,{cache:"force-cache"})).text();
   const vb=(txt.match(/viewBox="[\d.\s-]*?([\d.]+)\s+([\d.]+)"/)||[]);const vw=+vb[1]||1000,vh=+vb[2]||700;
   const svg=txt.replace(/<svg\b([^>]*)>/,(m,at)=>"<svg"+at.replace(/\s(width|height)="[^"]*"/g,"")+' width="'+vw+'" height="'+vh+'">');
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));const img=new Image();img.src=url;await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;});
