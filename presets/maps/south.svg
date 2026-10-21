@@ -69,7 +69,7 @@
  <use href="#house" x="268" y="428"/>
  <use href="#house" x="318" y="410"/><path d="M306 420 h22 v10 h-22 Z" fill="none" stroke="#4a3a28" stroke-width=".9" stroke-dasharray="2 2"/>
  <use href="#tree2" x="245" y="415"/><use href="#tree2" x="350" y="400"/>
- <!-- Чёрные камни -->
+ <!-- Чёрные скалы -->
  <g><use href="#rock" x="178" y="505"/><use href="#rock" x="198" y="520"/><use href="#rock" x="160" y="528"/><use href="#rock" x="215" y="540"/><use href="#rock" x="184" y="548"/><use href="#rock" x="140" y="510"/></g>
  <!-- обломки корабля -->
  <g stroke="#3b352b" stroke-width="1.5" opacity=".75"><line x1="225" y1="515" x2="240" y2="508"/><line x1="232" y1="525" x2="250" y2="530"/><path d="M244 545 l8 -12" /></g>
@@ -88,7 +88,7 @@
   <text x="480" y="140" font-size="28" text-anchor="middle" letter-spacing="7" opacity=".75">ГЛУХОЛЕСЬЕ</text>
   <text x="545" y="368" font-size="22" text-anchor="middle">Солтхэм</text>
   <text x="430" y="243" font-size="14" text-anchor="middle" opacity=".85">Длинные полосы</text>
-  <text x="185" y="582" font-size="17" text-anchor="middle">Чёрные камни</text>
+  <text x="185" y="582" font-size="17" text-anchor="middle">Чёрные скалы</text>
   <text x="878" y="650" font-size="16" text-anchor="middle">Вороний мыс</text>
   <text x="838" y="540" font-size="13" text-anchor="end">Воронья крепость</text>
   <text x="704" y="276" font-size="12">мельница</text>
