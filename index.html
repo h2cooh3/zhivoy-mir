@@ -211,6 +211,11 @@ nav.bottom button[aria-current="true"]{color:var(--accent);font-weight:600}
 nav.bottom button:disabled{opacity:.35}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(600px,94vw);max-height:90vh}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+.setnav{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;position:sticky;top:-20px;background:var(--panel);z-index:2;-webkit-overflow-scrolling:touch}
+.setnav button{flex:0 0 auto;white-space:nowrap;border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+.setnav button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.sset{display:none;flex-direction:column;gap:10px}.sset.on{display:flex}
+.sset>h2:first-child{margin-top:4px}
 .dlgfoot{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));margin:6px -20px calc(-20px - env(safe-area-inset-bottom,0px));padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2}.dlgfoot #dlgDirty{color:var(--muted);font-size:14px}.dlgfoot .btn{min-width:130px}
 dialog .in{padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:90vh}
 dialog h2{margin:0;font-size:18px}
@@ -260,6 +265,15 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
   <div class="in">
     <div class="row between"><h2>Настройки</h2><button class="btn ghost" id="dlgClose">✕</button></div>
 
+    <div class="setnav" id="setNav">
+      <button type="button" class="on" data-sec="api">🔑 Ключ и модель</button>
+      <button type="button" data-sec="game">🎭 Игра</button>
+      <button type="button" data-sec="voice">🔊 Голоса</button>
+      <button type="button" data-sec="use">📊 Расход</button>
+      <button type="button" data-sec="look">🎨 Вид и ты</button>
+      <button type="button" data-sec="save">☁️ Сохранение</button>
+    </div>
+<section class="sset on" data-sec="api">
     <h2>Подключение к API</h2>
     <label>Провайдер
       <select id="provider">
@@ -285,6 +299,13 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <label>Объём контекста, символов <span class="hint">Сколько последних сообщений модель видит дословно; старое сжимается в краткое содержание, детали уходят в картотеку</span>
       <input type="number" id="budget" min="5000" step="5000">
     </label>
+    <div class="row"><button class="btn sm" id="cfgShare" type="button">Поделиться настройками</button><button class="btn sm" id="cfgPaste" type="button">Вставить настройки</button></div>
+    <p class="note">Провайдер, модель, адрес, цены, драматург — одной строкой, чтобы перенести на другое устройство или отдать другу. Ключ — только если сам выберешь. Настройки модели также ездят с синхронизацией GitHub (без ключа).</p>
+    <div class="row"><button class="btn warn" id="forget">Удалить ключ</button><button class="btn" id="testBtn">Проверить подключение</button></div>
+    <p class="note" id="testOut">Ключ хранится только в этом браузере и уходит напрямую провайдеру. Для Anthropic включено кэширование: неизменная часть промпта (мир, характер) при повторной отправке стоит примерно в 10 раз дешевле.</p>
+
+</section>
+<section class="sset" data-sec="game">
     <label>Длина ответов персонажей <span class="hint">Коротко — живая игра, сразу можно ответить. Подробно — как книга.</span>
       <select id="replyLen"><option value="short">Коротко (до ~120 слов)</option><option value="medium">Средне (до ~250 слов)</option><option value="long">Подробно, как книга</option></select></label>
     <label>Игра за героя <span class="hint">Кто может говорить и действовать за тебя. «.» — отправь точку, когда ленишься писать.</span>
@@ -293,19 +314,21 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <select id="layout"><option value="split">Раздельно (реплики отдельными строками)</option><option value="book">Книжно (сплошной прозой)</option></select></label>
     <label>Откровенность <span class="hint">Зрелое повествование — страсть, близость, жестокость, боль, грубая речь пишутся честно и без стыдливых обрывов, как в серьёзном романе или кино. Сдержанно — всё самое откровенное остаётся за кадром.</span>
       <select id="frank"><option value="adult">Зрелое повествование</option><option value="soft">Сдержанно</option></select></label>
+    <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
+    <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
+      <input type="number" id="drama" min="0" step="1"></label>
+    <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="eco" style="width:auto"> Режим экономии <span class="hint">— короче ответы, меньше памяти в запросе, лёгкий соавтор. Примерно вдвое дешевле.</span></label>
+
+</section>
+<section class="sset" data-sec="voice">
     <h2>Живые голоса (Yandex SpeechKit)</h2>
     <p class="note">Для «Книги»: озвучка настоящими голосами, аудио сохраняется в телефоне — потом слушаешь офлайн, даже с выключенным экраном, и можно скачать mp3. Около 36 ₽ за час аудио. Как подключить — <a href="https://github.com/h2cooh3/zhivoy-mir/blob/main/tools/yandex-tts/README.md" target="_blank">инструкция</a>.</p>
     <label>Адрес функции <input type="url" id="yUrl" placeholder="https://functions.yandexcloud.net/…" autocomplete="off"></label>
     <label>Пароль функции <input type="text" id="ySecret" placeholder="то же слово, что SECRET в функции" autocomplete="off"></label>
     <label>Голос рассказчика <select id="yNarr"><option value="filipp">Филипп (м)</option><option value="ermil">Ермил (м)</option><option value="zahar">Захар (м)</option><option value="alexander">Александр (м)</option><option value="kirill">Кирилл (м)</option><option value="anton">Антон (м)</option><option value="madirus">Мадирус (м)</option><option value="alena">Алёна (ж)</option><option value="jane">Джейн (ж)</option><option value="omazh">Омаж (ж)</option><option value="dasha">Даша (ж)</option><option value="julia">Юлия (ж)</option><option value="lera">Лера (ж)</option><option value="masha">Маша (ж)</option><option value="marina">Марина (ж)</option></select></label>
     <div class="row"><button class="btn" id="yTest" type="button">▶ Проверить голос</button><span class="note" id="yStatus"></span></div>
-    <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
-    <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
-      <input type="number" id="drama" min="0" step="1"></label>
-    <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="eco" style="width:auto"> Режим экономии <span class="hint">— короче ответы, меньше памяти в запросе, лёгкий соавтор. Примерно вдвое дешевле.</span></label>
-
-    <div class="row"><button class="btn sm" id="cfgShare" type="button">Поделиться настройками</button><button class="btn sm" id="cfgPaste" type="button">Вставить настройки</button></div>
-    <p class="note">Провайдер, модель, адрес, цены, драматург — одной строкой, чтобы перенести на другое устройство или отдать другу. Ключ — только если сам выберешь. Настройки модели также ездят с синхронизацией GitHub (без ключа).</p>
+</section>
+<section class="sset" data-sec="use">
     <h2>Расход</h2>
     <div class="kv" id="usageBox"></div>
     <div class="row">
@@ -315,9 +338,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     </div>
     <p class="note">Для моделей Claude 5.5 цены подставляются сами (Sonnet: $2 вход, $0,10 из кэша, $10 выход за млн токенов; Haiku: $0,10 / $0,01 / $0,50). Поля ниже — для других моделей и провайдеров.</p>
     <button class="btn sm" id="usageReset" style="align-self:flex-start">Обнулить счётчик</button>
-    <div class="row"><button class="btn warn" id="forget">Удалить ключ</button><button class="btn" id="testBtn">Проверить подключение</button></div>
-    <p class="note" id="testOut">Ключ хранится только в этом браузере и уходит напрямую провайдеру. Для Anthropic включено кэширование: неизменная часть промпта (мир, характер) при повторной отправке стоит примерно в 10 раз дешевле.</p>
-
+</section>
+<section class="sset" data-sec="look">
     <h2>Оформление</h2>
     <label>Тема
       <select id="theme"><option value="dark">Тёмная</option><option value="light">Светлая</option><option value="auto">Как в системе</option></select>
@@ -328,6 +350,8 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <input type="text" spellcheck="false" autocorrect="off" id="pname" placeholder="Маратбек">
     </label>
 
+</section>
+<section class="sset" data-sec="save">
     <h2>Синхронизация между устройствами</h2>
     <p class="note">Телефон и компьютер хранят данные по отдельности. Чтобы видеть одно и то же, приложение может держать копию в твоём GitHub (приватный гист, который видишь только ты). Нужен токен GitHub с правом на гисты.</p>
     <label>Токен GitHub <span class="hint">github.com → Settings → Developer settings → Personal access tokens → Fine-grained → Gists: Read and write</span>
@@ -350,6 +374,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <p class="note">«Загрузить» понимает любой файл приложения: полную копию, один мир с персонажами или одного персонажа. Персонажей и миры по отдельности можно сохранить из их экрана.</p>
     <p class="note" id="storeInfo">Данные хранятся на этом устройстве. Ключ в файл не попадает.</p>
     <button class="btn" id="persistBtn" style="align-self:flex-start" hidden>Защитить данные от автоочистки</button>
+</section>
     <div class="dlgfoot"><span id="dlgDirty"></span><button class="btn primary" id="dlgOk">Принять</button></div>
   </div>
 </dialog>
@@ -2533,6 +2558,13 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 applyTheme();
 (async()=>{await load();if(fixOpening())save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+
+(function(){var nv=document.getElementById('setNav');if(!nv)return;
+function go(k){nv.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.sec===k)});
+document.querySelectorAll('#dlg .sset').forEach(function(x){x.classList.toggle('on',x.dataset.sec===k)});
+try{sessionStorage.setItem('setSec',k)}catch(e){}}
+nv.addEventListener('click',function(e){var b=e.target.closest('button');if(b)go(b.dataset.sec)});
+var sb=document.getElementById('setBtn');if(sb)sb.addEventListener('click',function(){var k='api';try{k=sessionStorage.getItem('setSec')||'api'}catch(e){}go(k)});})();
 </script>
 </body>
 </html>
