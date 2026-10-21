@@ -679,12 +679,13 @@ function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});ret
   S.scenes.push(x);save();go({v:"scene",id:x.id});}
 function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";ensureMoney(st);return "День "+st.day+" · "+st.part+(st.money?" · 💰 "+fmtMoney(st.purse)+(st.debt>0?" (долг "+fmtMoney(st.debt)+")":""):"");}
 function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&(!e.if||(st.flags||{})[e.if]));}
-function storyBlock(w,cast){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
+function storyBlock(w,cast,light){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
   if(st.done){const e=(st.endings||[]).find(x=>x.key===st.ending)||{};return "ИСТОРИЯ ЗАВЕРШЕНА: финал «"+(e.title||"")+"». Это жизнь после истории: сюжетных событий и больших новых конфликтов больше нет; люди живут с последствиями финала.";}
+  if(light&&!st.done)return ["Сейчас в истории: день "+st.day+", "+st.part+". Живи своей жизнью: сюжетный план тебе неизвестен, ты знаешь только то, что видел и слышал сам.",rulesBlock(st)].filter(Boolean).join("\n");
   const act=st.acts[st.act-1]||{};const due=storyDue(st);
   const where=npcsOf(w.id).filter(c=>c.loc).map(c=>c.name+" — "+c.loc).join("; ");
   return ["СЮЖЕТ (скрыто от игрока; веди историю к этому через людей и события, не объявляй и не называй акты):",
-    "Сейчас: день "+st.day+", "+st.part+". Акт "+st.act+" «"+(act.title||"")+"»: "+(act.goal||""),
+    "Сейчас: день "+st.day+", "+st.part+". Акт "+st.act+" «"+(act.title||"")+"» — ПЛАН, а не факт (описывает возможное развитие; пока герой не сделал это на глазах у людей, этого не случилось, и никто не знает и не говорит об этом заранее): "+(act.goal||""),
     due.length?"ПОРА СЛУЧИТЬСЯ (если это рядом с героем — покажи естественно, без спешки; если далеко — пусть дойдёт слухом, вестью, следами; не всё сразу):\n"+due.map(e=>"• "+e.text+(st.day>e.day[1]?" (уже запаздывает)":"")).join("\n"):"",
     where?"ГДЕ КТО СЕЙЧАС (по своим делам): "+where:"",
     sideBlock(w,st,cast),
@@ -809,7 +810,7 @@ ${cs.map(c=>"• "+c.name+" — "+(c.state.mood||"")+"; "+(c.state.now||"").slic
   w.chapters.push({id:uid(),title,text,t:now()});st.done=true;st.ending=key;st.pending=null;st.doneDay=st.day;
   w.events.push({t:now(),date:w.date,text:"История завершилась: финал «"+e.title+"».",public:true,who:[]});w.updated=Date.now();save();return w.chapters[w.chapters.length-1];}
 function dramaBlock(d){if(!d||!(d.direction||d.plan))return "";const p=["УКАЗАНИЯ РЕЖИССЁРА (скрыты от игрока; выполняй через поведение и подтекст, не объявляй):","Напряжение: "+(d.tension||5)+"/10, фаза: "+(d.beat||"—")+".",d.direction||""];if(d.plan)p.push("ПЛАН АВТОРА (обязателен): "+d.plan+" Запланированное на потом случается в срок; раньше — только с внятной причиной, показанной в тексте.");if(d.event)p.push("Происшествие вокруг: "+d.event);if(d.cue)p.push(d.cue);return p.join("\n");}
-function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w,true),deedsFor(w,c),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),isNew(w,c)?"ПЕРВОЕ ПОЯВЛЕНИЕ "+c.name+" в истории: если он ещё не описан в разговоре — представь его по правилу первого появления."+lookCue(c):"",storyBlock(w,[c,...gs]),isWatch(lastUser)?watchNote(w):isPass(lastUser)?passNote(w):"",lenReminder(false),knowReminder(w),heroReminder(w)].filter(Boolean).join("\n\n");}
+function charDynamic(c,lastUser){const w=W(c.worldId);const gs=guestsOf(c);return [worldEvents(w),heroBlock(w,true),deedsFor(w,c),stateBlock(c),factsBlock(c,0,lastUser),gs.length?"СОСТОЯНИЕ ПРИСУТСТВУЮЩИХ:\n"+gs.map(g=>charBrief(g)+"\n  Помнит: "+(g.facts||[]).slice(-15).join("; ")).join("\n"):"",c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():"",recall(c,lastUser),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(c.drama),isNew(w,c)?"ПЕРВОЕ ПОЯВЛЕНИЕ "+c.name+" в истории: если он ещё не описан в разговоре — представь его по правилу первого появления."+lookCue(c):"",storyBlock(w,[c,...gs],true),isWatch(lastUser)?watchNote(w):isPass(lastUser)?passNote(w):"",lenReminder(false),knowReminder(w),heroReminder(w)].filter(Boolean).join("\n\n");}
 function charBrief(c){const st=c.state;return "• "+c.name+(c.short?" — "+c.short:"")+"\n  Основа: "+c.core.slice(0,600).replace(/\s+/g," ")+(st.now?"\n  Сейчас: "+st.now:"")+(st.mood?"\n  Настроение: "+st.mood:"")+(st.goals&&st.goals.length?"\n  Цели: "+st.goals.join("; "):"")+(st.relUser?"\n  К герою: "+st.relUser+" (доверие "+(st.trust??0)+", от −10 до 10)":"")+(st.arc?"\n  История с героем: "+st.arc:"")+
   (Object.keys(st.relations||{}).length?"\n  Отношения: "+Object.entries(st.relations).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:"";}).filter(Boolean).join(" | "):"")+(st.secrets?"\n  Скрывает: "+st.secrets:"");}
 function scenePeople(x){const w=W(x.worldId);if(!w)return "";const others=npcsOf(w.id).filter(o=>!x.charIds.includes(o.id));if(!others.length)return "";
@@ -1221,6 +1222,18 @@ function scrubSpoilers(){const PL=[["сюда выбрасывает облом�
       if(c.name==="Управляющий Кадвал"&&typeof st.relUser==="string")st.relUser=st.relUser.replace(", после шторма — женское платье","");
       if(["Уилл","Мэг","Марта","Управляющий Кадвал"].includes(c.name)&&Array.isArray(c.facts))c.facts=c.facts.filter(x=>!/Фрейю|Фрейи|платье/.test(x));});
   }catch(e){}});}
+// Мир стартовал с копии «сыгранного» пресета: персонажи уже «знают про платье», в хронике есть события второго дня. Если история ещё на первом дне — вернуть чистый старт.
+async function resetPlayedStart(){let ch=false;const sniff=w=>(w.events||[]).some(e=>/увёл к себе|покупал на рынке женское платье/.test(e.text||""))||S.chars.some(c=>c.worldId===w.id&&/платье|Второй день|второй день после шторма/.test((c.state&&c.state.now)||""));
+  const cand=S.worlds.filter(w=>w.story&&w.story.day<=1&&!w.story.done&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length>8)&&sniff(w));if(!cand.length)return false;
+  let played,clean;try{[played,clean]=await Promise.all(["presets/south.json","presets/south-clean.json"].map(f=>fetch(f,{cache:"no-store"}).then(r=>r.json())));}catch(e){return false;}
+  const pc=Object.fromEntries((played.chars||[]).map(c=>[c.name,c])),cc=Object.fromEntries((clean.chars||[]).map(c=>[c.name,c]));
+  cand.forEach(w=>{const pe=new Set(((played.worlds||[])[0]||{}).events?played.worlds[0].events.map(e=>e.text):[]);const ce=((clean.worlds||[])[0]||{}).events||[];
+    const keep=(w.events||[]).filter(e=>!pe.has(e.text));if(keep.length!==(w.events||[]).length){w.events=keep.length?keep:JSON.parse(JSON.stringify(ce));ch=true;}
+    const cw=(clean.worlds||[])[0]||{};if(cw.date&&/после шторма/.test(w.date||"")){w.date=cw.date;ch=true;}
+    S.chars.filter(c=>c.worldId===w.id).forEach(c=>{const p=pc[c.name],q=cc[c.name];if(!p||!q||!c.state)return;
+      if(c.state.now===p.state.now&&p.state.now!==q.state.now){["now","mood","arc","relUser","trust"].forEach(k=>{c.state[k]=q.state[k];});ch=true;}
+      if(JSON.stringify(c.facts||[])===JSON.stringify(p.facts||[])&&JSON.stringify(p.facts||[])!==JSON.stringify(q.facts||[])){c.facts=[...(q.facts||[])];ch=true;}});});
+  if(ch){S.worlds.forEach(w=>{if(cand.includes(w))w.updated=Date.now();});fixAll();}return ch;}
 function fixAll(){fixOpening();scrubSpoilers();S.worlds.forEach(w=>{try{if(!w.tpl&&WORLD_MAPS[baseWorldName(w.name)])w.tpl=baseWorldName(w.name);ensureLocalPlaces(w);}catch(e){}});S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));S.chars.forEach(c=>{const b=blankChar();Object.assign(c,Object.assign(b,c));if(!Array.isArray(c.photos))c.photos=[];if(c.photos.length===1&&c.photos[0]===c.avatar)c.photos=[];c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!Array.isArray(c.tags))c.tags=[];if(!Array.isArray(c.facts))c.facts=[];if(!Array.isArray(c.log))c.log=[];if(c.chats.every(x=>!x.history.length)&&!c.log.length)c.base={state:JSON.parse(JSON.stringify(c.state)),facts:[...c.facts]};});
   S.worlds.forEach(w=>{if(S.chars.filter(c=>c.worldId===w.id).every(c=>c.chats.every(x=>!x.history.length))&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length))w.base={events:JSON.parse(JSON.stringify(w.events||[])),date:w.date||""};});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));}
@@ -2454,7 +2467,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();if(fixOpening())save();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();if(fixOpening())save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 </script>
 </body>
