@@ -1679,8 +1679,9 @@ function toast(t,bad){const s=document.querySelector("#status");if(s){s.textCont
 function avatarEl(e,c){e.innerHTML="";if(c&&c.avatar){const i=document.createElement("img");i.src=c.avatar;i.alt="";e.append(i);}else e.textContent=((c&&c.name)||"?").trim().charAt(0).toUpperCase()||"?";}
 // Автопрокрутка только пока пользователь сам внизу. Стоило пролистать вверх (или держать палец на экране) — ленту не трогаем.
 // Запоминаем, где остановился читать (отдельно для каждой истории и каждого чата), и открываем там же
-function savePos(s){if(!s._posKey)return;clearTimeout(s._posT);s._posT=setTimeout(()=>{try{localStorage.setItem("zmpos:"+s._posKey,s.scrollHeight-s.scrollTop-s.clientHeight<40?"b":String(Math.round(s.scrollTop)));}catch(e){}},300);}
-function loadPos(s){try{return s._posKey?localStorage.getItem("zmpos:"+s._posKey):null;}catch(e){return null;}}
+const POS={};
+function savePos(s){if(!s._posKey||!s.isConnected)return;const k=s._posKey;POS[k]=s.scrollHeight-s.scrollTop-s.clientHeight<40?"b":String(Math.round(s.scrollTop));clearTimeout(s._posT);s._posT=setTimeout(()=>{try{localStorage.setItem("zmpos:"+k,POS[k]);}catch(e){}},300);}
+function loadPos(s){if(!s._posKey)return null;if(POS[s._posKey]!==undefined)return POS[s._posKey];try{return localStorage.getItem("zmpos:"+s._posKey);}catch(e){return null;}}
 function nearBottom(s){if(!s._fw){s._fw=1;s.addEventListener("scroll",()=>{s._follow=s.scrollHeight-s.scrollTop-s.clientHeight<40;savePos(s);},{passive:true});
   const hold=()=>{s._touch=1;},rel=()=>{s._touch=0;};s.addEventListener("touchstart",hold,{passive:true});s.addEventListener("touchend",rel,{passive:true});s.addEventListener("touchcancel",rel,{passive:true});
   s.addEventListener("wheel",e=>{if(e.deltaY<0)s._follow=false;},{passive:true});}
