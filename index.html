@@ -1187,7 +1187,9 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if(!force){
     // Сливаем, а не затираем: по каждому миру/персонажу/сцене берём более свежую версию (поле updated)
     let keptLocal=false;
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){m.set(o.id,o);keptLocal=true;}});return [...m.values()];};
+    // фото не теряем: если у более свежей версии персонажа фото нет, а у другой есть — оставляем фото (иначе правка героя в игре затирает фото, добавленное с другого устройства)
+    const keepPh=(win,lose)=>{try{const wp=Array.isArray(win.photos)?win.photos:[],lp=Array.isArray(lose.photos)?lose.photos:[];let ch=false;if(!wp.length&&lp.length){win.photos=lp.slice();ch=true;}if(!win.avatar&&lose.avatar){win.avatar=lose.avatar;ch=true;}return ch;}catch(e){return false;}};
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);m.set(o.id,o);keptLocal=true;}else if(keepPh(r,o))keptLocal=true;});return [...m.values()];};
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
