@@ -214,6 +214,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .setnav{flex:0 0 auto;min-height:44px;display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;position:sticky;top:-20px;background:var(--panel);z-index:2;-webkit-overflow-scrolling:touch}
 .setnav button{flex:0 0 auto;white-space:nowrap;border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
 .setnav button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+#dlg{height:min(760px,90vh)}#dlg .in{height:100%;box-sizing:border-box}
 .sset{display:none;flex-direction:column;gap:10px}.sset.on{display:flex}
 .sset>h2:first-child{margin-top:4px}
 .dlgfoot{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));margin:6px -20px calc(-20px - env(safe-area-inset-bottom,0px));padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2}.dlgfoot #dlgDirty{color:var(--muted);font-size:14px}.dlgfoot .btn{min-width:130px}
@@ -2562,7 +2563,7 @@ if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
 function go(k){nv.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.sec===k)});
 document.querySelectorAll('#dlg .sset').forEach(function(x){x.classList.toggle('on',x.dataset.sec===k)});
-try{sessionStorage.setItem('setSec',k)}catch(e){}}
+var inn=document.querySelector('#dlg .in');if(inn)inn.scrollTop=0;try{sessionStorage.setItem('setSec',k)}catch(e){}}
 nv.addEventListener('click',function(e){var b=e.target.closest('button');if(b)go(b.dataset.sec)});
 var sb=document.getElementById('setBtn');if(sb)sb.addEventListener('click',function(){var k='api';try{k=sessionStorage.getItem('setSec')||'api'}catch(e){}go(k)});})();
 </script>
