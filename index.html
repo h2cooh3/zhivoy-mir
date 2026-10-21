@@ -1689,7 +1689,9 @@ function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true
   const put=()=>{if(typeof st==="number"){s.scrollTop=st;return;}const k=st.i>=0&&s.children[st.i];s.scrollTop=k?k.offsetTop-st.off:st.st;};
   put();const t0=s.scrollTop;requestAnimationFrame(()=>{if(Math.abs(s.scrollTop-t0)<2&&!s._touch)put();});
   const until=Date.now()+1500;s.querySelectorAll("img").forEach(im=>{if(!im.complete)im.addEventListener("load",()=>{if(Date.now()<until&&!s._touch&&!s._follow)put();},{once:true});});}
-function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)log.scrollTop=log.scrollHeight;});}
+// Пока ответ печатается: следим за концом, но как только ответ стал выше экрана — останавливаемся на его начале, чтобы читать с первой строки и ничего не прыгало
+function liveFollow(log){const lv=log.querySelector("[data-live]");if(lv&&lv.offsetHeight>log.clientHeight-60){log.scrollTop=Math.max(0,lv.offsetTop-8);log._follow=false;return;}log.scrollTop=log.scrollHeight;}
+function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)liveFollow(log);});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 // делит текст на куски: [{q:true,t:"«…»"}, {q:false,t:"…"}]; «ёлочки» — с вложенностью
 function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push({q,t:x});};
@@ -2149,13 +2151,13 @@ function renderAssist(){
     if(m.role==="assistant"){const ask=(hist[i-1]&&hist[i-1].role==="user")?hist[i-1].content:"";parseBlocks(m.content).forEach(b=>col.append(blockCard(b,w,ask)));}
     if(i>=0&&!busy){const mb=el("button","more","⋯");mb.onclick=()=>sheet([...(m.role==="user"?[["✎ Редактировать",()=>{editI=i;draw();}]]:[]),["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}],...(i===hist.length-1&&m.role==="assistant"?[["↻ Другой вариант",()=>{hist.pop();save();run();}]]:[]),["Удалить",()=>{hist.splice(i,1);save();draw();},true]]);col.append(mb);}
     wv.append(col);return wv;}
-  function draw(live){const atB=live===""||live===undefined&&!log._fw||nearBottom(log),st=anchorOf(log);liveEl=null;log.innerHTML="";
+  function draw(live){const first=!log._fw&&!log._drawn,nb=nearBottom(log),atB=live===""||first||nb,st=anchorOf(log);log._drawn=1;liveEl=null;log.innerHTML="";
     if(!hist.length&&live===undefined){const e=el("div","list");e.style.maxWidth="760px";e.style.margin="0 auto";e.style.width="100%";tips.forEach(t=>{const b=el("button","item",t);b.style.textAlign="left";b.style.cursor="pointer";b.onclick=()=>{ta.value=t;grow();ta.focus();};e.append(b);});log.append(e);}
     hist.forEach((m,i)=>log.append(msgEl(m,i)));
     if(live!==undefined){liveEl=msgEl({role:"assistant",content:live||"…"},-1);log.append(liveEl);}
     if(aErr&&live===undefined){const er=el("div","err",aErr);const rb=el("button","btn sm","↻ Повторить");rb.style.marginLeft="8px";rb.onclick=()=>{aErr="";run();};er.append(rb);log.append(er);}
     stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
-  function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(nearBottom(log))log.scrollTop=log.scrollHeight;}
+  function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(nearBottom(log))liveFollow(log);}
   async function run(){busy=true;aErr="";ctl=new AbortController();let live="";draw("");
     try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperContext(w))
         :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
