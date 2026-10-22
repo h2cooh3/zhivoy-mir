@@ -1232,20 +1232,22 @@ async function genWorld(w){
 const GH="https://api.github.com";
 const syncSkip=(k,v)=>k==="editUndo"?undefined:v;
 const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
-async function gh(path,method,body){const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+let syncEtag="",syncBytes=0;
+async function gh(path,method,body,etag){const hd={"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"};if(etag)hd["If-None-Match"]=etag;const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:hd,body:body?JSON.stringify(body):undefined});
+  if(etag!==undefined){if(r.status===304)return null;const et=r.headers.get("ETag");if(r.ok&&et)syncEtag=et;}
   if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
 let pushT=null,pushing=false,pushAgain=false;
-function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>busy?schedulePush():syncPush().then(()=>{S.sync.err="";}).catch(e=>syncFail(e,"отправить")),4000);}
+function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>busy?schedulePush():syncPush().then(()=>{S.sync.err="";syncFails=0;}).catch(e=>syncFail(e,"отправить")),4000);}
 async function syncPush(){if(!S.sync.on||!S.sync.token)return;if(pushing){pushAgain=true;return;}pushing=true;
   try{if(S.sync.gistId){try{if(await syncPull(false)){clearTimeout(pushT);staleView=true;}}catch(e){}}
-    const rev=uid();S.sync.dirty=false;const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};
+    const rev=uid();S.sync.dirty=false;const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};syncBytes=new Blob([content]).size;
     if(!S.sync.gistId){const g=await gh("/gists","POST",{description:"Живой мир — синхронизация (не удалять)",public:false,files});S.sync.gistId=g.id;}
     else await gh("/gists/"+S.sync.gistId,"PATCH",{files});
     S.sync.rev=rev;S.sync.pulled=S.stamp;S.sync.last=Date.now();persistQuiet();syncStatus("✓ Отправлено "+new Date().toLocaleTimeString("ru"));}
   catch(e){S.sync.dirty=true;throw e;}
   finally{pushing=false;if(pushAgain||S.sync.dirty){pushAgain=false;schedulePush();}}}
 async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)return false;
-  const g=await gh("/gists/"+S.sync.gistId);const f=g.files&&g.files["zhivoy-mir.json"];if(!f)return false;
+  const g=await gh("/gists/"+S.sync.gistId,"GET",null,force?"":syncEtag);if(!g)return false;const f=g.files&&g.files["zhivoy-mir.json"];if(!f)return false;syncBytes=f.size||0;
   let text=f.content;if(f.truncated){let r;try{r=await fetch(f.raw_url,{cache:"no-store"});}catch(e){r=null;}if(!r||!r.ok)r=await fetch(f.raw_url,{cache:"no-store",headers:{"Authorization":"Bearer "+S.sync.token}});if(!r.ok)throw new Error("GitHub raw "+r.status);text=await r.text();}
   const d=JSON.parse(text);if(!d||d.kind!=="sync")return false;
   const remoteStamp=d.stamp||0;
@@ -1273,7 +1275,7 @@ const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","ever
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
 function applyCfg(c){if(!c||typeof c!=="object")return false;CFG_KEYS.forEach(k=>{if(c[k]!==undefined)S.api[k]=c[k];});if(c.key)S.api.key=String(c.key);return true;}
 function persistQuiet(){try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}}
-function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.last?new Date(S.sync.last).toLocaleString("ru"):"ещё не было")+(S.sync.dirty?" · есть неотправленное":"")+(S.sync.err?"\n⚠ "+S.sync.err:""):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
+function syncStatus(t,bad){const s=$("syncStatus");if(!s)return;if(t){s.textContent=t;s.style.color=bad?"var(--danger)":"var(--ok)";return;}s.style.color="";s.textContent=S.sync.on?(S.sync.gistId?"Включена. Последняя сверка: "+(S.sync.last?new Date(S.sync.last).toLocaleString("ru"):"ещё не было")+(S.sync.dirty?" · есть неотправленное":"")+(syncBytes?" · объём "+(syncBytes/1048576).toFixed(1)+" МБ":"")+(S.sync.err?"\n⚠ "+S.sync.err:""):"Включена, хранилище создастся при первом сохранении"):"Выключена";}
 async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus("Вставь токен GitHub",true);return;}S.sync.token=t;S.sync.on=true;syncStatus("Проверяю…");
     await gh("/gists?per_page=1");
     if(!S.sync.gistId){const list=await gh("/gists?per_page=100");const mine=list.find(g=>g.description==="Живой мир — синхронизация (не удалять)"&&g.files&&g.files["zhivoy-mir.json"]);if(mine)S.sync.gistId=mine.id;}
@@ -1286,8 +1288,8 @@ async function syncStart(){try{const t=$("ghTok").value.trim();if(!t){syncStatus
       }}
     else{S.stamp=Date.now();await syncPush();syncStatus("✓ Хранилище создано, данные отправлены");}
     persistQuiet();syncStatus();}catch(e){S.sync.on=false;syncStatus("Ошибка: "+e.message,true);}}
-let syncErrT=0;function syncFail(e,what){const m="Синхронизация: не удалось "+what+" — "+(e&&e.message||e);S.sync.err=m;syncStatus(m,true);if(Date.now()-syncErrT>300000){syncErrT=Date.now();toast(m,true);}}
-async function syncTick(){if(!S.sync.on||busy)return;try{const changed=await syncPull(false);S.sync.err="";if(changed){toast("Данные обновлены с другого устройства.");staleView=true;}}catch(e){syncFail(e,"получить");}}
+let syncErrT=0,syncFails=0;function syncFail(e,what){syncFails++;const net=/Failed to fetch|Load failed|NetworkError|network/i.test(String(e&&e.message||e));if(net&&syncFails<3)return;const m="Синхронизация: не удалось "+what+" — "+(net?"нет связи с GitHub (повторю сама)":(e&&e.message||e));S.sync.err=m;syncStatus(m,true);if(Date.now()-syncErrT>300000){syncErrT=Date.now();toast(m,true);}}
+async function syncTick(){if(!S.sync.on||busy)return;try{const changed=await syncPull(false);S.sync.err="";syncFails=0;if(changed){toast("Данные обновлены с другого устройства.");staleView=true;}}catch(e){syncFail(e,"получить");}}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncTick();});
 setInterval(syncTick,20000);window.addEventListener("online",()=>{syncTick();if(S.sync.dirty)schedulePush();});
 // ============ ИМПОРТ / ЭКСПОРТ ============
