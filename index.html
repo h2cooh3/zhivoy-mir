@@ -758,13 +758,15 @@ function storyBlock(w,cast,light){const st=storyOf(w);if(!st)return "";cast=(cas
     where?"ГДЕ КТО СЕЙЧАС (по своим делам): "+where:"",
     sideBlock(w,st,cast),
     st.spine?"ПОЗВОНОЧНИК ГЕРОЕВ (игрок — соавтор: Уилла раскрывает он сам; ты не решаешь за героя и не называешь его чувства — даёшь материал и отражаешь через людей и мелочи):\n"+st.spine:"",
-    motifBlock(st),
+    motifBlock(st,w),
     moneyBlock(st),
     countersBlock(st),
     rulesBlock(st),
     timeBlock(st),
     "Время в истории течёт естественно; не перескакивай дни без причины."].filter(Boolean).join("\n");}
-function motifBlock(st){const m=st.motifs||[];if(!m.length)return "";return "МОТИВЫ (рифмы истории; каждый проходит три шага: показать мелочью без объяснений → отозваться в другом месте или у другого человека → раскрыть смысл в сильный момент. Не чаще одного мотива за ответ, не в лоб, не объясняй их игроку):\n"+m.map(x=>"• "+x.name+": "+x.text).join("\n");}
+function motifSeen(w,x){if(!x.match)return -1;let re;try{re=new RegExp(x.match,"i");}catch(e){return -1;}const ms=w&&typeof mainStoryOf==="function"?mainStoryOf(w):null;if(!ms)return 0;return (ms.history||[]).filter(m=>m.role==="assistant"&&re.test(String(m.content||""))).length;}
+function motifLine(w,x){const n=x.max?motifSeen(w,x):-1;if(n<0)return "• "+x.name+": "+x.text;return "• "+x.name+": "+x.text+" [уже показан в истории "+n+" из "+x.max+"]"+(n>=x.max?" — ЛИМИТ ИСЧЕРПАН: больше не показывай этот жест, кроме самого раскрытия.":"");}
+function motifBlock(st,w){const m=st.motifs||[];if(!m.length)return "";return "МОТИВЫ (рифмы истории; каждый проходит три шага: показать мелочью без объяснений → отозваться в другом месте или у другого человека → раскрыть смысл в сильный момент. Не чаще одного мотива за ответ, не в лоб, не объясняй их игроку):\n"+m.map(x=>motifLine(w,x)).join("\n");}
 function timeBlock(st){const n=st.partMoves||0;const late=(storyDue(st)||[]).filter(e=>st.day>e.day[1]);const out=[];
   if(n>=PART_SOFT+4)out.push("ВРЕМЯ: «"+st.part+"» тянется уже "+n+" ходов — это слишком долго. В ЭТОМ ответе сдвинь время вперёд (к следующей части дня или ко сну) естественной деталью: свет, усталость, огонь прогорел, кто-то зовёт. Если идёт важный разговор — дай ему закончиться одной-двумя репликами, без новых тем.");
   else if(n>=PART_SOFT)out.push("ВРЕМЯ: «"+st.part+"» идёт уже "+n+" ходов. Начинай вести к концу этой части дня: меньше новых тем, больше признаков, что время уходит. Важный разговор не обрывай.");
@@ -1425,7 +1427,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-tobias.json",patchId:"south-tobias",names:[],title:"Тобиас: тихая любовь к Фрейе и развилка пути",desc:"Если Тобиас увидит Фрейю — влюбляется без слов и без надежды. Если Уилл позволит им говорить о буквах — он рискует всем ради вольной; если из ревности запретит — доложит барону, не по долгу, а от боли. Мотив «Спрятанный лист»."},
   {file:"presets/addons/south-speech.json",patchId:"south-speech",names:[],title:"Живая речь Эдвина",desc:"Эдвин говорит как простой моряк: коротко, в лоб, без разбора чувств. Примеры его речи."},
   {file:"presets/addons/south-voices.json",patchId:"south-voices",names:[],title:"Голоса всех персонажей",desc:"Карточка голоса у каждого из 26 героев: уровень речи, длина фраз, обращения, как выражает чувства, чего не говорит, образцы реплик. Идёт в конец каждого запроса. У Гарета, Олдоса, Торвальда и Агнессы убраны афоризмы из примеров речи."},
-  {file:"presets/addons/south-voices-2.json",patchId:"south-voices-2",names:[],title:"Голоса: больше образцов, меньше запретов",desc:"Из карточек голоса убраны запреты («так не говорит»), у каждого героя добавлены образцы по ситуациям: злость, нежность, страх, отказ, просьба, шутка, незнакомец. Ставить после «Голоса всех персонажей»."}]};
+  {file:"presets/addons/south-voices-2.json",patchId:"south-voices-2",names:[],title:"Голоса: больше образцов, меньше запретов",desc:"Из карточек голоса убраны запреты («так не говорит»), у каждого героя добавлены образцы по ситуациям: злость, нежность, страх, отказ, просьба, шутка, незнакомец. Ставить после «Голоса всех персонажей»."},
+  {file:"presets/addons/south-gesture.json",patchId:"south-gesture",names:[],title:"Ладонь: редкий жест",desc:"Три нажатия в ладонь — самоуспокоение в самую страшную минуту, не привычка. Уилл видит жест у Фрейи не больше трёх раз; приложение само считает показы. Самый сильный момент — когда Уилл находит Лив и показывает ей знак."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
