@@ -2063,28 +2063,37 @@ function parseBlocks(text){const out=[];const re=/```(character|event|world|chat
 // Что соавтор видит из переписки: только последние сообщения; старые просьбы помечены как уже обработанные,
 // старые блоки правок вырезаны — иначе он снова и снова выполняет одни и те же правки
 const HELPER_KEEP=8;
-function helperMsgs(hist){let h=hist.slice(-HELPER_KEEP);while(h.length&&h[0].role!=="user")h=h.slice(1);const L=h.length-1;
-  return h.map((m,i)=>{if(i===L)return m;if(m.role==="assistant"){const t=stripBlocks(m.content);const had=parseBlocks(m.content).length;return {role:"assistant",content:(t||"…")+(had?"\n[здесь были карточки/правки — они уже показаны пользователю, повторять не нужно]":"")};}
-    return {role:"user",content:"[раньше — уже обработано] "+m.content};});}
+function helperMsgs(hist){const li=hist.length-1;if(li<0||hist[li].role!=="user"){let h=hist.slice(-HELPER_KEEP);while(h.length&&h[0].role!=="user")h=h.slice(1);return h;}
+  const prev=[...hist.slice(0,li)].reverse().find(m=>m.role==="assistant");const pt=prev?stripBlocks(prev.content).slice(0,1500):"";
+  return [{role:"user",content:(pt?"[Твой предыдущий ответ — только для связки, не повторяй его: "+pt.replace(/\n+/g," ")+"]\n\n":"")+"НОВОЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ (ответь на него):\n"+hist[li].content}];}
 const HELPER_ONLY_LAST="ОТВЕЧАЙ ТОЛЬКО НА ПОСЛЕДНЕЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ. Всё, о чём он просил раньше, уже сделано или он передумал: не повторяй прошлые правки и советы, не выдавай блоки правок (chatedit) и карточки, если о них не просят именно в последнем сообщении.";
 const helperMemBlock=mem=>mem&&mem.trim()?"\n\nПАМЯТЬ: О ЧЁМ МЫ УЖЕ ГОВОРИЛИ РАНЬШЕ (итоги прошлых разговоров, для справки, не повторяй):\n"+mem.trim():"";
-const helperStore=w=>w?{get hist(){return w.helper;},set hist(v){w.helper=v;},get arch(){return w.helperArchive||(w.helperArchive=[]);},get mem(){return w.helperMem||"";},set mem(v){w.helperMem=v;},touch(){w.updated=Date.now();}}
-  :{get hist(){return S.ai;},set hist(v){S.ai=v;},get arch(){return S.aiArchive||(S.aiArchive=[]);},get mem(){return S.aiMem||"";},set mem(v){S.aiMem=v;},touch(){S.aiUpdated=Date.now();}};
+// Свой соавтор у каждого чата: у персонажа — c.helper, у истории — x.helper; общий соавтор мира — w.helper (это отдельный разговор)
+const helperStore=(w,o)=>o?{get hist(){return o.helper||(o.helper=[]);},set hist(v){o.helper=v;},get arch(){return o.helperArchive||(o.helperArchive=[]);},get mem(){return o.helperMem||"";},set mem(v){o.helperMem=v;},get dec(){return o.helperDec||"";},set dec(v){o.helperDec=v;},touch(){o.updated=Date.now();if(w)w.updated=Date.now();}}
+  :w?{get hist(){return w.helper;},set hist(v){w.helper=v;},get arch(){return w.helperArchive||(w.helperArchive=[]);},get mem(){return w.helperMem||"";},set mem(v){w.helperMem=v;},get dec(){return w.helperDec||"";},set dec(v){w.helperDec=v;},touch(){w.updated=Date.now();}}
+  :{get hist(){return S.ai;},set hist(v){S.ai=v;},get arch(){return S.aiArchive||(S.aiArchive=[]);},get mem(){return S.aiMem||"";},set mem(v){S.aiMem=v;},get dec(){return S.aiDec||"";},set dec(v){S.aiDec=v;},touch(){S.aiUpdated=Date.now();}};
+// Журнал решений: после каждого ответа дешёвая модель обновляет краткий список того, что уже решили. Он идёт соавтору в контекст,
+// а в сам запрос — только последнее сообщение: так он отвечает на него, но помнит принятые решения
+const helperDecBlock=d=>d&&d.trim()?"ЖУРНАЛ РЕШЕНИЙ ЭТОГО РАЗГОВОРА (что уже решили, принято или отвергнуто; учитывай, не пересказывай и не отвечай на старые вопросы):\n"+d.trim():"";
+async function helperDecide(st){try{const h=st.hist,lu=[...h].reverse().find(m=>m.role==="user"),la=[...h].reverse().find(m=>m.role==="assistant");if(!lu||!la)return;
+  const sum=await callModel({cheap:true,maxTokens:600,stable:"Ты ведёшь краткий журнал РЕШЕНИЙ разговора сценариста с соавтором. Получаешь текущий журнал и новый обмен репликами. Верни обновлённый журнал: до 14 коротких пунктов (каждый с новой строки, с «•») — что решили, приняли, отвергли, что уже исправили, важные уточнения пользователя. Старые пункты сохраняй, объединяй похожие, выбрасывай устаревшие. Только журнал, без вступлений.",
+    msgs:[{role:"user",content:"ТЕКУЩИЙ ЖУРНАЛ:\n"+(st.dec||"(пусто)")+"\n\nНОВЫЙ ОБМЕН:\nПользователь: "+lu.content.slice(0,1500)+"\nСоавтор: "+stripBlocks(la.content).slice(0,2500)}]});
+  const t=String(sum||"").trim();if(t){st.dec=t.slice(0,2500);st.touch();save();}}catch(e){}}
 // «Новый разговор»: текущий уходит в архив, а его суть — в память соавтора (кратко, дешёвой моделью, в фоне)
 function archiveHelper(st){const h=st.hist;if(!h.length)return null;const first=h.find(m=>m.role==="user");
   const item={id:uid(),t:Date.now(),title:(first?first.content:"Разговор").replace(/\s+/g," ").slice(0,70),msgs:h.slice()};st.arch.unshift(item);if(st.arch.length>30)st.arch.length=30;
-  h.length=0;st.touch();save();
+  h.length=0;st.dec="";st.touch();save();
   (async()=>{try{const tr=item.msgs.map(m=>(m.role==="user"?"Пользователь":"Соавтор")+": "+stripBlocks(m.content).slice(0,1500)).join("\n\n").slice(-14000);
     const sum=await callModel({cheap:true,maxTokens:400,stable:"Сожми разговор сценариста с соавтором в 3–6 коротких пунктов: что решили, что уже исправили, какие идеи приняли или отвергли. Только суть, без вступлений.",msgs:[{role:"user",content:tr}]});
     const line="• "+new Date(item.t).toLocaleDateString("ru")+": "+String(sum||"").trim().replace(/\n+/g," ");item.sum=String(sum||"").trim();
     let m=(st.mem?st.mem+"\n":"")+line;if(m.length>3500)m=m.slice(m.length-3500).replace(/^[^\n]*\n/,"");st.mem=m;st.touch();save();}catch(e){}})();
   return item;}
-function helperArchiveSheet(st,redraw){const a=st.arch;if(!a.length){toast("Других разговоров пока нет: текущий — единственный. «＋ Новый» отправит его в список.");return;}
-  sheet(a.map(it=>["📁 "+new Date(it.t).toLocaleDateString("ru")+" · "+it.title,()=>sheet([
+function helperArchiveSheet(st,redraw){const a=st.arch;
+  sheet([["🗑 Очистить текущий разговор (без архива)",()=>{if(!st.hist.length){toast("Он и так пуст.");return;}if(!confirm("Стереть текущий разговор с соавтором совсем, без архива? Журнал решений тоже очистится."))return;st.hist.length=0;st.dec="";st.touch();save();redraw();toast("Разговор очищен.");},true],...a.map(it=>["📁 "+new Date(it.t).toLocaleDateString("ru")+" · "+it.title,()=>sheet([
     ["Переименовать",()=>{const v=prompt("Название разговора:",it.title);if(v&&v.trim()){it.title=v.trim().slice(0,70);st.touch();save();redraw();}}],
     ["Вернуть этот разговор",()=>{if(st.hist.length)archiveHelper(st);const i=a.indexOf(it);if(i>=0)a.splice(i,1);st.hist.length=0;it.msgs.forEach(m=>st.hist.push(m));st.touch();save();redraw();toast("Разговор возвращён.");}],
     ["Посмотреть текст",()=>showCopy(it.title,it.msgs.map(m=>(m.role==="user"?"Ты":"Соавтор")+":\n"+stripBlocks(m.content)).join("\n\n"),it.sum?"Кратко: "+it.sum:"",true)],
-    ["Удалить из архива",()=>{const i=a.indexOf(it);if(i>=0)a.splice(i,1);st.touch();save();toast("Удалено.");},true]])]));}
+    ["Удалить из архива",()=>{const i=a.indexOf(it);if(i>=0)a.splice(i,1);st.touch();save();toast("Удалено.");},true]])])]);}
 const stripBlocks=t=>t.replace(/```(character|event|world|chatedit)\s*\n[\s\S]*?```/g,"").trim();
 // ---- соавтор правит историю (сцену) — копия правки разговора, но для истории рассказчика
 function numberedScene(x,w){const h=x.history,hn=heroName(w);let out=[],len=0;
@@ -2168,10 +2177,11 @@ function blockCard(b,w,ask){const box=el("div","block");box.style.marginTop="10p
   return box;}
 function renderAssist(){
   const w=route.world?W(route.world):null;if(route.world&&!w){go({v:"home"},true);return;}
-  const hist=w?w.helper:S.ai;$("hTitle").textContent=w?"Соавтор · "+w.name:"ИИ";const sc=(w&&route.scene)?SC(route.scene):null;const scOk=!!(sc&&sc.worldId===w.id);
+  const sc=(w&&route.scene)?SC(route.scene):null;const scOk=!!(sc&&sc.worldId===w.id);const chr=(w&&route.char)?C(route.char):null;const chOk=!!(chr&&chr.worldId===w.id&&!scOk);const so=scOk?sc:(chOk?chr:null);const fch=chOk?chr:null;
+  const hist=so?(so.helper||(so.helper=[])):(w?w.helper:S.ai);$("hTitle").textContent=w?"Соавтор · "+(so?(scOk?sc.title:chr.name):w.name):"ИИ";
   const wrap=el("div","chat");wrap.style.gridTemplateColumns="1fr";const main=el("main");
-  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?(scOk?"Видит мир и историю «"+sc.title+"». Может править её сообщения":focusChar(w)?"Видит мир «"+w.name+"». Может править разговор с "+focusChar(w).name:"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры"):"Обсудить идеи, придумать миры и персонажей"));
-  const hs=helperStore(w);
+  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?(scOk?"Видит мир и историю «"+sc.title+"». Может править её сообщения":fch?"Это отдельный соавтор разговора с "+fch.name+": видит мир и этот чат, может править его":"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры"):"Обсудить идеи, придумать миры и персонажей"));
+  const hs=helperStore(w,so);
   const clr=el("button","btn ghost sm","＋ Новый");clr.title="Начать новый разговор, текущий уйдёт в архив";clr.onclick=()=>{if(busy)return;if(!hist.length){toast("Разговор и так пустой.");return;}archiveHelper(hs);toast("Разговор в архиве. Соавтор помнит его кратко.");draw();drawArch();};
   const arb=el("button","btn ghost sm","Разговоры");arb.onclick=()=>helperArchiveSheet(hs,()=>{draw();drawArch();});const drawArch=()=>{arb.textContent="Разговоры"+(hs.arch.length?" ("+(hs.arch.length+1)+")":"");};drawArch();
   bar.append(who,clr,arb);main.append(bar);
@@ -2179,7 +2189,7 @@ function renderAssist(){
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=w?"Спроси соавтора о мире или персонажах…":"Спроси что угодно или попроси придумать мир, персонажа…";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);
   wrap.append(main);$("view").append(wrap);
   // быстрые подсказки на пустом экране
-  const tips=w?[...(scOk?["Перепиши последний ответ рассказчика: он слабый","Что сейчас не так с темпом истории?","Куда вести историю дальше по акту?"]:focusChar(w)?["Перепиши последний ответ "+focusChar(w).name+": он нелогичный","Сотри разговор до начала прошлой сцены"]:[]),"Что слабо в персонажах этого мира?","Придумай нового персонажа, который создаст конфликт","Куда вести историю дальше?","Предложи событие для хроники"]:["Придумай мир для драмы","Придумай персонажа: старик-рыбак с тайной","Как сделать персонажа живым?","Помоги с идеей для сценария"];
+  const tips=w?[...(scOk?["Перепиши последний ответ рассказчика: он слабый","Что сейчас не так с темпом истории?","Куда вести историю дальше по акту?"]:fch?["Перепиши последний ответ "+fch.name+": он нелогичный","Сотри разговор до начала прошлой сцены"]:[]),"Что слабо в персонажах этого мира?","Придумай нового персонажа, который создаст конфликт","Куда вести историю дальше?","Предложи событие для хроники"]:["Придумай мир для драмы","Придумай персонажа: старик-рыбак с тайной","Как сделать персонажа живым?","Помоги с идеей для сценария"];
   let liveEl=null,aErr="";for(let i=hist.length-1;i>=0;i--)if(!String(hist[i].content||"").trim())hist.splice(i,1);
   let editI=-1;
   function msgEl(m,i){const wv=el("div","msg "+(m.role==="user"?"user":"ai"));const col=el("div","col");
@@ -2202,11 +2212,11 @@ function renderAssist(){
   async function run(){busy=true;aErr="";ctl=new AbortController();let live="";draw("");
     try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperCtxSafe(w))
         :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
-      const fc=scOk?null:focusChar(w);const dynamic=scOk?sceneEditRules(sc).trim()+"\n\n"+(w.date?"СЕЙЧАС В МИРЕ: "+w.date+"\n\n":"")+"ИСТОРИЯ «"+sc.title+"» (с номерами):\n"+numberedScene(sc,w):fc?editRules(fc).trim()+"\n\nСОСТОЯНИЕ "+fc.name.toUpperCase()+" СЕЙЧАС: "+JSON.stringify({mood:fc.state.mood,now:fc.state.now,goals:fc.state.goals,relUser:fc.state.relUser,trust:fc.state.trust})+(fc.drama?"\nРЕЖИССЁР СЕЙЧАС: "+JSON.stringify({plan:fc.drama.plan||"",direction:fc.drama.direction,threads:fc.drama.threads,tension:fc.drama.tension,beat:fc.drama.beat}):"")+(w.date?"\nСЕЙЧАС В МИРЕ: "+w.date:"")+"\n\nРАЗГОВОР С "+fc.name.toUpperCase()+" (с номерами):\n"+numberedChat(fc,w):"";
-      const text=await callModel({stable:stable+helperMemBlock(hs.mem),dynamic:[dynamic,HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(hist),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});touch();}
+      const fc=scOk?null:fch;const dynamic=scOk?sceneEditRules(sc).trim()+"\n\n"+(w.date?"СЕЙЧАС В МИРЕ: "+w.date+"\n\n":"")+"ИСТОРИЯ «"+sc.title+"» (с номерами):\n"+numberedScene(sc,w):fc?editRules(fc).trim()+"\n\nСОСТОЯНИЕ "+fc.name.toUpperCase()+" СЕЙЧАС: "+JSON.stringify({mood:fc.state.mood,now:fc.state.now,goals:fc.state.goals,relUser:fc.state.relUser,trust:fc.state.trust})+(fc.drama?"\nРЕЖИССЁР СЕЙЧАС: "+JSON.stringify({plan:fc.drama.plan||"",direction:fc.drama.direction,threads:fc.drama.threads,tension:fc.drama.tension,beat:fc.drama.beat}):"")+(w.date?"\nСЕЙЧАС В МИРЕ: "+w.date:"")+"\n\nРАЗГОВОР С "+fc.name.toUpperCase()+" (с номерами):\n"+numberedChat(fc,w):"";
+      const text=await callModel({stable:stable+helperMemBlock(hs.mem),dynamic:[dynamic,helperDecBlock(hs.dec),HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(hist),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});touch();helperDecide(hs);}
     catch(e){if(live){hist.push({role:"assistant",content:live});touch();}const m=friendly(e);if(m){aErr=m;toast(m,true);}}
     finally{busy=false;ctl=null;save();draw();if(!aErr)toast(usageStr(lastUsage));}}
-  const touch=()=>{if(w)w.updated=Date.now();else S.aiUpdated=Date.now();};
+  const touch=()=>{if(so)so.updated=Date.now();if(w)w.updated=Date.now();else S.aiUpdated=Date.now();};
   const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;touch();const l=hist[hist.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else hist.push({role:"user",content:t});ta.value="";grow();save();run();};
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   draw();
@@ -2238,7 +2248,7 @@ function tabHelper(w,body){
   const cp=el("button","btn sm","Копировать последний ответ");cp.onclick=async()=>{const l=[...w.helper].reverse().find(m=>m.role==="assistant");if(l){try{await navigator.clipboard.writeText(l.content);toast("Скопировано.");}catch(e){}}};r2.append(clr,cp);body.append(r2);
   async function run(){busy=true;ctl=new AbortController();let live="";send.disabled=true;stop.hidden=false;draw("");
     try{const stable="Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей (для этого есть отдельные чаты), а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя.\n\nСОЗДАНИЕ ПЕРСОНАЖЕЙ: если пользователь просит придумать или создать нового персонажа, сначала коротко объясни замысел, а в конце ответа выдай карточку в блоке строго такого вида (приложение превратит её в персонажа одной кнопкой):\n```character\n{\"name\":\"Имя\",\"short\":\"одна фраза для карточки\",\"tags\":[\"тег\"],\"core\":\"личность и предыстория 1200-2000 символов: возраст, прошлое с деталями, характер через поведение, чего хочет, чего боится, слабости, манера речи, отношение к миру и к существующим персонажам\",\"examples\":\"4-5 реплик, каждая с новой строки\",\"greeting\":\"первое сообщение при встрече с {{user}}: действие в *звёздочках* и реплика\",\"inertia\":5,\"state\":{\"mood\":\"\",\"now\":\"\",\"goals\":[\"\"],\"relUser\":\"\",\"trust\":0,\"secrets\":\"\"}}\n```\nМожно несколько блоков, по одному на персонажа. Так же можно предлагать события мира в блоке ```event\n{\"text\":\"что произошло\",\"public\":true}\n```.\n\n"+helperCtxSafe(w);
-      const text=await callModel({stable:stable+helperMemBlock(w.helperMem),dynamic:HELPER_ONLY_LAST,msgs:helperMsgs(w.helper),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:S.api.eco?1200:2500,purpose:"helper",cacheMsgs:true});w.helper.push({role:"assistant",content:text.trim()});w.updated=Date.now();}
+      const text=await callModel({stable:stable+helperMemBlock(w.helperMem),dynamic:[helperDecBlock(w.helperDec),HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(w.helper),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:S.api.eco?1200:2500,purpose:"helper",cacheMsgs:true});w.helper.push({role:"assistant",content:text.trim()});w.updated=Date.now();helperDecide(helperStore(w));}
     catch(e){if(live){w.helper.push({role:"assistant",content:live});w.updated=Date.now();}const m=friendly(e);if(m)toast(m,true);}
     finally{busy=false;ctl=null;send.disabled=false;stop.hidden=true;save();draw();}}
   const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;w.updated=Date.now();const l=w.helper[w.helper.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else w.helper.push({role:"user",content:t});ta.value="";save();run();};
