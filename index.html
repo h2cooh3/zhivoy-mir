@@ -1235,7 +1235,7 @@ const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",s
 async function gh(path,method,body){const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:{"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(!r.ok){let t="";try{t=(await r.json()).message||"";}catch(e){}throw new Error("GitHub "+r.status+(t?": "+t:""));}return r.json();}
 let pushT=null,pushing=false,pushAgain=false;
-function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>syncPush().then(()=>{S.sync.err="";}).catch(e=>syncFail(e,"отправить")),4000);}
+function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>busy?schedulePush():syncPush().then(()=>{S.sync.err="";}).catch(e=>syncFail(e,"отправить")),4000);}
 async function syncPush(){if(!S.sync.on||!S.sync.token)return;if(pushing){pushAgain=true;return;}pushing=true;
   try{if(S.sync.gistId){try{if(await syncPull(false)){clearTimeout(pushT);staleView=true;}}catch(e){}}
     const rev=uid();S.sync.dirty=false;const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};
@@ -1259,7 +1259,8 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     let keptLocal=false;
     // фото не теряем: если у более свежей версии персонажа фото нет, а у другой есть — оставляем фото (иначе правка героя в игре затирает фото, добавленное с другого устройства)
     const keepPh=(win,lose)=>{try{const wp=Array.isArray(win.photos)?win.photos:[],lp=Array.isArray(lose.photos)?lose.photos:[];let ch=false;if(!wp.length&&lp.length){win.photos=lp.slice();ch=true;}if(!win.avatar&&lose.avatar){win.avatar=lose.avatar;ch=true;}return ch;}catch(e){return false;}};
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);m.set(o.id,o);keptLocal=true;}else if(keepPh(r,o))keptLocal=true;});return [...m.values()];};
+    const keepHelper=(win,lose)=>{try{if((lose.helperT||0)>(win.helperT||0)&&Array.isArray(lose.helper)){["helper","helperArchive","helperMem","helperDec","helperT"].forEach(k=>{if(lose[k]!==undefined)win[k]=lose[k];});return true;}}catch(e){}return false;};
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()];};
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
@@ -1999,7 +2000,7 @@ function helperContext(w,lean){
   const k=lean?Object.assign({},K(),{helperChat:1000,helperFull:false}):K();const chats=cs.filter(c=>c.history.length).map(c=>"=== Разговор героя с "+c.name+" ===\n"+(c.summary?"[Краткое содержание ранней части]\n"+c.summary+"\n...\n":"")+transcript(c.history.slice(c.sumIdx),w,c.name).slice(-k.helperChat)).join("\n\n");
   const scenes=S.scenes.filter(x=>x.worldId===w.id&&x.history.length).map(x=>"=== Сцена «"+x.title+"» ===\n"+(x.summary?x.summary+"\n...\n":"")+transcript(x.history.slice(x.sumIdx),w,"Рассказчик").slice(-Math.round(k.helperChat*0.7))).join("\n\n");
   return [worldBlock(w),"СЕЙЧАС В МИРЕ: "+(w.date||"—"),storyBrief(w),heroBlock(w),
-    "ПЕРСОНАЖИ:\n"+cs.map(c=>"=== "+c.name+" ===\nОснова: "+(k.helperFull?c.core:c.core.slice(0,700))+"\nСостояние: "+JSON.stringify(c.state)+"\nПомнит: "+(c.facts||[]).slice(-(k.helperFull?60:20)).join("; ")+"\nКак менялся: "+(c.log||[]).slice(-(k.helperFull?10:4)).map(l=>l.text).join("; ")).join("\n\n"),
+    "ПЕРСОНАЖИ:\n"+cs.map(c=>"=== "+c.name+" ===\nОснова: "+(k.helperFull?c.core:c.core.slice(0,700))+((c.voice||"").trim()?"\nГолос: "+(k.helperFull?c.voice:c.voice.slice(0,500)):"")+"\nСостояние: "+JSON.stringify(c.state)+"\nПомнит: "+(c.facts||[]).slice(-(k.helperFull?60:20)).join("; ")+"\nКак менялся: "+(c.log||[]).slice(-(k.helperFull?10:4)).map(l=>l.text).join("; ")).join("\n\n"),
     worldEvents(w,k.helperFull?30:10), chats?"ПОСЛЕДНИЕ РАЗГОВОРЫ:\n"+chats:"", scenes?"ПОСЛЕДНИЕ СЦЕНЫ:\n"+scenes:"",
     w.chapters.length?"НАПИСАННЫЕ ГЛАВЫ (названия): "+w.chapters.map(c=>c.title).join("; "):""].filter(Boolean).join("\n\n");
 }
@@ -2082,18 +2083,22 @@ function exportChat(c,x){const w=W(c.worldId);sheet([
 // ============ ПОМОЩНИК (общий ИИ / соавтор мира) ============
 function worldsBrief(){return S.worlds.map(w=>"• "+w.name+(w.desc?" — "+w.desc.slice(0,200).replace(/\s+/g," "):"")+"\n  Персонажи: "+(charsOf(w.id).map(c=>c.name+(c.short?" ("+c.short.slice(0,80)+")":"")).join("; ")||"нет")).join("\n")||"Миров пока нет.";}
 const BLOCK_RULES='\n\nСОЗДАНИЕ: если пользователь просит придумать персонажа, сначала коротко объясни замысел, а в конце выдай карточку строго в блоке:\n```character\n{"name":"Имя","short":"одна фраза","tags":["тег"],"core":"личность и предыстория 1200-2000 символов: возраст, прошлое с деталями, характер через поведение, чего хочет, чего боится, слабости, манера речи","examples":"4-5 реплик с новой строки","greeting":"первое сообщение при встрече с {{user}}: действие в *звёздочках* и реплика","inertia":5,"state":{"mood":"","now":"","goals":[""],"relUser":"","trust":0,"secrets":""}}\n```\nЕсли просит придумать мир — блок:\n```world\n{"name":"","desc":"описание 600-1200 символов","rules":"правила, каждое с новой строки","places":"места, каждое с новой строки","date":"стартовая дата","hero":"кем может быть герой пользователя"}\n```\nСобытие мира — блок ```event\n{"text":"что произошло","public":true}\n```. Можно несколько блоков. Вне блоков пиши обычным текстом.';
-function parseBlocks(text){const out=[];const re=/```(character|event|world|chatedit)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;}
+function parseBlocks(text){const out=[];const re=/```(character|event|world|chatedit|worldedit)\s*\n([\s\S]*?)```/g;let m;while((m=re.exec(text))){try{out.push({kind:m[1],data:JSON.parse(m[2])});}catch(e){}}return out;}
 // Что соавтор видит из переписки: только последние сообщения; старые просьбы помечены как уже обработанные,
 // старые блоки правок вырезаны — иначе он снова и снова выполняет одни и те же правки
 const HELPER_KEEP=8;
+const HELPER_ERR={};
+function helperErrText(e,userStop,partial){if(e&&e.name==="AbortError")return userStop?"":"Связь с моделью оборвалась (приложение свернули или пропала сеть)."+(partial?" Ответ пришёл не целиком.":" Ответ не пришёл.")+" Нажми «Повторить».";
+  const m=friendly(e);if(/Failed to fetch|Load failed|NetworkError|network error/i.test(String(e&&e.message)))return "Связь с моделью оборвалась (приложение свернули или пропала сеть). Нажми «Повторить».";return m;}
 function helperMsgs(hist){const li=hist.length-1;if(li<0||hist[li].role!=="user"){let h=hist.slice(-HELPER_KEEP);while(h.length&&h[0].role!=="user")h=h.slice(1);return h;}
   const prev=[...hist.slice(0,li)].reverse().find(m=>m.role==="assistant");const pt=prev?stripBlocks(prev.content).slice(0,1500):"";
-  return [{role:"user",content:(pt?"[Твой предыдущий ответ — только для связки, не повторяй его: "+pt.replace(/\n+/g," ")+"]\n\n":"")+"НОВОЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ (ответь на него):\n"+hist[li].content}];}
+  let fi=li;while(fi>0&&hist[fi-1].role==="user")fi--;const ups=hist.slice(fi,li+1).map(m=>m.content);
+  return [{role:"user",content:(pt?"[Твой предыдущий ответ — только для связки, не повторяй его: "+pt.replace(/\n+/g," ")+"]\n\n":"")+(ups.length>1?"НОВЫЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ (на прошлые ответа не было — ответь на все, по порядку):\n"+ups.map((t,i)=>(i+1)+") "+t).join("\n\n"):"НОВОЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ (ответь на него):\n"+hist[li].content)}];}
 const HELPER_ONLY_LAST="ОТВЕЧАЙ ТОЛЬКО НА ПОСЛЕДНЕЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ. Всё, о чём он просил раньше, уже сделано или он передумал: не повторяй прошлые правки и советы, не выдавай блоки правок (chatedit) и карточки, если о них не просят именно в последнем сообщении.";
 const helperMemBlock=mem=>mem&&mem.trim()?"\n\nПАМЯТЬ: О ЧЁМ МЫ УЖЕ ГОВОРИЛИ РАНЬШЕ (итоги прошлых разговоров, для справки, не повторяй):\n"+mem.trim():"";
 // Свой соавтор у каждого чата: у персонажа — c.helper, у истории — x.helper; общий соавтор мира — w.helper (это отдельный разговор)
-const helperStore=(w,o)=>o?{get hist(){return o.helper||(o.helper=[]);},set hist(v){o.helper=v;},get arch(){return o.helperArchive||(o.helperArchive=[]);},get mem(){return o.helperMem||"";},set mem(v){o.helperMem=v;},get dec(){return o.helperDec||"";},set dec(v){o.helperDec=v;},touch(){o.updated=Date.now();if(w)w.updated=Date.now();}}
-  :w?{get hist(){return w.helper;},set hist(v){w.helper=v;},get arch(){return w.helperArchive||(w.helperArchive=[]);},get mem(){return w.helperMem||"";},set mem(v){w.helperMem=v;},get dec(){return w.helperDec||"";},set dec(v){w.helperDec=v;},touch(){w.updated=Date.now();}}
+const helperStore=(w,o)=>o?{get hist(){return o.helper||(o.helper=[]);},set hist(v){o.helper=v;},get arch(){return o.helperArchive||(o.helperArchive=[]);},get mem(){return o.helperMem||"";},set mem(v){o.helperMem=v;},get dec(){return o.helperDec||"";},set dec(v){o.helperDec=v;},touch(){o.updated=o.helperT=Date.now();if(w)w.updated=Date.now();}}
+  :w?{get hist(){return w.helper;},set hist(v){w.helper=v;},get arch(){return w.helperArchive||(w.helperArchive=[]);},get mem(){return w.helperMem||"";},set mem(v){w.helperMem=v;},get dec(){return w.helperDec||"";},set dec(v){w.helperDec=v;},touch(){w.updated=w.helperT=Date.now();}}
   :{get hist(){return S.ai;},set hist(v){S.ai=v;},get arch(){return S.aiArchive||(S.aiArchive=[]);},get mem(){return S.aiMem||"";},set mem(v){S.aiMem=v;},get dec(){return S.aiDec||"";},set dec(v){S.aiDec=v;},touch(){S.aiUpdated=Date.now();}};
 // Журнал решений: после каждого ответа дешёвая модель обновляет краткий список того, что уже решили. Он идёт соавтору в контекст,
 // а в сам запрос — только последнее сообщение: так он отвечает на него, но помнит принятые решения
@@ -2117,7 +2122,7 @@ function helperArchiveSheet(st,redraw){const a=st.arch;
     ["Вернуть этот разговор",()=>{if(st.hist.length)archiveHelper(st);const i=a.indexOf(it);if(i>=0)a.splice(i,1);st.hist.length=0;it.msgs.forEach(m=>st.hist.push(m));st.touch();save();redraw();toast("Разговор возвращён.");}],
     ["Посмотреть текст",()=>showCopy(it.title,it.msgs.map(m=>(m.role==="user"?"Ты":"Соавтор")+":\n"+stripBlocks(m.content)).join("\n\n"),it.sum?"Кратко: "+it.sum:"",true)],
     ["Удалить из архива",()=>{const i=a.indexOf(it);if(i>=0)a.splice(i,1);st.touch();save();toast("Удалено.");},true]])])]);}
-const stripBlocks=t=>t.replace(/```(character|event|world|chatedit)\s*\n[\s\S]*?```/g,"").trim();
+const stripBlocks=t=>t.replace(/```(character|event|world|chatedit|worldedit)\s*\n[\s\S]*?```/g,"").trim();
 // ---- соавтор правит историю (сцену) — копия правки разговора, но для истории рассказчика
 function numberedScene(x,w){const h=x.history,hn=heroName(w);let out=[],len=0;
   for(let i=h.length-1;i>=0&&out.length<40;i--){const t="#"+(i+1)+" "+(h[i].role==="user"?hn:"Рассказчик")+": "+h[i].content.trim();if(len+t.length>26000&&out.length)break;out.unshift(t);len+=t.length;}
@@ -2188,8 +2193,38 @@ function chatEditCard(b,w,box,ask){const d=b.data||{};const c=(w&&charsOf(w.id).
   box.append(btn,undoBtn);return box;}
 function pickWorld(cb){if(!S.worlds.length){alert("Сначала создай мир (можно попросить ИИ придумать его).");return;}if(S.worlds.length===1){cb(S.worlds[0]);return;}sheet(S.worlds.map(w=>[wTitle(w)+((w.label||"").trim()?" · "+w.name:""),()=>cb(w)]));}
 function addCharFrom(d,w){const c=blankChar();c.worldId=w.id;c.name=String(d.name||"Персонаж");c.short=String(d.short||"");c.tags=Array.isArray(d.tags)?d.tags.map(String):[];c.core=String(d.core||"");c.examples=String(d.examples||"");c.greeting=String(d.greeting||"");if(d.inertia)c.inertia=Math.max(1,Math.min(10,parseInt(d.inertia)||5));if(d.state){const s=d.state;Object.assign(c.state,{mood:s.mood||"",now:s.now||"",goals:Array.isArray(s.goals)?s.goals.map(String):[],relUser:s.relUser||"",trust:typeof s.trust==="number"?s.trust:0,secrets:s.secrets||""});}S.chars.push(c);save();return c;}
+// ---- соавтор правит мир: персонажей (голос, личность, внешность, состояние), описание мира, указания рассказчику
+const WE_CHAR=["voice","core","examples","look","short","seen","pub","now","mood"],WE_WORLD=["desc","rules","places"];
+const WE_LBL={voice:"голос",core:"личность",examples:"примеры речи",look:"внешность",short:"коротко",seen:"как видят другие",pub:"для игрока",now:"сейчас (состояние)",mood:"настроение",desc:"описание мира",rules:"правила мира",places:"места"};
+function worldEditRules(w){return `ПРАВКА МИРА. Ты можешь менять не только сообщения, но и сам мир: персонажей, их речь и поведение, описание мира и мест, указания рассказчику. Если пользователь просит изменить персонажа, как он говорит или поступает, описание места/комнаты, правило мира, ход или структуру повествования — в 1–3 фразах скажи, что меняешь, и в конце дай блок:
+\`\`\`worldedit
+{"ops":[{"op":"char","name":"Эдвин","field":"voice","mode":"append","text":"..."},{"op":"world","field":"places","mode":"swap","old":"точный фрагмент","text":"новый текст"},{"op":"story","text":"указание рассказчику"}]}
+\`\`\`
+char.field: ${WE_CHAR.join(", ")}. world.field: ${WE_WORLD.join(", ")}. mode: append — дописать в конец; swap — заменить точный фрагмент old (копируй его дословно из того, что видишь) на text; replace — заменить поле целиком (только для коротких полей и голоса). story — постоянное указание рассказчику о структуре, темпе, поступках персонажей (оно идёт в каждый его запрос); story с "remove":"фрагмент" — убрать такое указание. Текст события в уже написанной истории меняй через chatedit, а не здесь. Имена персонажей — точно как в списке. Если просьбу нельзя выразить этими правками — скажи честно, а не молчи.`;}
+function worldEditCard(b,w,box){const d=b.data||{};const ops=Array.isArray(d.ops)?d.ops:[];box.append(el("b",null,"Правка мира"));if(!w){box.append(el("div","note","Нет мира."));return box;}
+  const st=w.story||null;const plan=[];
+  ops.forEach(o=>{if(!o||typeof o!=="object")return;const mode=["append","swap","replace"].includes(o.mode)?o.mode:"append";const text=String(o.text||"").trim();
+    if(o.op==="char"){const c=charsOf(w.id).find(x=>x.name===o.name)||charsOf(w.id).find(x=>x.name&&o.name&&(x.name.includes(o.name)||o.name.includes(x.name)));
+      if(!c||!WE_CHAR.includes(o.field)){plan.push({bad:"Не понял, кого или что менять: "+(o.name||"?")+" / "+(o.field||"?")});return;}
+      const isSt=o.field==="now"||o.field==="mood";const get=()=>isSt?String(c.state[o.field]||""):String(c[o.field]||"");const set=v=>{if(isSt)c.state[o.field]=v;else c[o.field]=v;c.updated=Date.now();};
+      const cur=get();if(mode==="swap"&&!(o.old&&cur.includes(o.old))){plan.push({bad:c.name+", "+WE_LBL[o.field]+": не нашёл фрагмент «"+String(o.old||"").slice(0,60)+"»"});return;}
+      plan.push({lbl:c.name+" · "+WE_LBL[o.field]+" · "+(mode==="append"?"дописать":mode==="swap"?"заменить фрагмент":"заменить целиком"),text,undo:(()=>{const old=cur;return ()=>set(old);})(),apply:()=>{const now=get();set(mode==="append"?(now.trim()?now.trim()+"\n"+text:text):mode==="swap"?now.replace(o.old,text):text);}});}
+    else if(o.op==="world"){if(!WE_WORLD.includes(o.field)){plan.push({bad:"Не понял поле мира: "+o.field});return;}const cur=String(w[o.field]||"");
+      if(mode==="swap"&&!(o.old&&cur.includes(o.old))){plan.push({bad:WE_LBL[o.field]+": не нашёл фрагмент «"+String(o.old||"").slice(0,60)+"»"});return;}
+      plan.push({lbl:"Мир · "+WE_LBL[o.field]+" · "+(mode==="append"?"дописать":mode==="swap"?"заменить фрагмент":"заменить целиком"),text,undo:()=>{w[o.field]=cur;},apply:()=>{const now=String(w[o.field]||"");w[o.field]=mode==="append"?(now.trim()?now.trim()+"\n"+text:text):mode==="swap"?now.replace(o.old,text):text;}});}
+    else if(o.op==="story"){if(!st){plan.push({bad:"В этом мире нет сюжетного движка — указание рассказчику некуда записать."});return;}const old=(st.rules||[]).slice();
+      if(o.remove){const rm=String(o.remove);if(!old.some(r=>r.includes(rm))){plan.push({bad:"Указание «"+rm.slice(0,60)+"» не найдено"});return;}plan.push({lbl:"Рассказчику · убрать указание",text:old.filter(r=>r.includes(rm)).join("\n"),undo:()=>{st.rules=old;},apply:()=>{st.rules=(st.rules||[]).filter(r=>!r.includes(rm));}});}
+      else if(text)plan.push({lbl:"Рассказчику · новое указание",text,undo:()=>{st.rules=old;},apply:()=>{st.rules=(st.rules||[]).concat([text]);}});}
+    else plan.push({bad:"Неизвестная правка: "+(o.op||"?")});});
+  plan.forEach(x=>{const n=el("div","note");n.style.whiteSpace="pre-wrap";n.textContent=x.bad?"⚠ "+x.bad:x.lbl+":\n«"+x.text.slice(0,400)+(x.text.length>400?"…":"")+"»";box.append(n);});
+  const good=plan.filter(x=>!x.bad);if(!good.length){box.append(el("div","note","Применять нечего."));return box;}
+  const btn=el("button","btn sm primary","Применить к миру");btn.style.marginTop="8px";const undo=el("button","btn sm","↶ Отменить");undo.style.marginTop="8px";undo.style.marginLeft="6px";undo.hidden=true;
+  btn.onclick=()=>{if(busy)return;good.forEach(x=>{try{x.apply();}catch(e){}});w.updated=Date.now();save();toast("Мир исправлен: "+good.length+" правк.");btn.disabled=true;undo.hidden=false;};
+  undo.onclick=()=>{good.slice().reverse().forEach(x=>{try{x.undo();}catch(e){}});w.updated=Date.now();save();toast("Правка отменена.");undo.hidden=true;btn.disabled=false;};
+  box.append(btn,undo);return box;}
 function blockCard(b,w,ask){const box=el("div","block");box.style.marginTop="10px";box.style.borderLeft="3px solid var(--accent)";const d=b.data;
   if(b.kind==="chatedit")return (b.data&&b.data.scene)?sceneEditCard(b,w,box,ask):chatEditCard(b,w,box,ask);
+  if(b.kind==="worldedit")return worldEditCard(b,w,box);
   if(b.kind==="character"){box.append(el("b",null,"Персонаж: "+(d.name||"без имени")),el("div","note",d.short||""));const btn=el("button","btn sm primary",w?"Добавить в мир":"Добавить в мир…");btn.style.marginTop="8px";
     if(w&&charsOf(w.id).some(c=>c.name===d.name)){btn.textContent="Уже есть в мире";btn.disabled=true;}
     btn.onclick=()=>{const doAdd=ww=>{const c=addCharFrom(d,ww);toast("«"+c.name+"» добавлен в «"+ww.name+"».");btn.textContent="Добавлен";btn.disabled=true;};if(w)doAdd(w);else pickWorld(doAdd);};box.append(btn);}
@@ -2203,7 +2238,7 @@ function renderAssist(){
   const sc=(w&&route.scene)?SC(route.scene):null;const scOk=!!(sc&&sc.worldId===w.id);const chr=(w&&route.char)?C(route.char):null;const chOk=!!(chr&&chr.worldId===w.id&&!scOk);const so=scOk?sc:(chOk?chr:null);const fch=chOk?chr:null;
   const hist=so?(so.helper||(so.helper=[])):(w?w.helper:S.ai);$("hTitle").textContent=w?"Соавтор · "+(so?(scOk?sc.title:chr.name):w.name):"ИИ";
   const wrap=el("div","chat");wrap.style.gridTemplateColumns="1fr";const main=el("main");
-  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?(scOk?"Видит мир и историю «"+sc.title+"». Может править её сообщения":fch?"Это отдельный соавтор разговора с "+fch.name+": видит мир и этот чат, может править его":"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры"):"Обсудить идеи, придумать миры и персонажей"));
+  const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,w?"Соавтор":"ИИ-помощник"),el("small",null,w?(scOk?"Видит мир и историю «"+sc.title+"». Правит её сообщения, персонажей, мир и указания рассказчику":fch?"Это отдельный соавтор разговора с "+fch.name+": видит мир и этот чат, может править его":"Видит весь мир «"+w.name+"»: персонажей, память, хронику, разговоры"):"Обсудить идеи, придумать миры и персонажей"));
   const hs=helperStore(w,so);
   const clr=el("button","btn ghost sm","＋ Новый");clr.title="Начать новый разговор, текущий уйдёт в архив";clr.onclick=()=>{if(busy)return;if(!hist.length){toast("Разговор и так пустой.");return;}archiveHelper(hs);toast("Разговор в архиве. Соавтор помнит его кратко.");draw();drawArch();};
   const arb=el("button","btn ghost sm","Разговоры");arb.onclick=()=>helperArchiveSheet(hs,()=>{draw();drawArch();});const drawArch=()=>{arb.textContent="Разговоры"+(hs.arch.length?" ("+(hs.arch.length+1)+")":"");};drawArch();
@@ -2229,19 +2264,22 @@ function renderAssist(){
     if(!hist.length&&live===undefined){const e=el("div","list");e.style.maxWidth="760px";e.style.margin="0 auto";e.style.width="100%";tips.forEach(t=>{const b=el("button","item",t);b.style.textAlign="left";b.style.cursor="pointer";b.onclick=()=>{ta.value=t;grow();ta.focus();};e.append(b);});log.append(e);}
     hist.forEach((m,i)=>log.append(msgEl(m,i)));
     if(live!==undefined){liveEl=msgEl({role:"assistant",content:live||"…"},-1);log.append(liveEl);}
-    if(aErr&&live===undefined){const er=el("div","err",aErr);const rb=el("button","btn sm","↻ Повторить");rb.style.marginLeft="8px";rb.onclick=()=>{aErr="";run();};er.append(rb);log.append(er);}
+    if(!aErr&&HELPER_ERR[errKey])aErr=HELPER_ERR[errKey];const lastU=hist.length&&hist[hist.length-1].role==="user";if(live===undefined&&!busy&&lastU&&!aErr)aErr="Соавтор не ответил на последнее сообщение (связь оборвалась или приложение было свёрнуто).";
+    if(aErr&&live===undefined){const er=el("div","err",aErr);const rb=el("button","btn sm","↻ Повторить");rb.style.marginLeft="8px";rb.onclick=()=>{aErr="";delete HELPER_ERR[errKey];if(hist.length&&hist[hist.length-1].role==="user")run();else{hist.length&&hist[hist.length-1].role==="assistant"&&/\[ответ оборвался\]$/.test(hist[hist.length-1].content)&&hist.pop();run();}};er.append(rb);log.append(er);}
     stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function drawLive(t){if(!liveEl||!liveEl.isConnected){draw(t);return;}const b=liveEl.querySelector(".b");b.textContent="";fmt(b,stripBlocks(t)||"…");if(nearBottom(log))liveFollow(log);}
-  async function run(){busy=true;aErr="";ctl=new AbortController();let live="";draw("");
+  async function run(){busy=true;aErr="";userStop=false;delete HELPER_ERR[errKey];ctl=new AbortController();let live="";draw("");
     try{const stable=w?("Ты — соавтор и драматург. Пользователь — сценарист, он строит мир с живыми персонажами и тестирует их. Ты видишь всё о мире ниже. Отвечай по делу, конкретно, с примерами реплик и ходов, когда уместно. Честно указывай на слабые места персонажей и сюжета. Не играй персонажей, а разбирай, советуй, предлагай варианты. Отвечай на языке пользователя."+BLOCK_RULES+"\n\n"+helperCtxSafe(w))
         :("Ты — ИИ-помощник в приложении «Живой мир», где сценарист строит миры с живыми персонажами. Помогай придумывать миры, персонажей, сюжеты, отвечай на любые вопросы. Будь конкретным и честным, без лести. Отвечай на языке пользователя."+BLOCK_RULES+"\n\nМИРЫ ПОЛЬЗОВАТЕЛЯ (кратко):\n"+worldsBrief());
-      const fc=scOk?null:fch;const dynamic=scOk?sceneEditRules(sc).trim()+"\n\n"+(w.date?"СЕЙЧАС В МИРЕ: "+w.date+"\n\n":"")+"ИСТОРИЯ «"+sc.title+"» (с номерами):\n"+numberedScene(sc,w):fc?editRules(fc).trim()+"\n\nСОСТОЯНИЕ "+fc.name.toUpperCase()+" СЕЙЧАС: "+JSON.stringify({mood:fc.state.mood,now:fc.state.now,goals:fc.state.goals,relUser:fc.state.relUser,trust:fc.state.trust})+(fc.drama?"\nРЕЖИССЁР СЕЙЧАС: "+JSON.stringify({plan:fc.drama.plan||"",direction:fc.drama.direction,threads:fc.drama.threads,tension:fc.drama.tension,beat:fc.drama.beat}):"")+(w.date?"\nСЕЙЧАС В МИРЕ: "+w.date:"")+"\n\nРАЗГОВОР С "+fc.name.toUpperCase()+" (с номерами):\n"+numberedChat(fc,w):"";
-      const text=await callModel({stable:stable+helperMemBlock(hs.mem),dynamic:[dynamic,helperDecBlock(hs.dec),HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(hist),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});hist.push({role:"assistant",content:text.trim()});touch();helperDecide(hs);}
-    catch(e){if(live){hist.push({role:"assistant",content:live});touch();}const m=friendly(e);if(m){aErr=m;toast(m,true);}}
+      const fc=scOk?null:fch;const dynamic=scOk?sceneEditRules(sc).trim()+"\n\n"+(w.date?"СЕЙЧАС В МИРЕ: "+w.date+"\n\n":"")+"ИСТОРИЯ «"+sc.title+"» (с номерами):\n"+numberedScene(sc,w):fc?editRules(fc).trim()+"\n\nСОСТОЯНИЕ "+fc.name.toUpperCase()+" СЕЙЧАС: "+JSON.stringify({mood:fc.state.mood,now:fc.state.now,goals:fc.state.goals,relUser:fc.state.relUser,trust:fc.state.trust})+(fc.drama?"\nРЕЖИССЁР СЕЙЧАС: "+JSON.stringify({plan:fc.drama.plan||"",direction:fc.drama.direction,threads:fc.drama.threads,tension:fc.drama.tension,beat:fc.drama.beat}):"")+(w.date?"\nСЕЙЧАС В МИРЕ: "+w.date:"")+"\n\nРАЗГОВОР С "+fc.name.toUpperCase()+" (с номерами):\n"+numberedChat(fc,w):"";const dynamicW=w?[dynamic,worldEditRules(w)].filter(Boolean).join("\n\n"):dynamic;
+      const text=await callModel({stable:stable+helperMemBlock(hs.mem),dynamic:[dynamicW,helperDecBlock(hs.dec),HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(hist),onText:t=>{live=t;drawLive(t);},signal:ctl.signal,maxTokens:S.api.eco?1500:3000,purpose:w?"helper":"ai",cacheMsgs:true});keepHist();hist.push({role:"assistant",content:text.trim()});touch();helperDecide(hs);}
+    catch(e){keepHist();if(live.trim()){hist.push({role:"assistant",content:live+"\n\n[ответ оборвался]"});touch();}const m=helperErrText(e,userStop,!!live.trim());if(m){aErr=m;HELPER_ERR[errKey]=m;toast(m,true);}}
     finally{busy=false;ctl=null;save();draw();{const ms=log.querySelectorAll(".msg.ai"),lm=ms[ms.length-1];if(!aErr&&lm&&lm.offsetHeight>log.clientHeight-60){log.scrollTop=Math.max(0,lm.offsetTop-8);log._follow=false;}}if(!aErr)toast(usageStr(lastUsage));}}
-  const touch=()=>{if(so)so.updated=Date.now();if(w)w.updated=Date.now();else S.aiUpdated=Date.now();};
-  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;touch();const l=hist[hist.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else hist.push({role:"user",content:t});ta.value="";grow();save();run();};
-  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
+  const touch=()=>{const t=Date.now();if(so){so.updated=t;so.helperT=t;}if(w){w.updated=t;if(!so)w.helperT=t;}else S.aiUpdated=t;};
+  const errKey=so?so.id:(w?w.id:"ai");let userStop=false;
+  const keepHist=()=>{try{if(so){const cur=SC(so.id)||C(so.id);if(cur&&cur!==so&&cur.helper!==hist){cur.helper=hist;cur.helperT=Date.now();}}else if(w){const cw=W(w.id);if(cw&&cw!==w&&cw.helper!==hist){cw.helper=hist;cw.helperT=Date.now();}}}catch(e){}};
+  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;touch();hist.push({role:"user",content:t});ta.value="";grow();save();run();};
+  send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{userStop=true;ctl&&ctl.abort();};
   draw();
 }
 function tabHelperEntry(w,body){
