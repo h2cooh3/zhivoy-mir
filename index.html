@@ -1798,17 +1798,22 @@ function fmt(e,text,opt){
   // *описание/мысли* — цитаты в нём это вспомненные слова: цвет того, кто сказал, курсивом и бледнее
   const narSpanPlain=t=>{const f=document.createDocumentFragment();splitQ(t).forEach(x=>{if(x.q){const sp=el("span","say echo");addNames(sp,x.t);const c2=main?nameColor(main):"";if(c2)sp.style.color=c2;f.append(sp);}else addNames(f,x.t);});return f;};
   const narSpan=t=>{const nr=el("span","nar");let ctx="";splitQ(t).map(x=>x.t).forEach(q=>{if(!q)return;
-      if(/^(«|“|„|")/.test(q)){const who=firstName(ctx)||(heroSaid(q)?FMT.hero:main);const sp=el("span","say echo");addNames(sp,q);const c2=who?nameColor(who):"";if(c2)sp.style.color=c2;nr.append(sp);ctx="";}
+      if(/^(«|“|„|")/.test(q)){const who=speakerIn(ctx)||(heroSaid(q)?FMT.hero:main);const sp=el("span","say echo");addNames(sp,q);const c2=who?nameColor(who):"";if(c2)sp.style.color=c2;nr.append(sp);ctx="";}
       else{addNames(nr,q);ctx+=q;}});return nr;};
   const names=((FMT&&FMT.names)||[]).slice().sort((a,b)=>b.length-a.length);
   const stem=n=>n.toLowerCase().slice(0,Math.max(3,n.length-2)); // «Бесси», «Бесс», «Бессе»
-  const lastName=t=>{const low=t.toLowerCase();let best=null,pos=-1;names.forEach(n=>{const i=low.lastIndexOf(stem(n));if(i>pos){pos=i;best=n;}});return best;};
-  const firstName=t=>{const low=t.toLowerCase();let best=null,pos=1e9;names.forEach(n=>{const i=low.indexOf(stem(n));if(i>=0&&i<pos){pos=i;best=n;}});return best;};
+  // имя ищем только с начала слова: иначе «Том» находится в «потом», «Лиз» в «близко», «Мэг» и т.п. — и реплика красится чужим цветом
+  const nameRxs=names.map(n=>[n,new RegExp("(?:^|[^а-яёa-z0-9])("+stem(n).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","g")]);
+  const namePos=(t,last)=>{const low=t.toLowerCase();let best=null,pos=last?-1:1e9;nameRxs.forEach(([n,rx])=>{rx.lastIndex=0;let m;while((m=rx.exec(low))){const i=m.index+m[0].length-m[1].length;if(last?i>pos:i<pos){pos=i;best=n;}if(!last)break;}});return best;};
+  const lastName=t=>namePos(t,true);
+  const firstName=t=>namePos(t,false);
+  // кто говорит: берём ближайшее предложение перед репликой, где есть имя (подлежащее обычно первое), а не самое первое имя за всё время после прошлой реплики
+  const speakerIn=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1,k=0;i>=0&&k<3;i--,k++){const w=firstName(parts[i]);if(w)return w;}return null;};
   let sinceQ="",lastWho=null,lastCol="";
   const quotes=(part,col)=>{const bits=splitQ(part).map(x=>x.t);
     bits.forEach((q,k)=>{if(!q)return;if(/^(«|“|„|")/.test(q)){
         // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
-        const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||firstName(sinceQ)||lastWho;
+        const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||speakerIn(sinceQ)||lastWho;
         if(who)lastWho=who;lastCol=who?nameColor(who):col;e.append(say(q,lastCol));sinceQ="";}
       else{e.append(txt(q));sinceQ+=q;}});};
   // реплика, которую автор прервал *действием* («Видал? — *кричит.* — Корабль.»): пока кавычка не закрыта, текст между *…* — тоже речь
