@@ -1479,11 +1479,18 @@ function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
   if(x.patchId)return lack||(!!w.story&&!(w.story.patches||[]).includes(x.patchId));
   return lack;});}
-async function applyAllAddons(w,btn){btn.disabled=true;let n=0,prev="";try{for(let g=0;g<30;g++){const nx=missingAddons(w)[0];if(!nx)break;
+async function applyAllAddons(w,btn){if(btn)btn.disabled=true;let n=0,prev="";try{for(let g=0;g<30;g++){const nx=missingAddons(w)[0];if(!nx)break;
   if(nx.file===prev)throw new Error("«"+nx.title+"» не применилось (возможно, нужно сначала добавить сюжет)");prev=nx.file;
   const r=await fetch(nx.file,{cache:"no-store"});if(!r.ok)throw new Error(nx.file+": "+r.status);await importFile(await r.blob(),w.id);n++;}}
   catch(e){alert("Остановился: "+e.message+". Проверь интернет и нажми ещё раз.");}
-  btn.disabled=false;toast("Мир достроен: добавлено дополнений — "+n+", персонажей в мире — "+charsOf(w.id).length);render();}
+  if(btn)btn.disabled=false;toast(n?"Мир достроен: добавлено дополнений — "+n+", персонажей в мире — "+charsOf(w.id).length:"Мир уже в актуальной версии.");save();render();return n;}
+// Одна кнопка: обновить приложение (сбросить кэш и перезагрузить), а после перезагрузки — поправить старые данные и добавить все недостающие дополнения
+async function updateAndBuild(w){if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;try{localStorage.setItem("zm:autobuild",w.id);}catch(e){}
+  try{clearTimeout(saveT);if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){}
+  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
+  location.reload();}
+async function autoBuildCheck(){let id="";try{id=localStorage.getItem("zm:autobuild")||"";localStorage.removeItem("zm:autobuild");}catch(e){}if(!id)return;const w=W(id);if(!w)return;
+  try{fixAll();}catch(e){}toast("Приложение обновлено. Достраиваю мир…");await applyAllAddons(w,null);try{go({v:"world",id:w.id});}catch(e){}}
 const addonsLeft=missingAddons;
 // порядок персонажей по значимости для сюжета: герой первым, дальше по списку, неизвестные в конце
 const CHAR_RANK={"Южное побережье":["Фрейя","Капитан Торвальд","Барон Освальд","Сэр Годрик Вэйн","Хёг","Эдвин","Сестра Агнесса","Брам","Тобиас","Лив","Бесс","Сигурд Хват","Нелл","Олдос","Управляющий Кадвал","Марта","Ханна","Элинор","Пип","Старый Гарет","Лиз","Чингиз","Том","Мэг","Энни"]};
@@ -2049,6 +2056,7 @@ function tabChars(w,body){
           it.append(el("b",null,mark+q.title+(res?" — "+res:"")),el("div","note",qs[q.id]==="done"?(q.essence+((st.questEnd||{})[q.id]?"\nЧем кончилось: "+st.questEnd[q.id]:"")):q.hook));dd.append(it);});hb.append(dd);}
       const rs=el("button","btn sm ghost warn","Сбросить сюжет на день 1");rs.onclick=()=>{if(!confirm("Начать сюжет заново с первого дня? Разговоры и память персонажей не трогаются — только часы, акты, события и финал."))return;resetStory(st);w.updated=Date.now();save();render();};hb.append(rs);}
     body.append(hb);}
+  {const ub=el("button","btn sm","⟳ Обновить приложение и достроить мир");ub.title="Скачать последнюю версию приложения, поправить старые данные и добавить все недостающие дополнения — одной кнопкой";ub.style.margin="0 0 10px";ub.onclick=()=>updateAndBuild(w);body.append(ub);}
   {const miss=missingAddons(w);if(miss.length){const bn=el("div","block");bn.style.borderLeft="3px solid var(--accent)";bn.style.margin="0 0 10px";const ab=el("button","btn sm primary","⬆ Достроить мир до актуальной версии");ab.onclick=()=>applyAllAddons(w,ab);
     bn.append(el("b",null,"В мире не хватает дополнений ("+miss.length+")"),el("div","note","Недостающие персонажи, сюжет, истории и деньги добавятся одним нажатием, по порядку. Твои разговоры и память не затрагиваются."),ab);body.append(bn);}}
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
@@ -2791,7 +2799,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;}catch(e){}if(fixOpening()||_m)save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}})();
+(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;}catch(e){}if(fixOpening()||_m)save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}try{await autoBuildCheck();}catch(e){}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
