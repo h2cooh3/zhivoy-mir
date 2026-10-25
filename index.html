@@ -159,6 +159,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .mapview{position:fixed;inset:0;z-index:60;background:rgba(10,8,6,.92);display:flex;flex-direction:column}.mapscroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}.mapscroll img{display:block;width:100%;height:auto;margin:auto}.maptabs{display:flex;gap:6px;justify-content:center;padding:10px}.maptabs button{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:14px}.maptabs button.on{background:var(--ink);color:var(--panel)}
 .mapbar{display:flex;gap:8px;justify-content:center;padding:10px calc(10px + env(safe-area-inset-bottom,0px))}.mapbar button{min-width:52px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px}
 .daychip{display:block;color:var(--accent);font-size:12px;margin-top:2px}
+.journal{position:fixed;inset:0;z-index:40;background:var(--bg,var(--panel));overflow:auto;padding:12px 14px calc(20px + env(safe-area-inset-bottom,0px))}.journal .jin{max-width:720px;margin:0 auto}.journal .jh{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-12px;background:inherit;padding:8px 0;z-index:1}.journal h3{margin:18px 0 6px}.journal .ji{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;background:var(--panel)}.journal .ji .row{margin-top:6px}.journal .ji.old{opacity:.75}
 .nm.link{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-thickness:1px;text-underline-offset:3px}.nm.link:active{opacity:.6}
 .nextrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px 12px}.nextrow .playbtn{margin:0}.playbtn.on{background:var(--ink);color:var(--panel)}
 .watchbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--ink);color:var(--panel);font-size:14px}.watchbar[hidden]{display:none}.watchbar button{border:0;border-radius:999px;padding:9px 16px;background:var(--panel);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -493,6 +494,35 @@ function mapFile(src){if(MAPF[src])return MAPF[src];return MAPF[src]=(async()=>{
 function saveMapImg(im){const src=im.getAttribute("src");const rawSave=async()=>{try{const txt=await (await fetch(src)).text();const f=new File([txt],src.split("/").pop(),{type:"image/svg+xml"});dlFile(f);}catch(e){toast("Не получилось. Сделай скриншот карты.");}};
   const dlFile=f=>{const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);toast("Карта сохранена: "+f.name);};
   mapFile(src).then(async f=>{if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Карта мира"});return;}catch(e){if(e&&e.name==="AbortError")return;}}dlFile(f);}).catch(()=>rawSave());}
+// ============ ЖУРНАЛ ============ (что герой обещал, какие истории идут, кто его ждёт, что уже сделано)
+function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мира нет сюжета — журнал пуст.");return;}
+  const old=document.querySelector(".journal");if(old)old.remove();
+  const jv=el("div","journal");const box=el("div","jin");jv.append(box);
+  const draw=()=>{box.innerHTML="";const head=el("div","jh");const tt=el("div");tt.append(el("b",null,"📖 Журнал"),el("small","daychip",storyLabel(w)));const x=el("button","btn sm","✕ Закрыть");x.onclick=()=>{jv.remove();staleView=true;};head.append(tt,x);box.append(head);
+    const item=(title,note,cls)=>{const it=el("div","ji"+(cls?" "+cls:""));it.append(el("b",null,title));if(note)it.append(el("div","note",note));box.append(it);return it;};
+    const qs=st.questState||{};
+    // ждут
+    const wait=cutWaiting(st).filter(o=>!o.v.no);
+    if(wait.length){box.append(el("h3",null,"Тебя ждут"));wait.forEach(o=>item("🎬 "+(o.c.call.title||o.c.title||"Зов"),(o.c.call.hint||"")+" · до конца "+o.v.until+"-го дня"));}
+    // обещания
+    const ap=promList(st,"active");box.append(el("h3",null,"Обещания"));
+    if(!ap.length)box.append(el("div","note","Пока Уилл никому ничего не обещал. Когда он согласится помочь или возьмёт поручение, это появится здесь само."));
+    ap.forEach(p=>{const left=p.until?" · срок: "+p.until:"";const it=item("🤝 "+p.who+": "+p.what,"Обещано на "+p.day+"-й день"+left+" (сейчас "+st.day+"-й)");
+      const row=el("div","row");const ok=el("button","btn sm","✓ Сделано");const no=el("button","btn sm ghost","✕ Убрать");
+      const fin=(state)=>{p.state=state;p.dayEnd=st.day;p.how="отмечено вручную";w.updated=Date.now();save();draw();};
+      ok.onclick=()=>fin("done");no.onclick=()=>{if(confirm("Убрать из журнала? Если обещание на самом деле было, лучше оставить: хранитель сам отметит, когда оно выполнится."))fin("dropped");};row.append(ok,no);it.append(row);});
+    // истории
+    const aq=(st.quests||[]).filter(q=>qs[q.id]==="active");box.append(el("h3",null,"Истории"));
+    if(!aq.length)box.append(el("div","note","Сейчас никакая история не идёт. Они начинаются сами, когда Уилл оказывается рядом с нужными людьми."));
+    aq.forEach(q=>{const left=q.deadline?((st.questStart||{})[q.id]||st.day)+q.deadline-st.day:null;item("📜 "+q.title,(q.hook||"")+(left!==null?(left>0?"\nОсталось дней: "+left:"\nСрок вышел."):""));});
+    // сделано
+    const dp=promList(st).filter(p=>p.state!=="active"),dq=(st.quests||[]).filter(q=>qs[q.id]==="done");
+    if(dp.length||dq.length){const dd=el("details");dd.append(el("summary",null,"Сделано и прошлое ("+(dp.length+dq.length)+")"));box.append(el("h3",null,""),dd);
+      const add=(t,n)=>{const it=el("div","ji old");it.append(el("b",null,t));if(n)it.append(el("div","note",n));dd.append(it);};
+      dp.slice().reverse().forEach(p=>add((p.state==="done"?"✓ ":p.state==="failed"?"✗ ":"— ")+p.who+": "+p.what,(p.state==="done"?"Слово сдержано":p.state==="failed"?"Слово не сдержано":"Снято")+(p.dayEnd?", "+p.dayEnd+"-й день":"")+(p.how?" · "+p.how:"")));
+      dq.forEach(q=>{const res=(st.questRes||{})[q.id];add((res==="провал"?"✗ ":res==="частично"?"◐ ":res==="отказ"?"— ":"✓ ")+q.title+(res?" — "+res:""),(st.questEnd||{})[q.id]?"Чем кончилось: "+st.questEnd[q.id]:"");});}
+  };
+  draw();document.body.append(jv);}
 function openMap(w){const maps=mapsOf(w);if(!maps.length){toast("У этого мира нет карты. Её можно загрузить в мире: «Карта мира».");return;}
   const lb=el("div","mapview");const sc=el("div","mapscroll");const im=document.createElement("img");im.src=maps[0].src;im.alt="Карта мира";mapFile(maps[0].src).catch(()=>{});sc.append(im);let z=1;const setZ=k=>{z=Math.max(1,Math.min(5,k));im.style.width=(z*100)+"%";};
   if(maps.length>1){const tabs=el("div","maptabs");maps.forEach((m,i)=>{const b=el("button",i?null:"on",m.t);b.onclick=e=>{e.stopPropagation();im.src=m.src;mapFile(m.src).catch(()=>{});tabs.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");sc.scrollTo(0,0);};tabs.append(b);});lb.append(tabs);}
@@ -703,7 +733,7 @@ function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
 const PARTS=["утро","день","вечер","ночь"];const PART_SOFT=8,PART_MAX=16; // ходов на часть дня: после SOFT рассказчик сам ведёт время дальше, после MAX хранитель двигает его сам
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
-function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{}});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
+function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{},promises:[],promN:0});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
 // ============ ДЕНЬГИ И СЧЁТЧИКИ: дефицит как закон мира ============
 function fmtMoney(n){n=Math.round((Number(n)||0)*10)/10;return String(n).replace(".",",");}
 function initMoney(st){st.counts={};if(!st.money)return;st.purse=Number(st.money.start)||0;st.debt=0;st.ownIds=(st.money.assets||[]).map(a=>a.id);st.moneyLog=[];}
@@ -766,7 +796,7 @@ function spineBlock(w){const st=storyOf(w);if(!st||st.done)return "";return [mot
 const lookShort=o=>{const t=String(o.look||"").replace(/\s+/g," ").trim();if(!t)return "";const f=t.split(/(?<=[.!?])\s/)[0].slice(0,160);return "; с виду: "+f;};
 function storyBlock(w,cast,light,noSpine){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
   if(st.done){const e=(st.endings||[]).find(x=>x.key===st.ending)||{};return "ИСТОРИЯ ЗАВЕРШЕНА: финал «"+(e.title||"")+"». Это жизнь после истории: сюжетных событий и больших новых конфликтов больше нет; люди живут с последствиями финала.";}
-  if(light&&!st.done)return ["Сейчас в истории: день "+st.day+", "+st.part+". Живи своей жизнью: сюжетный план тебе неизвестен, ты знаешь только то, что видел и слышал сам.",rulesBlock(st)].filter(Boolean).join("\n");
+  if(light&&!st.done)return ["Сейчас в истории: день "+st.day+", "+st.part+". Живи своей жизнью: сюжетный план тебе неизвестен, ты знаешь только то, что видел и слышал сам.",promBlock(st,cast),rulesBlock(st)].filter(Boolean).join("\n");
   const act=st.acts[st.act-1]||{};const due=storyDue(st);
   const where=npcsOf(w.id).filter(c=>c.loc).map(c=>c.name+" — "+c.loc).join("; ");
   return ["СЮЖЕТ (скрыто от игрока; веди историю к этому через людей и события, не объявляй и не называй акты):",
@@ -775,6 +805,7 @@ function storyBlock(w,cast,light,noSpine){const st=storyOf(w);if(!st)return "";c
     callBlock(st),
     where?"ГДЕ КТО СЕЙЧАС (по своим делам): "+where:"",
     sideBlock(w,st,cast),
+    promBlock(st),
     st.spine&&!noSpine?"ПОЗВОНОЧНИК ГЕРОЕВ (игрок — соавтор: Уилла раскрывает он сам; ты не решаешь за героя и не называешь его чувства — даёшь материал и отражаешь через людей и мелочи):\n"+st.spine:"",
     noSpine?"":motifBlock(st,w),
     moneyBlock(st),
@@ -812,6 +843,23 @@ function sideBlock(w,st,cast){const qs=st.questState||{},told=st.talesTold||{};c
 // хранитель сюжета: после ходов двигает время, отмечает события и флаги, следит за финалом
 function stageTickInfo(w){const L=npcsOf(w.id).filter(c=>Array.isArray(c.stages)&&c.stages.length);if(!L.length)return "";
   return "СТУПЕНИ ПУТИ (герой растёт медленно):\n"+L.map(c=>{const k=stageOf(c),nx=c.stages[k+1];return "- "+c.name+": сейчас "+(k+1)+" «"+c.stages[k].name+"»"+(nx?"; на следующую «"+nx.name+"» — если: "+(nx.cond||"—"):"; это последняя")+(c.stageBack?"; назад — если: "+c.stageBack:"");}).join("\n")+"\n";}
+// ============ ОБЕЩАНИЯ ГЕРОЯ (журнал) ============
+// Хранитель сюжета сам записывает, когда герой пообещал помочь или взял поручение; игрок видит это в «📖 Журнале».
+// st.promises: [{id, who, what, until, day, state: active|done|failed|dropped, how, dayEnd}]
+function promList(st,state){return ((st&&st.promises)||[]).filter(p=>p&&(!state||p.state===state));}
+function promBlock(st,cast){const a=promList(st,"active");if(!a.length)return "";
+  const names=cast?cast.map(c=>c&&c.name).filter(Boolean):null;const L=names?a.filter(p=>names.some(n=>String(p.who).includes(n)||n.includes(p.who))):a;if(!L.length)return "";
+  return (names?"ГЕРОЙ ТЕБЕ ОБЕЩАЛ (ты это помнишь; можешь напомнить, спросить, как дела, обидеться, если тянет; сам за него не делай):\n":"ОБЕЩАНИЯ ГЕРОЯ (люди их помнят: могут напомнить, спросить, обидеться, если он тянет; выполнять за героя нельзя, срок не подгоняй силой):\n")
+    +L.map(p=>"• "+p.who+": "+p.what+" (с "+p.day+"-го дня"+(p.until?"; срок: "+p.until:"")+")").join("\n");}
+function promApply(w,st,r){st.promises=st.promises||[];let msg="",nn=0;
+  (Array.isArray(r.promNew)?r.promNew:[]).slice(0,3).forEach(o=>{if(!o||typeof o!=="object")return;const who=String(o.who||"").trim().slice(0,60),what=String(o.what||"").trim().slice(0,160);if(!who||!what)return;
+    const key=(who+"|"+what).toLowerCase();if(st.promises.some(p=>p.state==="active"&&(p.who+"|"+p.what).toLowerCase()===key))return;
+    st.promN=(st.promN||0)+1;st.promises.push({id:"p"+st.promN,who,what,until:String(o.until||"").trim().slice(0,60),day:st.day,state:"active"});nn++;msg=nn>1?"📖 В журнал: новых обещаний — "+nn:"📖 В журнал: "+who+" — "+what;});
+  (Array.isArray(r.promDone)?r.promDone:[]).forEach(o=>{const id=o&&(o.id||o);const p=st.promises.find(x=>x.id===id);if(!p||p.state!=="active")return;
+    const res=String((o&&o.result)||"");p.state=/не сдел|сорв|провал/i.test(res)?"failed":/снят|отмен/i.test(res)?"dropped":"done";p.how=String((o&&o.how)||"").slice(0,100);p.dayEnd=st.day;
+    if(p.state!=="dropped")w.events.push({t:now(),date:w.date,text:"Уилл "+(p.state==="done"?"сдержал":"не сдержал")+" слово: "+p.who+" — "+p.what+(p.how?" ("+p.how+")":""),public:true});
+    msg=msg||"📖 "+(p.state==="done"?"Слово сдержано":p.state==="failed"?"Слово не сдержано":"Обещание снято")+": "+p.who;});
+  return msg;}
 async function storyTick(w,recent){const st=storyOf(w);if(!st||st.done||st.pending)return null;
   const act=st.acts[st.act-1]||{};
   const prompt=`Ты — хранитель сюжета интерактивной истории «${st.title||""}». Ты не пишешь текст, а ведёшь учёт.
@@ -827,6 +875,7 @@ ${(st.events||[]).map(e=>"- "+e.id+": "+e.text.slice(0,140)+" [дни "+e.day.jo
 ${(st.endings||[]).map(e=>"- "+e.key+" «"+e.title+"» (не раньше дня "+(e.minDay||1)+"): "+e.when).join("\n")}
 ЛЮДИ И ГДЕ ОНИ БЫЛИ: ${npcsOf(w.id).map(c=>c.name+(c.loc?" — "+c.loc:"")).join("; ")}
 ПОБОЧНЫЕ ИСТОРИИ (id: название — состояние): ${(st.quests||[]).map(q=>q.id+": «"+q.title+"» — "+((st.questState||{})[q.id]||"не начата")+"; варианты: "+(q.choices||[]).map(c=>c.choice).join(" / ")).join("\n")||"нет"}
+ОБЕЩАНИЯ ГЕРОЯ (id: кому — что; с какого дня): ${promList(st,"active").map(p=>p.id+": "+p.who+" — "+p.what+" (с "+p.day+"-го"+(p.until?", срок: "+p.until:"")+")").join("; ")||"нет"}
 РАССКАЗЫ У ОГНЯ (id: рассказчик «название»): ${(st.tales||[]).filter(t=>!(st.talesTold||{})[t.id]).map(t=>t.id+": "+t.teller+" «"+t.title+"»").join("; ")||"нет"}
 
 ${st.money?"ДЕНЬГИ ГЕРОЯ СЕЙЧАС: "+fmtMoney(st.purse)+", долг "+fmtMoney(st.debt)+". Имущество (id): "+(ownedAssets(st).map(a=>a.id+" «"+a.name+"»").join(", ")||"нет")+"\n":""}${Object.keys(st.counterDefs||{}).length?"СЧЁТЧИКИ (id: что считать): "+Object.entries(st.counterDefs).map(([k,v])=>k+": "+v.text).join("; ")+"\n":""}
@@ -843,8 +892,10 @@ ${recent}
 - "qStart": id побочных историй, которые начались в тексте; "qDone": [{"id":"","result":"удалась|частично|провал|отказ","choice":"чем кончилась, 3–10 слов"}] — которые завершились (провал — если сработало условие провала или вышел срок; отказ — если герой отказался браться);
 - "echoed": id отзвуков (вида "квест:номер"), которые случились в тексте;
 - "told": id рассказов, которые персонаж рассказал в тексте;
+- "promNew": [{"who":"кому (имя)","what":"что герой обещал сделать, 4–12 слов","until":"срок, если назван, иначе пусто"}] — ТОЛЬКО если в ДВУХ ПОСЛЕДНИХ ответах рассказчика (и ходах героя между ними) герой ясно согласился помочь, дал слово или взял поручение. Просьба без согласия — не обещание; отказ — не обещание; уже записанное обещание или идущую побочную историю не повторяй;
+- "promDone": [{"id":"","result":"сделал|не сделал|снято","how":"3–8 слов"}] — записанные обещания, которые в тексте выполнены, сорваны (вышел срок, человек сделал сам или всё пропало) или сняты (человек сам освободил от слова);
 ${st.money?`- "money": {"delta": число (получил +, потратил/отдал −), "debt": изменение долга (только явная ссуда или возврат), "sold": [id проданного имущества], "lost": [id потерянного иначе], "why": 3–8 слов} — ТОЛЬКО то, что прямо случилось в ДВУХ ПОСЛЕДНИХ ответах рассказчика (всё раньше уже учтено). Суммы бери из текста; если названо не числом, оцени по ориентирам, не завышай. Нет денежных событий — delta 0. Еду на двоих не считай — это делается само.\n`:""}${Object.keys(st.counterDefs||{}).length?`- "count": [id счётчиков, которые выросли на 1 из-за событий в ДВУХ ПОСЛЕДНИХ ответах рассказчика; более ранние уже учтены; один и тот же случай дважды не считай];\n`:""}${stageTickInfo(w)?`- "stage": {"Имя": 1 или -1} — только если в ДВУХ ПОСЛЕДНИХ ответах рассказчика явно выполнилось условие перехода на следующую ступень (1) или случилось то, что отбрасывает назад (-1); иначе пусто. Меняется медленно: не больше одного шага за раз.\n`:""}- "why": 3–8 слов, почему.
-JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
+JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"promNew":[],"promDone":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
   const r=await askJSON(prompt,900,"story");
   const d0=st.day,p0=st.part;const d=Math.max(0,Math.min(7,parseInt(r.days)||0));if(d){st.day+=d;}
   ensureMoney(st);if(d&&st.money&&st.money.upkeep)addMoney(st,-d*st.money.upkeep,"будни: еда на двоих");
@@ -869,6 +920,7 @@ JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st
   if(st.counterDefs){st.counts=st.counts||{};(Array.isArray(r.count)?r.count:[]).forEach(id=>{if(st.counterDefs[id])st.counts[id]=(st.counts[id]||0)+1;});
     Object.entries(st.counterDefs).forEach(([k,v])=>{if(v.flag&&(st.counts[k]||0)>=(v.gte||1)&&st.flagDefs&&st.flagDefs[v.flag])st.flags[v.flag]=true;});}
   if(qmsg)r._q=qmsg;
+  {const pm=promApply(w,st,r);if(pm)r._p=pm;}
   const na=parseInt(r.act);if(na>st.act&&na<=st.acts.length)st.act=na;
   // по дням акт тоже сдвигается
   while(st.act<st.acts.length&&st.day>(st.acts[st.act-1].days||[0,999])[1]+2)st.act++;
@@ -927,7 +979,7 @@ function cutsceneCheck(w){const st=storyOf(w);if(!st||st.done||st.pending||!Arra
 function mergeRoles(msgs){const out=[];msgs.forEach(m=>{const l=out[out.length-1];if(l&&l.role===m.role)l.content=l.content+"\n\n"+m.content;else out.push({role:m.role,content:m.content});});return out;}
 function storyAfter(w,hist){{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}const isMain=(()=>{const ms=mainStoryOf(w);return !!ms&&ms.history===hist;})();if(isMain){try{if(cutsceneCheck(w))staleView=true;}catch(e){}}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
-  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
+  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
 function storyBanner(w,after){const st=storyOf(w);if(!st||!st.pending||st.done)return null;const e=(st.endings||[]).find(x=>x.key===st.pending.key);if(!e)return null;
   const b=el("div","block");b.style.borderLeft="3px solid var(--accent)";b.style.margin="8px 12px";
@@ -1728,6 +1780,7 @@ window.addEventListener("popstate",()=>{
   // открытые окна закрываем первыми
   const lb=document.querySelector(".lightbox");if(lb){lb.remove();pushHist();return;}
   const mv=document.querySelector(".mapview");if(mv){mv.remove();pushHist();return;}
+  const jv=document.querySelector(".journal");if(jv){jv.remove();pushHist();return;}
   const sh=document.querySelector(".sheet");if(sh){sh.remove();const bg=document.querySelector(".sheet-bg");if(bg)bg.remove();pushHist();return;}
   if($("dlg").open){$("dlg").close();pushHist();return;}
   if($("rep").open){$("rep").close();pushHist();return;}
@@ -2128,7 +2181,7 @@ function tabChars(w,body){
       mr.append(ob2,up);hb.append(mr);}
     const chg=el("button","btn sm","Сменить героя");chg.onclick=()=>sheet([["Свой герой из описания мира"+(w.heroId?"":" ✓"),()=>{w.heroId="";w.updated=Date.now();save();render();}],...charsOf(w.id).map(o=>[(w.heroId===o.id?"✓ ":"")+o.name,()=>{w.heroId=o.id;w.updated=Date.now();save();toast("Теперь ты играешь за "+o.name+".");render();}])]);hb.append(chg);
     const st=storyOf(w);if(st){const act=st.acts[st.act-1]||{};hb.append(el("div","note",st.done?"Сюжет «"+st.title+"»: история рассказана — финал «"+(((st.endings||[]).find(e=>e.key===st.ending))||{}).title+"». Эпилог — во вкладке историй.":"Сюжет «"+st.title+"»: день "+st.day+", "+st.part+" · акт "+st.act+" из "+st.acts.length+" — «"+act.title+"»"));
-      if((st.quests||[]).length){const qs=st.questState||{};const dd=el("details","sp");const nd=Object.values(qs).filter(v=>v==="done").length;dd.append(el("summary",null,"📜 Журнал историй — пройдено "+nd+" из "+st.quests.length));
+      if((st.quests||[]).length){const qs=st.questState||{};const dd=el("details","sp");const nd=Object.values(qs).filter(v=>v==="done").length;dd.append(el("summary",null,"📜 Журнал историй — пройдено "+nd+" из "+st.quests.length));{const jb=el("button","btn sm","📖 Открыть журнал (обещания и истории)");jb.onclick=()=>openJournal(w);dd.append(jb);}
         const shown=st.quests.filter(q=>qs[q.id]);if(!shown.length)dd.append(el("div","note","Пока ни одна не началась. Истории начинаются сами, когда герой оказывается рядом с нужными людьми."));
         shown.forEach(q=>{const it=el("div","block");it.style.marginTop="6px";const res=(st.questRes||{})[q.id];const mark=qs[q.id]!=="done"?"… ":res==="провал"?"✗ ":res==="частично"?"◐ ":res==="отказ"?"— ":"✓ ";
           it.append(el("b",null,mark+q.title+(res?" — "+res:"")),el("div","note",qs[q.id]==="done"?(q.essence+((st.questEnd||{})[q.id]?"\nЧем кончилось: "+st.questEnd[q.id]:"")):q.hook));dd.append(it);});hb.append(dd);}
@@ -2149,7 +2202,7 @@ function tabChars(w,body){
 }
 // состояние сюжетного движка для соавтора: день, акт, флаги, деньги — иначе он не знает, где история сейчас
 function storyBrief(w){const st=storyOf(w);if(!st)return "";const a=(st.acts||[]).find(z=>z.n===st.act);const fl=Object.keys(st.flags||{}).filter(k=>st.flags[k]);
-  return "СЮЖЕТНЫЙ ДВИЖОК (состояние сейчас): "+(st.title||"")+(st.done?" — рассказана":"")+"\nДень "+st.day+", часть дня: "+st.part+", акт "+st.act+(a?" «"+a.title+"»: "+String(a.goal||"").slice(0,500):"")+"\nФлаги (истинные): "+(fl.join(", ")||"нет")+"\nКошелёк: "+(st.purse!=null?st.purse:"—")+", долг: "+(st.debt||0)+(st.questState?"\nКвесты: "+JSON.stringify(st.questState).slice(0,800):"")+(st.spine?"\nПОЗВОНОЧНИК ГЕРОЕВ: "+String(st.spine).slice(0,1500):"");}
+  return "СЮЖЕТНЫЙ ДВИЖОК (состояние сейчас): "+(st.title||"")+(st.done?" — рассказана":"")+"\nДень "+st.day+", часть дня: "+st.part+", акт "+st.act+(a?" «"+a.title+"»: "+String(a.goal||"").slice(0,500):"")+"\nФлаги (истинные): "+(fl.join(", ")||"нет")+"\nКошелёк: "+(st.purse!=null?st.purse:"—")+", долг: "+(st.debt||0)+(st.questState?"\nКвесты: "+JSON.stringify(st.questState).slice(0,800):"")+(promList(st).length?"\nОбещания героя: "+promList(st).map(p=>p.who+" — "+p.what+" ["+p.state+"]").join("; ").slice(0,800):"")+(st.spine?"\nПОЗВОНОЧНИК ГЕРОЕВ: "+String(st.spine).slice(0,1500):"");}
 function helperCtxSafe(w){let c=helperContext(w);if(c.length>200000)c=helperContext(w,true);return c;}
 function helperContext(w,lean){
   const cs=charsOf(w.id);
@@ -2645,7 +2698,7 @@ function renderChat(){
   if(!c.history.length&&c.greeting.trim()){c.history.push({role:"assistant",content:fill(c.greeting.trim(),w,c)});save();}
   const wrap=el("div","chat");const main=el("main");
   const bar=el("div","bar");const mini=el("div","mini");avatarEl(mini,c);mini.title="Профиль персонажа";mini.onclick=()=>go({v:"profile",id:c.id});const who=el("div","who");const b=el("b",null,c.name);const sm=el("small");who.append(b,sm);const dchip=el("small","daychip",storyLabel(w));if(storyLabel(w))who.append(dchip);
-  const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});bar.append(mini,who,mpb,ab,ob,eb,sb);main.append(bar);
+  const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});bar.append(mini,who,jb,mpb,ab,ob,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);log._posKey="c:"+c.id+":"+(c.activeChat||"");
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);const grow=autoGrow(ta);inner.append(ta,stop,send);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
@@ -2754,7 +2807,7 @@ function renderSceneEdit(){
 function renderScene(){
   const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),fixed:Object.assign({},heroName(w)?{[heroName(w)]:"hsl(46 85% var(--sayL))"}:{},charsOf(x.worldId).some(c=>c.name==="Фрейя")?{"Фрейя":"hsl(212 75% var(--sayL))"}:{}),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.main?x.title:x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.main?("Рядом: "+(x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")||"никого")):(x.setup||"")));const dchip=el("small","daychip",storyLabel(w));if(storyLabel(w))who.append(dchip);
-  const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId,scene:x.id});bar.append(who,mpb,cob,eb,sb);}main.append(bar);
+  const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId,scene:x.id});const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);bar.append(who,jb,mpb,cob,eb,sb);}main.append(bar);
   const log=el("div");log.id="log";main.append(log);log._posKey="s:"+x.id;
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=x.noHero?"Тебя здесь нет. Подсказка рассказчику… Пусто — сцена идёт сама":"Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
