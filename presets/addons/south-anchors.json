@@ -1,0 +1,14 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "storyPatch": {
+  "id": "south-anchors",
+  "replace": true,
+  "events": [
+   {"id": "shore_search", "anchor": true},
+   {"id": "freya_wakes", "anchor": true},
+   {"id": "hutor_truth", "anchor": true}
+  ]
+ }
+}
