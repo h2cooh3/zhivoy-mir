@@ -1527,18 +1527,6 @@ function scrubSpoilers(){const PL=[["сюда выбрасывает облом�
       if(/Кадвал|Энцо|Эзр/.test(c.name)&&typeof st.relUser==="string")st.relUser=st.relUser.replace(", после шторма — женское платье","");
       if(["Уилл","Мэг","Марта","Управляющий Кадвал","Мастер Энцо","Мастер Эзра"].includes(c.name)&&Array.isArray(c.facts))c.facts=c.facts.filter(x=>!/Фрейю|Фрейи|платье/.test(x));});
   }catch(e){}});}
-// Мир стартовал с копии «сыгранного» пресета: персонажи уже «знают про платье», в хронике есть события второго дня. Если история ещё на первом дне — вернуть чистый старт.
-async function resetPlayedStart(){let ch=false;const sniff=w=>(w.events||[]).some(e=>/увёл к себе|покупал на рынке женское платье/.test(e.text||""))||S.chars.some(c=>c.worldId===w.id&&/платье|Второй день|второй день после шторма/.test((c.state&&c.state.now)||""));
-  const cand=S.worlds.filter(w=>w.story&&w.story.day<=1&&!w.story.done&&!S.scenes.some(x=>x.worldId===w.id&&x.history.length>8)&&sniff(w));if(!cand.length)return false;
-  let played,clean;try{[played,clean]=await Promise.all(["presets/south.json","presets/south-clean.json"].map(f=>fetch(f,{cache:"no-store"}).then(r=>r.json())));}catch(e){return false;}
-  const pc=Object.fromEntries((played.chars||[]).map(c=>[c.name,c])),cc=Object.fromEntries((clean.chars||[]).map(c=>[c.name,c]));
-  cand.forEach(w=>{const pe=new Set(((played.worlds||[])[0]||{}).events?played.worlds[0].events.map(e=>e.text):[]);const ce=((clean.worlds||[])[0]||{}).events||[];
-    const keep=(w.events||[]).filter(e=>!pe.has(e.text));if(keep.length!==(w.events||[]).length){w.events=keep.length?keep:JSON.parse(JSON.stringify(ce));ch=true;}
-    const cw=(clean.worlds||[])[0]||{};if(cw.date&&/после шторма/.test(w.date||"")){w.date=cw.date;ch=true;}
-    S.chars.filter(c=>c.worldId===w.id).forEach(c=>{const p=pc[c.name],q=cc[c.name];if(!p||!q||!c.state)return;
-      if(c.state.now===p.state.now&&p.state.now!==q.state.now){["now","mood","arc","relUser","trust"].forEach(k=>{c.state[k]=q.state[k];});ch=true;}
-      if(JSON.stringify(c.facts||[])===JSON.stringify(p.facts||[])&&JSON.stringify(p.facts||[])!==JSON.stringify(q.facts||[])){c.facts=[...(q.facts||[])];ch=true;}});});
-  if(ch){S.worlds.forEach(w=>{if(cand.includes(w))w.updated=Date.now();});fixAll();}return ch;}
 function backfillKnow(){S.worlds.forEach(w=>{try{if(w.know)return;const kn={};const cs=charsOf(w.id).filter(c=>c.id!==w.heroId);const scs=S.scenes.filter(x=>x.worldId===w.id);
   cs.forEach(c=>{let n=0;c.chats.forEach(ch=>{n+=ch.history.filter(m=>m.role==="user").length;});scs.forEach(x=>{n+=x.history.filter(m=>m.role==="assistant"&&nameIn(c.name,m.content)).length;});
     if(n>0)kn[c.id]={n,first:"раньше",last:"раньше",look:Math.min(lookChunks(c).length,2+Math.floor(n/3)),cue:0};});w.know=kn;}catch(e){}});}
@@ -2184,9 +2172,9 @@ function renderHome(){
   p.append(g);
   // готовые миры: грузятся одним нажатием из самого приложения
   const PRESETS=[{file:"presets/south-clean.json",world:"Южное побережье",title:"Южное побережье",desc:"Южный берег, конец лета, ночь шторма. Плотник Уилл видит огни у Чёрных скал — там разбился невольничий корабль. 26 персонажей, сюжет «Свобода Фрейи», побочные истории, карты."}];
-  const avail=PRESETS.filter(x=>!S.worlds.some(w=>w.name===x.world));
+  const avail=PRESETS;
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
-    avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt","нажми, чтобы добавить"));
+    avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt",S.worlds.some(w=>w.name===x.world)?"мир по умолчанию · нажми, чтобы добавить ещё одну чистую копию":"мир по умолчанию · нажми, чтобы добавить"));
       c.onclick=async()=>{c.disabled=true;try{const r=await fetch(x.file,{cache:"no-store"});if(!r.ok)throw new Error(r.status);await importFile(await r.blob());}catch(e){alert("Не удалось загрузить: "+e.message);c.disabled=false;}};g2.append(c);});
     p.append(g2);}
   const n=el("p","note","Мир — это место, правила и время. Персонажи живут в мире, помнят всё, меняются от разговоров с тобой и друг от друга. Когда проходит время, они живут без тебя.");p.append(n);
@@ -3003,7 +2991,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;if(sortChars())_m=true;}catch(e){}if(fixOpening()||_m)save();try{if(await resetPlayedStart())save();}catch(e){}applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}try{await autoBuildCheck();}catch(e){}})();
+(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;if(sortChars())_m=true;}catch(e){}if(fixOpening()||_m)save();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}try{await autoBuildCheck();}catch(e){}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
