@@ -1649,7 +1649,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-freya-ya.json",patchId:"south-freya-ya",names:[],title:"Фрейя и слово «я»",desc:"«Я» — запрет рабыни, а не бедность языка: она обходит его грамотно, безличными оборотами; со свободой говорит всё яснее и смелее."},
   {file:"presets/addons/south-freya-why.json",patchId:"south-freya-why",names:[],title:"Фрейя: когда замирает, когда бежит",desc:"Замирает, когда возражает, проявляет инициативу, слышит крик или упрёк — за это рабов наказывали; при угрозе жизни бежит."},
   {file:"presets/addons/south-bram-voice-3.json",patchId:"south-bram-voice-3",names:[],title:"Брам: голос",desc:"Брам немногословен: простые предложения примерно по пять слов, каждая фраза по делу — без пустых слов о погоде и загадок."},
-  {file:"presets/addons/south-geo-3.json",patchId:"south-geo-3",names:[],title:"География: мастерская за масличными полями",desc:"С востока на запад: крепость, пристань и будущая верфь, деревня, масличные поля, Тихий ручей; мастерская Уилла — вверх по ручью, с пристани её не видно."}]};
+  {file:"presets/addons/south-geo-3.json",patchId:"south-geo-3",names:[],title:"География: мастерская за масличными полями",desc:"С востока на запад: крепость, пристань и будущая верфь, деревня, масличные поля, Тихий ручей; мастерская Уилла — вверх по ручью, с пристани её не видно."},
+  {file:"presets/addons/south-will-ships.json",patchId:"south-will-ships",names:[],title:"Уилл и корабли",desc:"Уилла всегда тянуло строить корабли — не мечта вслух, но близко к ней."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
