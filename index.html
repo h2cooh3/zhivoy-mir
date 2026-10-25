@@ -734,7 +734,7 @@ function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
 const PARTS=["утро","день","вечер","ночь"];const PART_SOFT=8,PART_MAX=16; // ходов на часть дня: после SOFT рассказчик сам ведёт время дальше, после MAX хранитель двигает его сам
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
-function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{},promises:[],promN:0});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
+function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{},promises:[],promN:0,ears:[],earN:0});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
 // ============ ДЕНЬГИ И СЧЁТЧИКИ: дефицит как закон мира ============
 function fmtMoney(n){n=Math.round((Number(n)||0)*10)/10;return String(n).replace(".",",");}
 function initMoney(st){st.counts={};if(!st.money)return;st.purse=Number(st.money.start)||0;st.debt=0;st.ownIds=(st.money.assets||[]).map(a=>a.id);st.moneyLog=[];}
@@ -862,7 +862,25 @@ function promApply(w,st,r){st.promises=st.promises||[];let msg="",nn=0;
     if(p.state!=="dropped")w.events.push({t:now(),date:w.date,text:"Уилл "+(p.state==="done"?"сдержал":"не сдержал")+" слово: "+p.who+" — "+p.what+(p.how?" ("+p.how+")":""),public:true});
     msg=msg||"📖 "+(p.state==="done"?"Слово сдержано":p.state==="failed"?"Слово не сдержано":"Обещание снято")+": "+p.who;});
   return msg;}
-async function storyTick(w,recent){const st=storyOf(w);if(!st||st.done||st.pending)return null;
+// ============ УШИ И ГЛАЗА ============
+// Кто что видел и слышал. Хранитель раз в 2 ответа записывает важное (тайны, признания, ссоры, обещания, находки, решения) и свидетелей;
+// если в тексте кому-то рассказали — добавляет его. Рассказчик видит, кто из присутствующих чего НЕ знает.
+// st.ears: [{id, day, text, who:[charId]}]
+function earsPresent(w,hist){const ms=mainStoryOf(w);if(ms&&ms.history===hist)return (ms.charIds||[]).map(C).filter(Boolean);
+  const x=S.scenes.find(z=>z.worldId===w.id&&z.history===hist);if(x)return (x.charIds||[]).map(C).filter(Boolean);
+  const c=charsOf(w.id).find(z=>z.history===hist);if(c)return [c,...guestsOf(c)];return [];}
+function earsBlock(w,cs){const st=storyOf(w);if(!st||!Array.isArray(st.ears)||!st.ears.length)return "";const hid=w.heroId;const pres=(cs||[]).filter(c=>c&&c.id!==hid);if(!pres.length)return "";
+  const nm=id=>(C(id)||{}).name;const L=[];
+  st.ears.slice(-40).forEach(e=>{const no=pres.filter(c=>!e.who.includes(c.id));if(!no.length)return;const yes=e.who.map(nm).filter(Boolean);L.push("• "+e.text+" — знают: "+(yes.length?yes.join(", "):"только "+heroName(w))+"; НЕ знают: "+no.map(c=>c.name).join(", "));});
+  if(!L.length)return "";
+  return "УШИ И ГЛАЗА — КТО ЧЕГО НЕ ЗНАЕТ (движок ведёт учёт свидетелей). Человек знает только то, при чём был сам или что ему прямо рассказали в тексте истории. Тот, кто «НЕ знает», не упоминает этого, не намекает, не реагирует так, будто знает, и не угадывает подозрительно точно — даже если это было в истории. Узнать он может только в тексте: увидел, подслушал, ему рассказали.\n"+L.slice(-15).join("\n");}
+function earsApply(w,st,r){st.ears=st.ears||[];let n=0;
+  (Array.isArray(r.heard)?r.heard:[]).slice(0,4).forEach(o=>{if(!o||typeof o!=="object")return;const t=String(o.what||"").trim().slice(0,200);if(!t)return;
+    const ids=[];(Array.isArray(o.who)?o.who:[]).forEach(nm=>{const c=byName(w.id,String(nm));if(c&&c.id!==w.heroId&&!ids.includes(c.id))ids.push(c.id);});
+    if(st.ears.some(e=>e.text===t))return;st.earN=(st.earN||0)+1;st.ears.push({id:"e"+st.earN,day:st.day,text:t,who:ids});n++;});
+  (Array.isArray(r.heardAdd)?r.heardAdd:[]).forEach(o=>{const e=st.ears.find(x=>x.id===(o&&o.id));if(!e)return;(Array.isArray(o.who)?o.who:[]).forEach(nm=>{const c=byName(w.id,String(nm));if(c&&c.id!==w.heroId&&!e.who.includes(c.id))e.who.push(c.id);});});
+  if(st.ears.length>150)st.ears=st.ears.slice(-150);return n;}
+async function storyTick(w,recent,present){const st=storyOf(w);if(!st||st.done||st.pending)return null;
   const act=st.acts[st.act-1]||{};
   const prompt=`Ты — хранитель сюжета интерактивной истории «${st.title||""}». Ты не пишешь текст, а ведёшь учёт.
 ${worldBlock(w).slice(0,2500)}
@@ -877,6 +895,8 @@ ${(st.events||[]).map(e=>"- "+e.id+": "+e.text.slice(0,140)+" [дни "+e.day.jo
 ${(st.endings||[]).map(e=>"- "+e.key+" «"+e.title+"» (не раньше дня "+(e.minDay||1)+"): "+e.when).join("\n")}
 ЛЮДИ И ГДЕ ОНИ БЫЛИ: ${npcsOf(w.id).map(c=>c.name+(c.loc?" — "+c.loc:"")).join("; ")}
 ПОБОЧНЫЕ ИСТОРИИ (id: название — состояние): ${(st.quests||[]).map(q=>q.id+": «"+q.title+"» — "+((st.questState||{})[q.id]||"не начата")+"; варианты: "+(q.choices||[]).map(c=>c.choice).join(" / ")).join("\n")||"нет"}
+КТО ЕСТЬ В СЦЕНЕ СЕЙЧАС (кроме героя): ${(present||[]).filter(c=>c.id!==w.heroId).map(c=>c.name).join(", ")||"никого"}
+УШИ И ГЛАЗА (id: что было — кто знает): ${((st.ears||[]).slice(-25)).map(e=>e.id+": "+e.text+" — "+(e.who.map(i=>(C(i)||{}).name).filter(Boolean).join(", ")||"никто, кроме героя")).join("; ")||"пусто"}
 ОБЕЩАНИЯ ГЕРОЯ (id: кому — что; с какого дня): ${promList(st,"active").map(p=>p.id+": "+p.who+" — "+p.what+" (с "+p.day+"-го"+(p.until?", срок: "+p.until:"")+")").join("; ")||"нет"}
 РАССКАЗЫ У ОГНЯ (id: рассказчик «название»): ${(st.tales||[]).filter(t=>!(st.talesTold||{})[t.id]).map(t=>t.id+": "+t.teller+" «"+t.title+"»").join("; ")||"нет"}
 
@@ -894,10 +914,12 @@ ${recent}
 - "qStart": id побочных историй, которые начались в тексте; "qDone": [{"id":"","result":"удалась|частично|провал|отказ","choice":"чем кончилась, 3–10 слов"}] — которые завершились (провал — если сработало условие провала или вышел срок; отказ — если герой отказался браться);
 - "echoed": id отзвуков (вида "квест:номер"), которые случились в тексте;
 - "told": id рассказов, которые персонаж рассказал в тексте;
+- "heard": [{"what":"кто что сказал, сделал или узнал — 5–15 слов, с именами","who":["имена тех, кто это САМ видел или слышал (были рядом, в сцене) — без героя"]}] — только ВАЖНОЕ из ДВУХ ПОСЛЕДНИХ ответов рассказчика (и ходов героя между ними): тайны, признания, ссоры, обещания, находки, решения, сказанное о других людях; не бытовые мелочи; кто вышел, спал или был далеко — не свидетель;
+- "heardAdd": [{"id":"","who":["имя"]}] — если в тексте кому-то ПРЯМО рассказали о записанном раньше (id из «УШИ И ГЛАЗА») или он сам это увидел или подслушал;
 - "promNew": [{"who":"кому (имя)","what":"что герой обещал сделать, 4–12 слов","until":"срок, если назван, иначе пусто"}] — ТОЛЬКО если в ДВУХ ПОСЛЕДНИХ ответах рассказчика (и ходах героя между ними) герой ясно согласился помочь, дал слово или взял поручение. Просьба без согласия — не обещание; отказ — не обещание; уже записанное обещание или идущую побочную историю не повторяй;
 - "promDone": [{"id":"","result":"сделал|не сделал|снято","how":"3–8 слов"}] — записанные обещания, которые в тексте выполнены, сорваны (вышел срок, человек сделал сам или всё пропало) или сняты (человек сам освободил от слова);
 ${st.money?`- "money": {"delta": число (получил +, потратил/отдал −), "debt": изменение долга (только явная ссуда или возврат), "sold": [id проданного имущества], "lost": [id потерянного иначе], "why": 3–8 слов} — ТОЛЬКО то, что прямо случилось в ДВУХ ПОСЛЕДНИХ ответах рассказчика (всё раньше уже учтено). Суммы бери из текста; если названо не числом, оцени по ориентирам, не завышай. Нет денежных событий — delta 0. Еду на двоих не считай — это делается само.\n`:""}${Object.keys(st.counterDefs||{}).length?`- "count": [id счётчиков, которые выросли на 1 из-за событий в ДВУХ ПОСЛЕДНИХ ответах рассказчика; более ранние уже учтены; один и тот же случай дважды не считай];\n`:""}${stageTickInfo(w)?`- "stage": {"Имя": 1 или -1} — только если в ДВУХ ПОСЛЕДНИХ ответах рассказчика явно выполнилось условие перехода на следующую ступень (1) или случилось то, что отбрасывает назад (-1); иначе пусто. Меняется медленно: не больше одного шага за раз.\n`:""}- "why": 3–8 слов, почему.
-JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"promNew":[],"promDone":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
+JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"heard":[],"heardAdd":[],"promNew":[],"promDone":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
   const r=await askJSON(prompt,900,"story");
   const d0=st.day,p0=st.part;const d=Math.max(0,Math.min(7,parseInt(r.days)||0));if(d){st.day+=d;}
   ensureMoney(st);if(d&&st.money&&st.money.upkeep)addMoney(st,-d*st.money.upkeep,"будни: еда на двоих");
@@ -923,6 +945,7 @@ JSON: {"days":0,"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st
     Object.entries(st.counterDefs).forEach(([k,v])=>{if(v.flag&&(st.counts[k]||0)>=(v.gte||1)&&st.flagDefs&&st.flagDefs[v.flag])st.flags[v.flag]=true;});}
   if(qmsg)r._q=qmsg;
   {const pm=promApply(w,st,r);if(pm)r._p=pm;}
+  try{earsApply(w,st,r);}catch(e){}
   const na=parseInt(r.act);if(na>st.act&&na<=st.acts.length)st.act=na;
   // по дням акт тоже сдвигается
   while(st.act<st.acts.length&&st.day>(st.acts[st.act-1].days||[0,999])[1]+2)st.act++;
@@ -981,7 +1004,7 @@ function cutsceneCheck(w){const st=storyOf(w);if(!st||st.done||st.pending||!Arra
 function mergeRoles(msgs){const out=[];msgs.forEach(m=>{const l=out[out.length-1];if(l&&l.role===m.role)l.content=l.content+"\n\n"+m.content;else out.push({role:m.role,content:m.content});});return out;}
 function storyAfter(w,hist){{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}const isMain=(()=>{const ms=mainStoryOf(w);return !!ms&&ms.history===hist;})();if(isMain){try{if(cutsceneCheck(w))staleView=true;}catch(e){}}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
-  storyBusy=true;storyTick(w,recent).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
+  storyBusy=true;storyTick(w,recent,earsPresent(w,hist)).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
 function storyBanner(w,after){const st=storyOf(w);if(!st||!st.pending||st.done)return null;const e=(st.endings||[]).find(x=>x.key===st.pending.key);if(!e)return null;
   const b=el("div","block");b.style.borderLeft="3px solid var(--accent)";b.style.margin="8px 12px";
@@ -1018,7 +1041,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   layoutRule(),frankRule(),CHOICE_RULE,SPEECH_RULE,LOGIC_RULE,knowRule(w),FIRST_RULE,
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+(x.noHero?absentRule(w):heroRule(w))+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
-function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),MOVE_RULE,stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
+function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),MOVE_RULE,stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
