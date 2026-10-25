@@ -1625,7 +1625,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-freya-tales.json",patchId:"south-freya-tales",names:[],title:"Фрейя и Лив: сказки по ночам",desc:"У писца Фрейя по ночам шёпотом читала Лив сказки из его книг — лучшее время в жизни обеих."},
   {file:"presets/addons/south-freya-ya.json",patchId:"south-freya-ya",names:[],title:"Фрейя и слово «я»",desc:"«Я» — запрет рабыни, а не бедность языка: она обходит его грамотно, безличными оборотами; со свободой говорит всё яснее и смелее."},
   {file:"presets/addons/south-freya-why.json",patchId:"south-freya-why",names:[],title:"Фрейя: когда замирает, когда бежит",desc:"Замирает, когда возражает, проявляет инициативу, слышит крик или упрёк — за это рабов наказывали; при угрозе жизни бежит."},
-  {file:"presets/addons/south-bram-voice-3.json",patchId:"south-bram-voice-3",names:[],title:"Брам: голос",desc:"Брам немногословен: простые предложения примерно по пять слов, каждая фраза по делу — без пустых слов о погоде и загадок."}]};
+  {file:"presets/addons/south-bram-voice-3.json",patchId:"south-bram-voice-3",names:[],title:"Брам: голос",desc:"Брам немногословен: простые предложения примерно по пять слов, каждая фраза по делу — без пустых слов о погоде и загадок."},
+  {file:"presets/addons/south-geo-3.json",patchId:"south-geo-3",names:[],title:"География: мастерская за масличными полями",desc:"С востока на запад: крепость, пристань и будущая верфь, деревня, масличные поля, Тихий ручей; мастерская Уилла — вверх по ручью, с пристани её не видно."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -1766,6 +1767,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
   toast("Добавлено: миров "+worlds.length+", персонажей "+chars.length+".");
   // дополнение к миру: новые правила (лор) и новые связи у уже существующих персонажей
   {const tw=dest&&W(dest);if(tw&&!worlds.length){let add=0;
+    if(Array.isArray(d.worldReplace)){d.worldReplace.forEach(([a,b])=>{if(!a)return;["places","rules","desc"].forEach(k=>{if(typeof tw[k]==="string"&&tw[k].includes(a)){tw[k]=tw[k].split(a).join(b||"");add++;}});});}
     if(d.worldRulesSection&&typeof d.worldRulesSection.text==="string"){const cs=d.worldRulesSection;let r=tw.rules||"";let done=false;(cs.markers||[]).forEach(mk=>{if(done)return;const i=r.indexOf(mk);if(i<0)return;let j=r.indexOf("\n\n",i);if(j<0)j=r.length;r=r.slice(0,i)+cs.text.trim()+r.slice(j);done=true;});if(!done)r=(r.trim()+"\n\n"+cs.text.trim()).trim();tw.rules=r.replace(/\n{3,}/g,"\n\n");add++;}
     if(typeof d.worldRulesAdd==="string"&&d.worldRulesAdd.trim()&&!(tw.rules||"").includes(d.worldRulesAdd.trim().slice(0,60))){tw.rules=((tw.rules||"").trim()+"\n\n"+d.worldRulesAdd.trim()).trim();add++;}
     if(typeof d.worldPlacesAdd==="string"&&d.worldPlacesAdd.trim()&&!(tw.places||"").includes(d.worldPlacesAdd.trim().slice(0,40))){tw.places=((tw.places||"").trim()+"\n"+d.worldPlacesAdd.trim()).trim();add++;}
