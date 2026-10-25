@@ -1625,7 +1625,7 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-freya-tales.json",patchId:"south-freya-tales",names:[],title:"Фрейя и Лив: сказки по ночам",desc:"У писца Фрейя по ночам шёпотом читала Лив сказки из его книг — лучшее время в жизни обеих."},
   {file:"presets/addons/south-freya-ya.json",patchId:"south-freya-ya",names:[],title:"Фрейя и слово «я»",desc:"«Я» — запрет рабыни, а не бедность языка: она обходит его грамотно, безличными оборотами; со свободой говорит всё яснее и смелее."},
   {file:"presets/addons/south-freya-why.json",patchId:"south-freya-why",names:[],title:"Фрейя: когда замирает, когда бежит",desc:"Замирает, когда возражает, проявляет инициативу, слышит крик или упрёк — за это рабов наказывали; при угрозе жизни бежит."},
-  {file:"presets/addons/south-bram-voice.json",patchId:"south-bram-voice",names:[],title:"Брам: разговорчивый вокруг главного",desc:"Брам не молчун: охотно говорит о погоде, коленях, дочке, службе — кругами; коротко рубит только приказы и злость, а о главном заходит издалека."}]};
+  {file:"presets/addons/south-bram-voice-2.json",patchId:"south-bram-voice-2",names:[],title:"Брам: голос",desc:"Брам говорит просто: в среднем слов по пять в предложении, два-три предложения на реплику; злится — тише; о главном не в лоб."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
