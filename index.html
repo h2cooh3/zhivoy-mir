@@ -746,7 +746,7 @@ function moneyBlock(st){ensureMoney(st);const m=st.money;if(!m)return "";const o
   return ["ДЕНЬГИ ГЕРОЯ ("+unit+"; игрок видит сумму наверху экрана):",
     "В кошельке: "+fmtMoney(st.purse)+(st.debt>0?"; ДОЛГ: "+fmtMoney(st.debt):"")+". Еда на двоих — ещё около "+String(m.upkeep||0).replace(".",",")+" в день (хранитель вычтет сам; сам эту сумму в тексте не списывай).",
     g.name?"Возможная цель героя (если он сам её поставил): "+g.name+" — около "+g.price+". "+(g.note||""):"",
-    own.length?"Что есть и можно продать (цена с торгом; Энцо и Олдос дают примерно две трети): "+own.map(a=>a.name+" ≈ "+a.value).join("; ")+".":"Продавать больше нечего.",
+    own.length?"Что есть и можно продать (цена с торгом; Эзра и Олдос дают примерно две трети): "+own.map(a=>a.name+" ≈ "+a.value).join("; ")+".":"Продавать больше нечего.",
     m.rules||"",m.prices?"Ориентиры цен: "+m.prices:""].filter(Boolean).join("\n");}
 function countersBlock(st){const d=st.counterDefs||{};const ks=Object.keys(d);if(!ks.length)return "";const c=st.counts||{};return "СЧЁТЧИКИ (ведёт хранитель; веди историю с их учётом, но не называй числа игроку): "+ks.map(k=>d[k].text+" — "+(c[k]||0)).join("; ");}
 function rulesBlock(st){return (st.rules||[]).length?"ПРАВИЛА СЮЖЕТА:\n"+st.rules.map(r=>"• "+r).join("\n"):"";}
@@ -1485,8 +1485,8 @@ function scrubSpoilers(){const PL=[["сюда выбрасывает облом�
       if(c.name==="Мэг"&&Array.isArray(st.goals))st.goals=st.goals.filter(g=>!/Фрейе/.test(g));
       if(c.name==="Пип"&&Array.isArray(st.goals))st.goals=st.goals.filter(g=>g!=="узнать, кто это в окне");
       if(c.name==="Том"&&/Фрейе/.test(st.secrets||""))st.secrets="";
-      if(/Кадвал|Энцо/.test(c.name)&&typeof st.relUser==="string")st.relUser=st.relUser.replace(", после шторма — женское платье","");
-      if(["Уилл","Мэг","Марта","Управляющий Кадвал","Мастер Энцо"].includes(c.name)&&Array.isArray(c.facts))c.facts=c.facts.filter(x=>!/Фрейю|Фрейи|платье/.test(x));});
+      if(/Кадвал|Энцо|Эзр/.test(c.name)&&typeof st.relUser==="string")st.relUser=st.relUser.replace(", после шторма — женское платье","");
+      if(["Уилл","Мэг","Марта","Управляющий Кадвал","Мастер Энцо","Мастер Эзра"].includes(c.name)&&Array.isArray(c.facts))c.facts=c.facts.filter(x=>!/Фрейю|Фрейи|платье/.test(x));});
   }catch(e){}});}
 // Мир стартовал с копии «сыгранного» пресета: персонажи уже «знают про платье», в хронике есть события второго дня. Если история ещё на первом дне — вернуть чистый старт.
 async function resetPlayedStart(){let ch=false;const sniff=w=>(w.events||[]).some(e=>/увёл к себе|покупал на рынке женское платье/.test(e.text||""))||S.chars.some(c=>c.worldId===w.id&&/платье|Второй день|второй день после шторма/.test((c.state&&c.state.now)||""));
@@ -1550,18 +1550,30 @@ function fixLooks(){let ch=false;try{S.worlds.forEach(w=>{if(tplOf(w)!=="Южн�
   const deep=(o,P)=>{if(Array.isArray(o))return o.map(x=>deep(x,P));if(o&&typeof o==="object"){Object.keys(o).forEach(k=>{o[k]=deep(o[k],P);});return o;}return fx(o,P);};
   const b=JSON.stringify([w.places,w.story]);if(typeof w.places==="string")w.places=w.places.split(COAST_NEW_NAT).join(NATURE["Южное побережье"]);if(w.story)deep(w.story,COAST_BACK);if(b!==JSON.stringify([w.places,w.story])){w.updated=Date.now();ch=true;}
   charsOf(w.id).forEach(c=>{const b2=JSON.stringify([c.look,c.lookEn,c.core]);["look","lookEn","core"].forEach(k=>{c[k]=fx(fx(c[k],COAST_BACK),LOOK_PAIRS);});if(b2!==JSON.stringify([c.look,c.lookEn,c.core])){c.updated=Date.now();ch=true;}});});}catch(e){}return ch;}
-// Управляющий Кадвал → мастер Энцо (утверждено 25.10): имя во всём мире — персонаж, связи, сюжет, катсцены, разговоры.
-// «Энцо» не склоняется, поэтому все падежи «Кадвала/Кадвалу…» становятся «Энцо». Новые прошлое, облик и голос — дополнение south-enzo.
-const ENZO_REN=[["Управляющий Кадвал","Мастер Энцо"],["управляющий Кадвал","мастер Энцо"],["Управляющего Кадвала","мастера Энцо"],["управляющего Кадвала","мастера Энцо"],["Кадвал Слоу","Энцо"],["Мастер Эзра","Мастер Энцо"],["мастер Эзра","мастер Энцо"],["Кадвалом","Энцо"],["Кадвалу","Энцо"],["Кадвала","Энцо"],["Кадвале","Энцо"],["Кадвал","Энцо"],["Эзрой","Энцо"],["Эзре","Энцо"],["Эзры","Энцо"],["Эзру","Энцо"],["Эзра","Энцо"]];
-const ENZO_RX=/Кадвал|Эзр[аыеуо]/;
-function enzoStr(t){if(typeof t!=="string"||!ENZO_RX.test(t))return t;let r=t;ENZO_REN.forEach(([a,b])=>{r=r.split(a).join(b);});return r;}
+// Управляющий Кадвал → мастер Энцо (v223) → мастер Эзра (окончательно, решено автором 25.10): имя во всём мире.
+// «Кадвал» склоняется → «Эзра» в том же падеже. «Энцо» не склонялось — падеж угадываем по слову перед ним (у/для/без → Эзры, к/при → Эзре, с → Эзрой, «мастера/мастеру/мастером» → по форме).
+const EZRA_REN=[["Управляющего Кадвала","Мастера Эзры"],["управляющего Кадвала","мастера Эзры"],["Управляющему Кадвалу","Мастеру Эзре"],["управляющему Кадвалу","мастеру Эзре"],["Управляющим Кадвалом","Мастером Эзрой"],["управляющим Кадвалом","мастером Эзрой"],["Управляющий Кадвал","Мастер Эзра"],["управляющий Кадвал","мастер Эзра"],["Кадвал Слоу","Эзра"],["Кадвалом","Эзрой"],["Кадвалу","Эзре"],["Кадвала","Эзры"],["Кадвале","Эзре"],["Кадвал","Эзра"],["астера Энцо","астера Эзры"],["астеру Энцо","астеру Эзре"],["астером Энцо","астером Эзрой"],["астере Энцо","астере Эзре"]];
+const EZRA_RX=/Кадвал|Энцо/;
+const EZ_GEN=new Set("у от для до без из около возле против кроме вместо ради после среди мимо тетрадь тетради тетрадью бумаги книги книга книгу предложение предложению сказание слова слово люди людей приказ приказу улыбка улыбку взгляд голос весы план планы счёт письмо письма почерк записи стражники счёты жетон глаза руки рука руку пальцы жена семья сын дочь место ловушка расчёт проигрыш прошлое мельница путь".split(" ")),EZ_DAT=new Set(["к","ко","по","при"]),EZ_INS=new Set(["с","со","над","под","перед","за","между"]);
+function enzoStr(t){if(typeof t!=="string"||!EZRA_RX.test(t))return t;let r=t;EZRA_REN.forEach(([a,b])=>{r=r.split(a).join(b);});
+  r=r.replace(/Энцо/g,(m,off,str)=>{const pre=str.slice(Math.max(0,off-25),off).split(/\s+/).filter(Boolean);const pw=(pre[pre.length-1]||"").toLowerCase().replace(/^[«"(—]+/,"");if(/^мастер/.test(pw))return "Эзра";if(EZ_GEN.has(pw))return "Эзры";if(EZ_DAT.has(pw))return "Эзре";if(EZ_INS.has(pw))return "Эзрой";if(pw==="о"||pw==="об")return "Эзре";return "Эзра";});
+  return r.replace(/(^|[\s(«])о Эзре/g,"$1об Эзре");}
 function enzoDeep(o,skip){if(typeof o==="string")return enzoStr(o);if(Array.isArray(o)){for(let i=0;i<o.length;i++)o[i]=enzoDeep(o[i],skip);return o;}
   if(o&&typeof o==="object"){for(const k of Object.keys(o)){if(skip&&skip.includes(k))continue;const nk=enzoStr(k);const v=enzoDeep(o[k],skip);if(nk!==k){delete o[k];if(!(nk in o))o[nk]=v;}else o[k]=v;}}return o;}
 function fixEnzo(){let ch=false;const SK=["photos","avatar","img"];try{S.worlds.forEach(w=>{if(tplOf(w)!=="Южное побережье")return;
-  const has=o=>{try{return ENZO_RX.test(JSON.stringify(o,(k,v)=>SK.includes(k)?undefined:v));}catch(e){return false;}};
+  const has=o=>{try{return EZRA_RX.test(JSON.stringify(o,(k,v)=>SK.includes(k)?undefined:v));}catch(e){return false;}};
   if(has(w)){enzoDeep(w,SK.concat(["know"]));w.updated=Date.now();ch=true;}
   charsOf(w.id).forEach(c=>{if(has(c)){enzoDeep(c,SK);c.updated=Date.now();ch=true;}});
-  S.scenes.forEach(x=>{if(x.worldId===w.id&&has(x)){enzoDeep(x,SK);x.updated=Date.now();ch=true;}});});}catch(e){}return ch;}
+  S.scenes.forEach(x=>{if(x.worldId===w.id&&has(x)){enzoDeep(x,SK);x.updated=Date.now();ch=true;}});
+  // двойник: если персонаж назывался не ровно «Мастер …», дополнение «Север и крепость» считалось недостающим и добавляло второго.
+  // Оставляем того, у кого портрет (иначе — у кого больше разговоров), называем его «Мастер Эзра», лишних убираем (их разговоры переносим).
+  const ez=charsOf(w.id).filter(c=>c.id!==w.heroId&&/Эзр[аыеуо]|Кадвал|Энцо/.test(c.name));
+  if(ez.length){const sc=c=>((c.avatar||(c.photos||[]).length)?1e6:0)+(c.chats||[]).reduce((a,x)=>a+((x.history||[]).length),0)+((c.log||[]).length);ez.sort((a,b)=>sc(b)-sc(a));const keep=ez[0];
+    if(keep.name!=="Мастер Эзра"){keep.name="Мастер Эзра";keep.updated=Date.now();ch=true;}
+    ez.slice(1).forEach(d=>{(d.chats||[]).forEach(x=>{if((x.history||[]).length&&!(keep.chats||[]).some(y=>y.id===x.id)){keep.chats.push(x);keep.updated=Date.now();}});
+      S.chars=S.chars.filter(c=>c!==d);S.scenes.forEach(x=>{if(x.worldId===w.id&&(x.charIds||[]).includes(d.id)){x.charIds=x.charIds.filter(i=>i!==d.id);if(!x.charIds.includes(keep.id))x.charIds.push(keep.id);x.updated=Date.now();}});
+      if(w.know&&w.know[d.id]){if(!w.know[keep.id])w.know[keep.id]=w.know[d.id];delete w.know[d.id];}w.updated=Date.now();ch=true;});}
+  });}catch(e){}return ch;}
 // Порядок героев по важности в сюжете (решено 25.10) — CHAR_RANK ниже; sortChars ставит героев мира в этом порядке (список и промпты)
 function sortChars(){let ch=false;try{S.worlds.forEach(w=>{const R=CHAR_RANK[tplOf(w)];if(!R)return;const rk=c=>{const i=R.indexOf(c.name);return i<0?999:i;};
   const idx=[];S.chars.forEach((c,i)=>{if(c.worldId===w.id)idx.push(i);});const mine=idx.map(i=>S.chars[i]);const sorted=mine.slice().sort((a,b)=>rk(a)-rk(b));
@@ -1575,7 +1587,7 @@ function fixAll(){setTimeout(defaultPortraits,300);fixOpening();scrubSpoilers();
 const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
 const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
-  {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Мастер Энцо"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, мастер Энцо. Плюс правила мира о беглых, Палате возврата, дружине и оброке."},
+  {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Мастер Эзра"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, мастер Эзра. Плюс правила мира о беглых, Палате возврата, дружине и оброке."},
   {file:"presets/addons/south-story.json",storyId:"south-freedom",names:[],title:"Сюжет «Свобода Фрейи»: акты, события, финалы, Уилл-персонаж",desc:"Часы мира и 5 актов; события по дням (корабль Торвальда, срок Книги найденных, оброк, возвратчик — если слух дойдёт до севера); 6 финалов и свои судьбы у каждого персонажа; подробная внешность всех для картинок; Уилл — отдельный персонаж, ты играешь за него. Лучше добавить после двух дополнений выше."},
   {file:"presets/addons/south-side.json",patchId:"south-side",names:[],title:"Побочные истории и рассказы у огня",desc:"Истории в духе «Ведьмака»: у каждой своя суть, и в каждой придётся выбирать. Плюс рассказы у огня: личные, услышанные, сказки и легенды, через которые люди объясняют свои решения. Нужен сюжет «Свобода Фрейи»."},
   {file:"presets/addons/south-side-2.json",patchId:"south-side-2",names:[],title:"Обновление историй: заказы, отзвуки, длинная цепочка",desc:"14 историй вместо 9: люди приходят с заказами в мастерскую, у каждой есть отказ и отзвуки, которые аукнутся позже; 4 малые истории на одну сцену и длинная цепочка «Дверь у Трёх Ясеней» через несколько актов. Нужен сюжет «Свобода Фрейи» и дополнение «Побочные истории»."},
@@ -1584,7 +1596,7 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-heroes.json",patchId:"south-heroes",names:[],title:"Путь героев: исцеление Уилла и «нет» Фрейи",desc:"Позвоночник двух главных героев: забота Уилла становится оградой, ему нужно простить себя и отпустить; Фрейя учится говорить «нет» — деталями, которые надо заметить. Свирель Уилла, песни и звёзды Фрейи."},
   {file:"presets/addons/south-aitmatov.json",patchId:"south-aitmatov",names:["Старый Гарет"],title:"«Дольше века» — отсылка к Айтматову",desc:"Старый рыбак Гарет, у которого никого нет, умирает; Уилл везёт его целый день на Цаплиный мыс — а мыс огородил барон. Сказание о «непомнящих» и чайке, мотив имени."},
   {file:"presets/addons/south-aitmatov-2.json",patchId:"south-aitmatov-2",names:["Чингиз"],title:"«Дольше века»: Гарет, Чингиз и тайна мыса",desc:"Переписанный квест: у Гарета были семья и дочь вдалеке, он сам приходит к Уиллу; странник Чингиз рассказывает сказание о «непомнящих»; под мысом каменоломня с рабами; письмо дочери и имя на доске пишет Фрейя. Смерть Гарета зависит от того, успел ли Уилл с ним поговорить. Добавлены запреты для рассказчика."},
-  {file:"presets/addons/south-baron.json",patchId:"south-baron",names:[],title:"Барон: видение, расчётная книга, искушение Уилла",desc:"Глубина барона Освальда: корень (бедная земля продаёт своих), видение торгового города, свои и чужие, расчётная книга без имён. Новый квест «Мастер для пристани», сказание Энцо о детстве барона, мотивы «Слова жены» и «Расчётная книга»."},
+  {file:"presets/addons/south-baron.json",patchId:"south-baron",names:[],title:"Барон: видение, расчётная книга, искушение Уилла",desc:"Глубина барона Освальда: корень (бедная земля продаёт своих), видение торгового города, свои и чужие, расчётная книга без имён. Новый квест «Мастер для пристани», сказание Эзры о детстве барона, мотивы «Слова жены» и «Расчётная книга»."},
   {file:"presets/addons/south-baron-2.json",patchId:"south-baron-2",names:[],title:"Барон: верфь и корабельный мастер",desc:"Барон хочет построить у Солтхэма большой порт и верфь (лес Глухолесья, пристань, заказы короля). Потому и тянется к Уиллу: ему нужен главный мастер. Квест «Мастер для верфи», цена — вырубка леса, где прячутся беглые."},
   {file:"presets/addons/south-baron-3.json",patchId:"south-baron-3",names:[],title:"Барон: кредо «Через два поколения»",desc:"Высказывание барона о цене роста: сегодняшнее страдание забудут через поколение-два. Живёт в его описании и в сказании, может прозвучать не при игроке."},
   {file:"presets/addons/south-bred.json",patchId:"south-bred",names:[],title:"Бред Фрейи: «она цела?»",desc:"В ночь шторма Фрейя без сознания шепчет «…она цела?» — эхо слов умершей жены Уилла. Один раз, без объяснений."},
@@ -1603,11 +1615,12 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-bess.json",patchId:"south-bess",names:[],title:"Бесс: догнать до текущей версии",desc:"В старых копиях мира жена Эдвина звалась «Бесси», и дополнения её пропускали. Приложение уже переименовало её в «Бесс»; это дополнение даёт ей текущие личность с путём, внешность, голос и примеры речи."},
   {file:"presets/addons/south-freya-press.json",patchId:"south-freya-press",names:[],title:"Фрейя под давлением",desc:"В карточку голоса Фрейи: под приказами и чужой властью она не дерзит и не смотрит в глаза — «выключается», отвечает односложно. Сила возвращается только через доверие, а не от напора."},
   {file:"presets/addons/south-freya-stages.json",patchId:"south-freya-stages",names:[],title:"Фрейя: ступени пути",desc:"Ограда: рассказчик видит только текущую ступень Фрейи (Вещь → Оттаивает → Спорит → Я → Смеётся), будущие скрыты. Ступень двигает хранитель сюжета по её же условиям; при грубости — шаг назад. Ступень видна и меняется в профиле Фрейи. Ставить после «Фрейя под давлением»."},
-  {file:"presets/addons/south-cutscenes.json",patchId:"south-cutscenes",names:[],title:"Катсцены",desc:"Заранее написанные сцены в главной истории: утро после шторма, «Серая Чайка» (с выбором), седьмой день, указ, осень, первый осенний шторм. Плюс сцены за кадром, которые Уилл не видит: барон и Энцо, Эдвин у постели Тома."},
-  {file:"presets/addons/south-enzo.json",patchId:"south-enzo",names:[],title:"Мастер Энцо",desc:"Управляющий Кадвал становится мастером Энцо, правой рукой барона: новое прошлое (мельница, совет лордов), облик, голос, тайны и финалы. Имя меняется во всём мире."},
+  {file:"presets/addons/south-cutscenes.json",patchId:"south-cutscenes",names:[],title:"Катсцены",desc:"Заранее написанные сцены в главной истории: утро после шторма, «Серая Чайка» (с выбором), седьмой день, указ, осень, первый осенний шторм. Плюс сцены за кадром, которые Уилл не видит: барон и Эзра, Эдвин у постели Тома."},
+  {file:"presets/addons/south-ezra.json",patchId:"south-ezra",names:[],title:"Мастер Эзра",desc:"Управляющий Кадвал становится мастером Эзрой, правой рукой барона: новое прошлое (мельница, совет лордов), облик, голос, тайны и финалы. Имя меняется во всём мире."},
   {file:"presets/addons/south-cutscenes-2.json",patchId:"south-cutscenes-2",names:[],title:"Катсцены: зов и срок",desc:"Сцены с местом теперь не ждут игрока: мир сам зовёт (кнопки «пойти сейчас / позже / не идти»), а если Уилл не пришёл к сроку, событие случается без него, со своей ценой. Новые сцены: оброк, зов барона, встреча у огня."},
   {file:"presets/addons/south-anchors.json",patchId:"south-anchors",names:[],title:"Опорные события",desc:"Три события, без которых история не склеится (ночь шторма, Фрейя приходит в себя, правда о хуторе): рассказчик ведёт к ним мягко, но настойчиво."},
-  {file:"presets/addons/south-fight.json",patchId:"south-fight",names:[],title:"Уилл и драка",desc:"Уилл не воин, но и не слабак: исход драки зависит от противника — стражника с мечом не одолеть, соседа-старика одолеет, но и такая победа стоит дорого."}]};
+  {file:"presets/addons/south-fight.json",patchId:"south-fight",names:[],title:"Уилл и драка",desc:"Уилл не воин, но и не слабак: исход драки зависит от противника — стражника с мечом не одолеть, соседа-старика одолеет, но и такая победа стоит дорого."},
+  {file:"presets/addons/south-freya-mind.json",patchId:"south-freya-mind",names:[],title:"Фрейя: ум за немногословием",desc:"Голос Фрейи по канону: слов мало от осторожности, а не от глупости — она замечает и запоминает всё и роняет это одной точной фразой."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -1627,7 +1640,7 @@ async function autoBuildCheck(){let id="";try{id=localStorage.getItem("zm:autobu
   try{fixAll();}catch(e){}toast("Приложение обновлено. Достраиваю мир…");await applyAllAddons(w,null);try{go({v:"world",id:w.id});}catch(e){}}
 const addonsLeft=missingAddons;
 // порядок персонажей по значимости для сюжета: герой первым, дальше по списку, неизвестные в конце
-const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Энцо", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Элинор", "Ханна", "Лиз", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
+const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Эзра", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Элинор", "Ханна", "Лиз", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
 const byPlot=(w,cs)=>{const r=CHAR_RANK[tplOf(w)]||[];const k=c=>c.id===w.heroId?-1:(r.indexOf(c.name)<0?999:r.indexOf(c.name));return cs.slice().sort((a,b)=>k(a)-k(b)||(b.updated||0)-(a.updated||0));};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 const tplOf=w=>(w&&w.tpl)||baseWorldName(w&&w.name);
