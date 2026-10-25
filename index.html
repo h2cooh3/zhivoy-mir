@@ -756,13 +756,13 @@ function genName(n){n=String(n||"").trim();const w=n.split(/\s+/);const last=w.p
   return [...w,g].join(" ");}
 // перенести разговор с персонажем в главную историю: заменить её или дописать в конец
 function parseChatFile(text,w){text=String(text||"").replace(/^\uFEFF/,"").trim();
-  if(text[0]==="{"){try{const d=JSON.parse(text);if(Array.isArray(d.history))return {from:d.from||"",title:d.title||"",summary:d.summary||"",history:d.history.filter(m=>m&&(m.role==="user"||m.role==="assistant")&&String(m.content||"").trim()).map(m=>({role:m.role,content:String(m.content)}))};}catch(e){}return null;}
+  if(text[0]==="{"){try{const d=JSON.parse(text);if(Array.isArray(d.history))return {from:d.from||"",title:d.title||"",summary:d.summary||"",sumIdx:+d.sumIdx||0,history:d.history.filter(m=>m&&(m.role==="user"||m.role==="assistant")&&String(m.content||"").trim()).map(m=>({role:m.role,content:String(m.content)}))};}catch(e){}return null;}
   const hn=heroName(w).toLowerCase();const blocks=text.split(/\n{2,}(?=[^\n:]{1,40}:\n)/);const out=[];let from="";
   blocks.forEach(b=>{const m=b.match(/^([^\n:]{1,40}):\n([\s\S]*)$/);if(!m)return;const who=m[1].trim();const role=who.toLowerCase()===hn?"user":"assistant";if(role==="assistant"&&!from)from=who;out.push({role,content:m[2].trim()});});
   return out.length?{from,title:"",summary:"",history:out}:null;}
 function importChatToMain(w,data){let x=mainStoryOf(w);const h=data.history;if(!h.length){toast("В файле нет сообщений.");return;}const c=data.from&&charsOf(w.id).find(o=>o.name===data.from);
   const doIt=mode=>{if(!x){x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));S.scenes.push(x);}
-    if(mode==="replace"){x.history=h;x.summary=data.summary||"";x.sumIdx=0;}
+    if(mode==="replace"){x.history=h;x.summary=data.summary||"";x.sumIdx=Math.max(0,Math.min(data.sumIdx||0,h.length));}
     else{x.history=[...x.history,{role:"user",content:"[Дальше история продолжается"+(data.from?" с разговора с "+data.from:"")+".]"},...h];if(data.summary&&!x.summary)x.summary=data.summary;}
     x.dirIdx=x.history.length;x.dramaIdx=x.history.length;if(c&&!x.charIds.includes(c.id))x.charIds.push(c.id);
     x.updated=Date.now();save();toast("Переписка загружена в «"+x.title+"»: "+h.length+" сообщ.");go({v:"scene",id:x.id},true);};
@@ -2328,6 +2328,7 @@ ${(w.desc||"").slice(0,2000)}
 function withPrompt(title,fn){return async()=>{if(busy)return;busy=true;ctl=new AbortController();toast("Составляю промпт…");try{const p=await fn();showCopy(title,p,"Скопируй и вставь в Gemini (Nano Banana), Midjourney, FLUX или другой генератор.");}catch(e){toast(friendly(e),true);}finally{busy=false;ctl=null;toast("");}};}
 function exportWorld(w){sheet([
   ["Файл мира — со всеми персонажами и разговорами",()=>expWorld(w)],
+  ...(mainStoryOf(w)&&(mainStoryOf(w).history||[]).length?[["⇣ Только чат «"+mainStoryOf(w).title+"» — файлом (.json)",()=>downloadStory(w)]]:[]),
   ["Мир для другого ИИ (скопировать текст)",()=>showCopy("Мир для другого ИИ",worldText(w,true),"Вставь первым сообщением в любой ИИ-чат: он узнает мир, персонажей, их состояние и хронику.")],
   ["Мир текстом — скачать .txt",()=>download(fnSafe(w.name||"мир")+".txt",worldText(w,false),"text/plain;charset=utf-8")],
   ["Промпт для картинки мира",withPrompt("Промпт для картинки мира",()=>worldImagePrompt(w))]]);}
@@ -2337,6 +2338,8 @@ function exportChar(c){sheet([
   ["Промпт для портрета (картинка)",withPrompt("Промпт для портрета",()=>imagePrompt(c,false))],
   ["Промпт для кадра текущей сцены",withPrompt("Промпт для кадра",()=>imagePrompt(c,true))]]);}
 function chatFile(c,x){const w=W(c.worldId);return {app:"zhivoymir",kind:"chat",version:1,from:c.name,hero:heroName(w),title:x.title||"Разговор",summary:x.summary||"",history:x.history.filter(m=>String(m.content||"").trim()).map(m=>({role:m.role,content:m.content}))};}
+function storyFile(w,x){const keep=[];let si=0;(x.history||[]).forEach((m,i)=>{if(String(m&&m.content||"").trim()&&(m.role==="user"||m.role==="assistant")){if(i<(x.sumIdx||0))si++;keep.push({role:m.role,content:m.content});}});return {app:"zhivoymir",kind:"chat",version:1,from:"",hero:heroName(w),title:x.title||"История",summary:x.summary||"",sumIdx:si,history:keep};}
+function downloadStory(w){const x=mainStoryOf(w);if(!x||!(x.history||[]).length){toast("В истории пока пусто.");return;}download(fnSafe((x.title||"История")+" — чат")+".json",JSON.stringify(storyFile(w,x),null,1),"application/json");toast("Чат скачан: "+x.history.length+" сообщ.");}
 function exportChat(c,x){const w=W(c.worldId);sheet([
   ...(w&&c.id!==w.heroId&&x.history.length>1?[["⇢ Перенести переписку в «История "+genName(heroName(w))+"»",()=>setTimeout(()=>moveChatToMain(w,c),50)]]:[]),
   ["⇢ Только переписка — файлом (.json), чтобы загрузить в «Историю»",()=>download(fnSafe(c.name+" — "+(x.title||"разговор"))+".json",JSON.stringify(chatFile(c,x),null,1),"application/json")],
@@ -2616,7 +2619,7 @@ function tabAbout(w,body){
   body.append(kv);
   {const cr=crestsOf(w);if(cr.length){const dd=el("details","sp");dd.append(el("summary",null,"🛡 Гербы мира ("+cr.length+")"));const g=el("div");g.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px";
     cr.forEach(c=>{const it=el("div","block");it.style.textAlign="center";const im=document.createElement("img");im.src=crestSrc(c);im.alt=c.t;im.loading="lazy";im.style.cssText="width:84px;height:auto";const b=el("b",null,c.t);b.style.display="block";b.style.fontSize="13px";const m=el("div","note",c.m);m.style.fontStyle="italic";it.title=c.d;it.append(im,b,m);it.onclick=()=>alert(c.t+" "+c.m+"\n\n"+c.d);g.append(it);});dd.append(g);body.append(dd);}}
-  const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const sob=el("button","btn","⟲ Начать заново");sob.title="Параллельная линия: копия мира, где все с самого начала";sob.onclick=()=>startOver(w);r.append(sob);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
+  const r=el("div","row");const eb=el("button","btn","Изменить мир");eb.onclick=()=>go({v:"worldEdit",id:w.id});const xb=el("button","btn","Экспорт мира");xb.onclick=()=>exportWorld(w);r.append(xb);const dcb=el("button","btn","⇣ Скачать чат истории");dcb.title="Только переписка «Истории» — без мира и персонажей";dcb.onclick=()=>downloadStory(w);const lcb=el("button","btn","⇡ Загрузить чат в историю");lcb.title="Файл чата (.json) или скопированный текст — в «Историю» этого мира";lcb.onclick=()=>pickFile(f=>importFile(f,w.id));r.append(dcb,lcb);const sob=el("button","btn","⟲ Начать заново");sob.title="Параллельная линия: копия мира, где все с самого начала";sob.onclick=()=>startOver(w);r.append(sob);const db=el("button","btn warn","Удалить мир");db.onclick=()=>{if(!confirm("Удалить мир «"+w.name+"» со всеми персонажами, сценами и главами?"))return;S.chars=S.chars.filter(c=>c.worldId!==w.id);S.scenes=S.scenes.filter(x=>x.worldId!==w.id);S.worlds=S.worlds.filter(x=>x.id!==w.id);save();stack.length=0;go({v:"home"},true);};r.append(eb,db);body.append(r);
 }
 function download(name,data,type){
   if(window.matchMedia&&matchMedia("(pointer:coarse)").matches&&navigator.canShare&&window.File){try{const f=new File([data],name,{type:(type||"").split(";")[0]||"application/octet-stream"});if(navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(e=>{if(e&&e.name!=="AbortError")saveFile(name,data,type);});return;}}catch(e){}}
@@ -2907,7 +2910,7 @@ function renderScene(){
     const dir=el("button","btn sm","Подвести итоги сцены");dir.onclick=withBusy(dir,async()=>{const r=await directScene(x,true);if(!r){toast("Слишком мало новых сообщений.");return;}const ch=(r.chars||[]).flatMap(u=>(u.log||[]).map(l=>u.name+": "+l));showReport("Итоги сцены",{news:ch.length?ch:["Заметных перемен нет."],events:r.events});});aside.append(dir);
     x.charIds.map(C).filter(Boolean).forEach(c=>{const kv=el("div","kv");kv.append(el("b",null,c.name));kv.append(el("div","block",[c.state.mood,c.state.now,c.state.goals.length?"Цели: "+c.state.goals.join("; "):""].filter(Boolean).join("\n")||"—"));aside.append(kv);});
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=x.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{x.summary=su.value;save();};aside.append(su);
-    const nc=el("button","btn sm warn","Начать сцену заново");nc.onclick=()=>{if(!confirm("Стереть переписку сцены?"))return;x.history=[];x.summary="";x.sumIdx=0;x.dirIdx=0;save();render();};aside.append(nc);}
+    if(x.main){const sd=el("button","btn sm","⇣ Скачать чат (только историю)");sd.onclick=()=>downloadStory(w);const sl=el("button","btn sm","⇡ Загрузить чат в историю");sl.onclick=()=>pickFile(f=>importFile(f,w.id));aside.append(sd,sl);}const nc=el("button","btn sm warn","Начать сцену заново");nc.onclick=()=>{if(!confirm("Стереть переписку сцены?"))return;x.history=[];x.summary="";x.sumIdx=0;x.dirIdx=0;save();render();};aside.append(nc);}
   async function run(){busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
     if(x.main){const lu=[...x.history].reverse().find(m=>m.role==="user");const ad=autoCast(x,lu&&lu.content,false);if(ad.length)toast("Рядом: "+ad.join(", "));}
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
