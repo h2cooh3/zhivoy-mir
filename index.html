@@ -1621,7 +1621,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-anchors.json",patchId:"south-anchors",names:[],title:"Опорные события",desc:"Три события, без которых история не склеится (ночь шторма, Фрейя приходит в себя, правда о хуторе): рассказчик ведёт к ним мягко, но настойчиво."},
   {file:"presets/addons/south-fight.json",patchId:"south-fight",names:[],title:"Уилл и драка",desc:"Уилл не воин, но и не слабак: исход драки зависит от противника — стражника с мечом не одолеть, соседа-старика одолеет, но и такая победа стоит дорого."},
   {file:"presets/addons/south-freya-freeze.json",patchId:"south-freya-freeze",names:[],title:"Фрейя: голос растёт вместе с ней",desc:"Фрейя грамотна, но запугана: сначала говорит немного и связно, с каждой ступенью свободнее; а в панике и когда решается возразить — замирает, и речь рвётся на обрывки."},
-  {file:"presets/addons/south-freya-tales.json",patchId:"south-freya-tales",names:[],title:"Фрейя и Лив: сказки по ночам",desc:"У писца Фрейя по ночам шёпотом читала Лив сказки из его книг — лучшее время в жизни обеих."}]};
+  {file:"presets/addons/south-freya-tales.json",patchId:"south-freya-tales",names:[],title:"Фрейя и Лив: сказки по ночам",desc:"У писца Фрейя по ночам шёпотом читала Лив сказки из его книг — лучшее время в жизни обеих."},
+  {file:"presets/addons/south-freya-ya.json",patchId:"south-freya-ya",names:[],title:"Фрейя и слово «я»",desc:"«Я» — запрет рабыни, а не бедность языка: она обходит его грамотно, безличными оборотами; со свободой говорит всё яснее и смелее."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
