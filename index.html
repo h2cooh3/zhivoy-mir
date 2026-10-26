@@ -529,6 +529,10 @@ function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мир�
         const del=el("button","btn sm ghost","✕");del.title="Удалить запись";del.onclick=()=>{if(confirm("Удалить запись?")){st.ears=st.ears.filter(z=>z!==e);touch();}};row.append(del);
         it.append(row);});
       if(!st.ears.length)box.append(el("div","note","Пока пусто. Записи появятся сами, когда в истории случится что-то важное."));}
+    // память истории
+    {const ms=mainStoryOf(w);if(ms){box.append(el("h3",null,"Память истории"));const row=el("div","row");row.style.cssText="align-items:center;gap:6px;flex-wrap:wrap";const t=el("span","note","Хроника: "+(ms.summary||"").length+" знаков, сжато сообщений: "+(ms.sumIdx||0)+" из "+ms.history.length+".");t.style.flex="1 1 200px";
+      const b2=el("button","btn sm ghost warn","↻ Собрать хронику заново");b2.onclick=async()=>{if(busy)return;if(!confirm("Хроника будет написана заново по всей переписке (сама переписка остаётся). Это один долгий запрос к дешёвой модели. Продолжить?"))return;ms.summary="";ms.sumIdx=0;b2.disabled=true;toast("Собираю хронику…");try{ms.sumIdx=0;const ok=await compressHistory(ms,"Рассказчик",w,true);w.updated=Date.now();ms.updated=Date.now();save();toast(ok?"Хроника собрана заново.":"Не вышло, попробуй позже.");}catch(e){toast("Не вышло: "+friendly(e),true);}draw();};
+      row.append(t,b2);box.append(row);}}
     // самочувствие
     {const row=el("div","row");row.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";box.append(el("h3",null,"Самочувствие"));const t=el("span","note","Усталость: "+(+st.tired||0)+"/10 · "+tiredWord(st.tired)+((st.sleepless||0)>0?" · без нормального сна ночей: "+st.sleepless:""));t.style.flex="1 1 200px";
       const mk=(l,f)=>{const b2=el("button","btn sm ghost",l);b2.onclick=()=>{f();w.updated=Date.now();save();draw();};return b2;};
@@ -1732,7 +1736,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-will-ships.json",patchId:"south-will-ships",names:[],title:"Уилл и корабли",desc:"Уилла всегда тянуло строить корабли — не мечта вслух, но близко к ней."},
   {file:"presets/addons/south-novyi-baron.json",patchId:"south-novyi-baron",names:[],title:"Финал «Новый барон»",desc:"Если Уилл донесёт правду о мысе до судьи через мастера Эзру — барон падает, Эзра становится новым бароном, Фрейя получает вольную, Уилл — главный мастер верфи. Тихая цена — правда о хуторе."},
   {file:"presets/addons/south-edwin-voice.json",patchId:"south-edwin-voice",names:[],title:"Голос Эдвина: живой, без «коротко»",desc:"Из карточки Эдвина убраны «короткие фразы, одной строкой» и заезженные реплики про дружбу — модель твердила их по кругу. Вместо этого описано, как он строит речь, и дано много разных образцов по ситуациям."},
-  {file:"presets/addons/south-edwin-voice-2.json",patchId:"south-edwin-voice-2",names:[],title:"Эдвин отвечает по существу",desc:"Убрано «молча суёт в руки дело» и «о важном молчит» — модель понимала это как «отвечай парой слов». Теперь он говорит окольно, но всегда отвечает."}]};
+  {file:"presets/addons/south-edwin-voice-2.json",patchId:"south-edwin-voice-2",names:[],title:"Эдвин отвечает по существу",desc:"Убрано «молча суёт в руки дело» и «о важном молчит» — модель понимала это как «отвечай парой слов». Теперь он говорит окольно, но всегда отвечает."},
+  {file:"presets/addons/south-edwin-voice-3.json",patchId:"south-edwin-voice-3",names:[],title:"Эдвин: без заезженных фраз",desc:"Из образцов речи и примеров убраны сельдь/чайки, «три года», пирог и «друг ты мне или нет» в приветствии — модель копировала их в каждую сцену. Добавлено: не повторять слова собеседника."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -2892,6 +2897,7 @@ function renderChat(){
     aside.append(el("p","note","Новый разговор начинается с чистого листа, но персонаж остаётся тем же: память, состояние и доверие общие для всех разговоров. При создании можно выбрать «Новый мир с нуля» — там никто ничего не помнит."));
   }
   async function run(){
+    {const pl=c.history[c.history.length-1];if(pl&&pl.role==="assistant"&&pl.partial)c.history.pop();}
     busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
     try{
       const liveLen=c.history.slice(c.sumIdx).reduce((n,m)=>n+m.content.length,0);
@@ -2903,7 +2909,7 @@ function renderChat(){
       let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});text=await antiLoop(base,text,c.history,t=>{live=t;liveText(log,t);});{const lu=[...c.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
       {const ad=autoGuests(c,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}shownOf(w)[c.id]=true;
-    }catch(e){if(live)c.history.push({role:"assistant",content:live});lastErr=friendly(e);}
+    }catch(e){if(live)c.history.push({role:"assistant",content:live,partial:true});lastErr=friendly(e);}
     finally{busy=false;ctl=null;c.updated=Date.now();{const ac=c.chats.find(x=>x.id===c.activeChat);if(ac)ac.updated=Date.now();}save();drawLog();toast(usageStr(lastUsage));}
     if(c.history.length-c.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{const r=await directChar(c);if(r)toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));drawAside();drawLog();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     storyAfter(w,c.history);
@@ -2917,7 +2923,7 @@ function renderChat(){
   ta.addEventListener("focus",()=>{if(watch.on){stopWatch(false);toast("Просмотр остановлен — твой ход.");}});
   function nextTurn(){if(busy||ta.value.trim())return;drawWatch();ta.value="⏩";sendMsg();}
   function toggleWatch(){if(watch.on){stopWatch(true);return;}watch.on=true;watch.left=WATCH_MAX;drawWatch();if(busy){drawLog();return;}watch.left--;nextTurn();}
-  async function contReply(){if(busy)return;const l=c.history[c.history.length-1];if(!l||l.role!=="assistant")return;
+  async function contReply(){if(busy)return;const l=c.history[c.history.length-1];if(!l||l.role!=="assistant")return;delete l.partial;
     busy=true;lastErr="";ctl=new AbortController();drawLog("");
     try{const pre=normalize(c.history.slice(c.sumIdx));const merged=pre.pop().content;const lastUser=[...pre].reverse().find(m=>m.role==="user");const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:pre,signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:Math.max(K().maxtok,2000)};
       const tmp=[{role:"assistant",content:merged}];
@@ -2972,7 +2978,7 @@ function renderScene(){
   ta.addEventListener("focus",()=>{if(watch.on){stopWatch(false);toast("Просмотр остановлен — твой ход.");}});
   function nextTurn(){if(busy||ta.value.trim())return;drawWatch();ta.value="⏩";sendMsg();}
   function toggleWatch(){if(watch.on){stopWatch(true);return;}watch.on=true;watch.left=WATCH_MAX;drawWatch();if(busy){drawLog();return;}watch.left--;nextTurn();}
-  async function contScene(){if(busy)return;const l=x.history[x.history.length-1];if(!l||l.role!=="assistant")return;
+  async function contScene(){if(busy)return;const l=x.history[x.history.length-1];if(!l||l.role!=="assistant")return;delete l.partial;
     busy=true;lastErr="";ctl=new AbortController();drawLog("");
     try{const pre=normalize(x.history.slice(x.sumIdx));const merged=pre.pop().content;const msgs=pre;const lm=msgs[msgs.length-1];if(!msgs.length||lm.role!=="user")msgs.push({role:"user",content:(x.noHero?"[Продолжай сцену. Героя здесь нет.]":"[Герой молчит и наблюдает. Продолжай сцену.]")});
       const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,signal:ctl.signal,maxTokens:Math.max(K().maxtok,2000),purpose:"scene",cacheMsgs:true};
@@ -2991,14 +2997,14 @@ function renderScene(){
     x.charIds.map(C).filter(Boolean).forEach(c=>{const kv=el("div","kv");kv.append(el("b",null,c.name));kv.append(el("div","block",[c.state.mood,c.state.now,c.state.goals.length?"Цели: "+c.state.goals.join("; "):""].filter(Boolean).join("\n")||"—"));aside.append(kv);});
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=x.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{x.summary=su.value;save();};aside.append(su);
     if(x.main){const sd=el("button","btn sm","⇣ Скачать чат (только историю)");sd.onclick=()=>downloadStory(w);const sl=el("button","btn sm","⇡ Загрузить чат в историю");sl.onclick=()=>pickFile(f=>importFile(f,w.id));aside.append(sd,sl);}const nc=el("button","btn sm warn","Начать сцену заново");nc.onclick=()=>{if(!confirm("Стереть переписку сцены?"))return;x.history=[];x.summary="";x.sumIdx=0;x.dirIdx=0;save();render();};aside.append(nc);}
-  async function run(){busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
+  async function run(){{const pl=x.history[x.history.length-1];if(pl&&pl.role==="assistant"&&pl.partial){x.history.pop();if(x.sumIdx>x.history.length)x.sumIdx=x.history.length;if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;}}busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
     if(x.main){const lu=[...x.history].reverse().find(m=>m.role==="user");const ad=autoCast(x,lu&&lu.content,false);if(ad.length)toast("Рядом: "+ad.join(", "));}
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=mergeRoles(x.history.slice(x.sumIdx));const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?(x.noHero?"[Продолжай сцену. Героя здесь нет.]":"[Герой молчит и наблюдает. Продолжай сцену.]"):(x.prologue?"[Пролог уже прочитан игроком. Продолжай историю с того места, где он оборвался.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]")});
       const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:replyTokens(),purpose:"scene",cacheMsgs:true};
       let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});text=await antiLoop(base,text,x.history,t=>{live=t;liveText(log,t);});{const lu=[...x.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}x.history.push({role:"assistant",content:text.trim()});if(x.main){const ad=autoCast(x,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}cueTick(w,x);if(x.drama)x.drama.cue="";}
-    catch(e){if(live)x.history.push({role:"assistant",content:live});lastErr=friendly(e);}
+    catch(e){if(live)x.history.push({role:"assistant",content:live,partial:true});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     storyAfter(w,x.history);
