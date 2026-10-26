@@ -484,7 +484,7 @@ const HERALDRY={"Южное побережье":[
 const crestsOf=w=>w?(HERALDRY[tplOf(w)]||[]):[];
 const crestSrc=c=>"presets/heraldry/"+c.id+".svg";
 // названия и расположение мест вокруг деревни — один раз дописываем в лор мира
-const LOCAL_PLACES={"Южное побережье":"ОКРЕСТНОСТИ СОЛТХЭМА: двор Уилла — на отшибе, на самом западном краю деревни у Тихого ручья: дом, мастерская с водяным колесом, сеновал, загон с двумя коровами и конём; сюда редко кто заглядывает. Выше двора, к полям, — двор Лиз и Пипа с овечьим загоном. Ниже, у берега, — Рыбацкая бухта: дом Эдвина и Бесс, лодки, сети на шестах. От двора Уилла до площади с рынком — минут десять пешком мимо часовни Морской Матери и кладбища. В самой деревне: рынок с колодцем, лавка Марты у рынка, «Якорь» у берега, пристань. Чёрные скалы — в море к западу от Рыбацкой бухты."};
+const LOCAL_PLACES={"Южное побережье":"ОКРЕСТНОСТИ СОЛТХЭМА: двор Уилла — на отшибе, на самом западном краю деревни у Тихого ручья: дом, мастерская с водяным колесом, сеновал, загон с двумя коровами и конём; сюда редко кто заглядывает. Выше двора, к полям, — двор Норы и Пипа с овечьим загоном. Ниже, у берега, — Рыбацкая бухта: дом Эдвина и Бесс, лодки, сети на шестах. От двора Уилла до площади с рынком — минут десять пешком мимо часовни Морской Матери и кладбища. В самой деревне: рынок с колодцем, лавка Марты у рынка, «Якорь» у берега, пристань. Чёрные скалы — в море к западу от Рыбацкой бухты."};
 const NATURE={"Южное побережье":"ПРИРОДА: это южный берег — дубовые и буковые рощи, кипарисы у часовни, на кладбище и вдоль дорог, виноградники к востоку от деревни, масличная роща у дороги к Вороньей крепости, светлые каменные дома под красной черепицей (у бедных дворов — солома). Ели — редкость, только в глубине Глухолесья. Летом жарко и сухо, трава выгорает; шторма приходят с северного моря."};
 function ensureLocalPlaces(w){let ch=false;const b=tplOf(w);const t=LOCAL_PLACES[b];if(t&&!(w.places||"").includes("ОКРЕСТНОСТИ СОЛТХЭМА")){w.places=((w.places||"").trim()+"\n"+t).trim();ch=true;}
   const n=NATURE[b];if(n&&!(w.places||"").includes("ПРИРОДА: это южный берег")){w.places=((w.places||"").trim()+"\n"+n).trim();ch=true;}return ch;}
@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=278;
+const APP_VER=279;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1695,6 +1695,24 @@ function enzoStr(t){if(typeof t!=="string"||!EZRA_RX.test(t))return t;let r=t;EZ
   return r.replace(/(^|[\s(«])о Эзре/g,"$1об Эзре");}
 function enzoDeep(o,skip){if(typeof o==="string")return enzoStr(o);if(Array.isArray(o)){for(let i=0;i<o.length;i++)o[i]=enzoDeep(o[i],skip);return o;}
   if(o&&typeof o==="object"){for(const k of Object.keys(o)){if(skip&&skip.includes(k))continue;const nk=enzoStr(k);const v=enzoDeep(o[k],skip);if(nk!==k){delete o[k];if(!(nk in o))o[nk]=v;}else o[k]=v;}}return o;}
+// смена имён персонажей в мире (дополнение с полем nameSwap): pre — точные замены до общей, swap — [[старое имя, новое имя, склонять?]], post — точные поправки после
+const NORA_CASES={nom:"Нора",gen:"Норы",dat:"Норе",acc:"Нору",ins:"Норой",prep:"Норе"};
+function nameCaseGuess(prev){const t=prev.slice(-60);if(!t.trim()||/["«(\n:—–]\s*$/.test(t)||/[.!?,;]\s*$/.test(t))return"nom";const m=t.match(/([А-Яа-яЁё]+)[^А-Яа-яЁё]*$/);if(!m)return"nom";const w=m[1].toLowerCase();
+  const P={gen:["у","от","до","из","без","для","около","возле","мимо","кроме","ради","вместо","напротив","после","среди","вокруг","изо","ото","против"],dat:["к","ко","по","благодаря"],prep:["о","об","обо","при"],ins:["с","со","над","под","между","перед","за"],acc:["про","через","на","в","во"],nom:["и","или","а","но","как","что","это","чем","тоже","даже"]};
+  for(const k in P)if(P[k].includes(w))return k;
+  if(/^(котор|кто|ночью|утром|вечером|днём|днем|осенью|весной|летом|зимой|потом|тогда|сейчас|теперь|уже|ещё|еще|сама|сам|сразу|опять|снова|вдруг|только|лишь)/.test(w)||/(ая|яя|ый|ий|ое|ее|ом|ем|ью|ами|ями)$/.test(w))return"nom";
+  if(/(ет|ит|ёт|ут|ют|ат|ят|ал|ала|ил|ила|ел|ела|ял|яла|ать|ить|еть|ять|ешь|ишь|ли|ло|ся|сь|ем|им|ует|ует)$/.test(w))return /^(рассказ|помог|отда|дал|даст|сказ|говор|обещ|плат|отлож|верн|прин[её]с|нес|пиш|писа|отвеч|долж|нрав|звон|улыб|кив|меш|завид|достал|выпал|прод|сдал|сда[её]т|сочувств|служ|подар)/.test(w)?"dat":"acc";
+  return"gen";}
+function nameSwapText(s,ns){if(typeof s!=="string"||!s)return s;const keep=[];const hold=x=>{keep.push(x);return"\u0002"+(keep.length-1)+"\u0002";};
+  (ns.pre||[]).forEach(([a,b])=>{if(a&&s.includes(a))s=s.split(a).join(hold(b));});
+  const sw=ns.swap||[];if(sw.length){const alt=sw.map(x=>x[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+(x[3]||"")).join("|");const rx=new RegExp("(^|[^А-Яа-яЁё])("+alt+")(?![А-Яа-яЁё])","g");
+    s=s.replace(rx,(all,pre,tok,off,str)=>{const it=sw.find(x=>new RegExp("^(?:"+x[0]+(x[3]||"")+")$").test(tok));if(!it)return all;let to=it[1];if(it[2]){const c=nameCaseGuess(str.slice(0,off)+pre);to=NORA_CASES[c]||to;}return pre+hold(to);});}
+  s=s.replace(/\u0002(\d+)\u0002/g,(_,i)=>keep[+i]);(ns.post||[]).forEach(([a,b])=>{if(a&&s.includes(a))s=s.split(a).join(b);});return s;}
+function nameSwapDeep(o,ns,skip){if(typeof o==="string")return nameSwapText(o,ns);if(Array.isArray(o))return o.map(x=>nameSwapDeep(x,ns,skip));if(o&&typeof o==="object"){const r={};Object.keys(o).forEach(k=>{const nk=skip.includes(k)?k:nameSwapText(k,ns);r[nk]=skip.includes(k)?o[k]:nameSwapDeep(o[k],ns,skip);});return r;}return o;}
+function nameSwapWorld(tw,ns){const SK=["photos","avatar","img","id","worldId","heroId","activeChat","patches"];const cs=charsOf(tw.id);
+  Object.keys(tw).forEach(k=>{if(!SK.includes(k)&&k!=="know")tw[k]=nameSwapDeep(tw[k],ns,SK);});
+  cs.forEach(c=>{Object.keys(c).forEach(k=>{if(SK.includes(k)||typeof c[k]==="function")return;try{const d=Object.getOwnPropertyDescriptor(c,k);if(d&&(d.get||d.set))return;}catch(e){}c[k]=nameSwapDeep(c[k],ns,SK);});c.updated=Date.now();try{wireChar(c);}catch(e){}});
+  S.scenes.filter(x=>x.worldId===tw.id).forEach(x=>{Object.keys(x).forEach(k=>{if(!SK.includes(k))x[k]=nameSwapDeep(x[k],ns,SK);});x.updated=Date.now();});tw.updated=Date.now();}
 function fixEnzo(){let ch=false;const SK=["photos","avatar","img"];try{S.worlds.forEach(w=>{if(tplOf(w)!=="Южное побережье")return;
   const has=o=>{try{return EZRA_RX.test(JSON.stringify(o,(k,v)=>SK.includes(k)?undefined:v));}catch(e){return false;}};
   if(has(w)){enzoDeep(w,SK.concat(["know"]));w.updated=Date.now();ch=true;}
@@ -1776,7 +1794,9 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-elinor-8.json",patchId:"south-elinor-8",names:[],title:"Нора и Уилл — партнёры",desc:"Элинор продаёт на рынке всё, что делает Уилл (не только ложки), и отдаёт ему половину прибыли — так у неё есть честный повод быть рядом. В деньгах истории: доля Уилла ≈0,5–1 серебра в неделю."},
   {file:"presets/addons/south-elinor-9.json",patchId:"south-elinor-9",names:[],title:"Уилл понимает Нору",desc:"Уилл не слепой: понимает, что Элинор к нему неравнодушна, но внутри пуст и не готов — не отвечает и не отталкивает."},
   {file:"presets/addons/south-witness.json",patchId:"south-witness",names:[],title:"Почему жену Уилла оставили в живых",desc:"Налётчики сочли её мёртвой; узнав, что жива, барон послал Брама — тот слышал её бред и доложил «не жилец». Ответ: «не искать»."},
-  {file:"presets/addons/south-hutor-truth.json",patchId:"south-hutor-truth",names:[],title:"Правда о хуторе: телега и служанка Эзры",desc:"Жена Уилла спрятала беглую впервые. Уилл в ту ночь спрятался в кустах и видел на телеге плачущую северянку — светлые волосы со спины, рабская рубаха (это и цепляет его во Фрейе). Северянку спас Эзра: заплатил возчикам, чтобы доложили барону «сгорела», и держит её служанкой — свою улику против барона. Квесты «Дверь у Трёх Ясеней», «Чужой след», «Недовес» поправлены."}]};
+  {file:"presets/addons/south-hutor-truth.json",patchId:"south-hutor-truth",names:[],title:"Правда о хуторе: телега и служанка Эзры",desc:"Жена Уилла спрятала беглую впервые. Уилл в ту ночь спрятался в кустах и видел на телеге плачущую северянку — светлые волосы со спины, рабская рубаха (это и цепляет его во Фрейе). Северянку спас Эзра: заплатил возчикам, чтобы доложили барону «сгорела», и держит её служанкой — свою улику против барона. Квесты «Дверь у Трёх Ясеней», «Чужой след», «Недовес» поправлены."},
+  {file:"presets/addons/south-liz-hair.json",patchId:"south-liz-hair",names:[],title:"Пастушка без седины",desc:"У матери Пипа убрана ранняя седая прядь."},
+  {file:"presets/addons/south-names-swap.json",patchId:"south-names-swap",names:[],title:"Имена: дочь мельника — Лиз, пастушка — Нора",desc:"Дочь мельника теперь Лиз (полное имя Элизабет), мать Пипа — Нора (Элинор Хоуп). Имена меняются во всём мире: карточки, связи, сюжет, разговоры. Ставить последним."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -1796,7 +1816,7 @@ async function autoBuildCheck(){let id="";try{id=localStorage.getItem("zm:autobu
   try{fixAll();}catch(e){}toast("Приложение обновлено. Достраиваю мир…");await applyAllAddons(w,null);try{go({v:"world",id:w.id});}catch(e){}}
 const addonsLeft=missingAddons;
 // порядок персонажей по значимости для сюжета: герой первым, дальше по списку, неизвестные в конце
-const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Эзра", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Элинор", "Мельник Уолтер", "Ханна", "Лиз", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
+const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Эзра", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Лиз", "Мельник Уолтер", "Ханна", "Нора", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
 const byPlot=(w,cs)=>{const r=CHAR_RANK[tplOf(w)]||[];const k=c=>c.id===w.heroId?-1:(r.indexOf(c.name)<0?999:r.indexOf(c.name));return cs.slice().sort((a,b)=>k(a)-k(b)||(b.updated||0)-(a.updated||0));};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 const tplOf=w=>(w&&w.tpl)||baseWorldName(w&&w.name);
@@ -1917,6 +1937,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
   toast("Добавлено: миров "+worlds.length+", персонажей "+chars.length+".");
   // дополнение к миру: новые правила (лор) и новые связи у уже существующих персонажей
   {const tw=dest&&W(dest);if(tw&&!worlds.length){let add=0;
+    if(d.nameSwap&&typeof d.nameSwap==="object")nameSwapWorld(tw,d.nameSwap);
     if(Array.isArray(d.worldReplace)){d.worldReplace.forEach(([a,b])=>{if(!a)return;["places","rules","desc"].forEach(k=>{if(typeof tw[k]==="string"&&tw[k].includes(a)){tw[k]=tw[k].split(a).join(b||"");add++;}});[[tw.hero,"desc"],[tw.story,"opening"]].forEach(([o,k])=>{if(o&&typeof o[k]==="string"&&o[k].includes(a)){o[k]=o[k].split(a).join(b||"");add++;}});});}
     if(d.worldRulesSection&&typeof d.worldRulesSection.text==="string"){const cs=d.worldRulesSection;let r=tw.rules||"";let done=false;(cs.markers||[]).forEach(mk=>{if(done)return;const i=r.indexOf(mk);if(i<0)return;let j=r.indexOf("\n\n",i);if(j<0)j=r.length;r=r.slice(0,i)+cs.text.trim()+r.slice(j);done=true;});if(!done)r=(r.trim()+"\n\n"+cs.text.trim()).trim();tw.rules=r.replace(/\n{3,}/g,"\n\n");add++;}
     if(typeof d.worldRulesAdd==="string"&&d.worldRulesAdd.trim()&&!(tw.rules||"").includes(d.worldRulesAdd.trim().slice(0,60))){tw.rules=((tw.rules||"").trim()+"\n\n"+d.worldRulesAdd.trim()).trim();add++;}

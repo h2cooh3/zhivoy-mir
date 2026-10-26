@@ -1,0 +1,21 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "charPatch": {
+  "Лиз": {
+   "coreReplace": [
+    [
+     "с обветренным лицом и рано поседевшей прядью у виска.",
+     "с обветренным лицом."
+    ]
+   ],
+   "look": "Женщина тридцати одного года, от ветра и работы выглядит старше: высокая, худая, жилистая, с прямой спиной и длинной шеей. Лицо узкое, обветренное, с резкими скулами, тонкими сухими губами и морщинками у глаз; кожа загорелая и шершавая. Рыжие волосы туго убраны под выцветший льняной платок, у виска выбилась рыжая прядь. Глаза светло-карие, смотрят прямо и долго, без улыбки; улыбается она редко и одним углом рта. Руки крупные, в мозолях от прялки и овечьих ножниц, ногти коротко обрезаны. Одета в простое некрашеное шерстяное платье с подоткнутым подолом, поверх — грубый фартук, на плечах тёмная шерстяная накидка; на поясе ножницы для стрижки овец и холщовый мешочек. Деревянные башмаки в земле. В руке пастуший посох, через плечо моток серой пряжи. Стоит у плетёного загона на ветру, чуть повернув голову, будто прислушивается. Фон — овцы, низкий дом под соломой, ячменное поле до самого леса, выгоревшее летнее небо, ровный тёплый свет.",
+   "lookEn": "portrait of a 31-year-old peasant woman shepherd, tall thin wiry build, straight back, narrow weathered face with sharp cheekbones, thin dry lips, fine wrinkles, red hair tightly bound under a faded linen kerchief, one loose red strand at the temple, light brown eyes with a long direct unsmiling gaze, large calloused hands, undyed grey sheep's wool dress with tucked hem, coarse apron, dark wool shawl, shears and pouch at belt, wooden clogs, shepherd's crook, skein of grey yarn over shoulder, standing by a wattle sheep pen, sheep, low thatched cottage, barley field and forest, bleached late-summer sky, warm even light, painterly realistic, muted colors, late medieval southern coastal village, whitewashed stone and red tile roofs, cypresses, cinematic"
+  }
+ },
+ "storyPatch": {
+  "id": "south-liz-hair",
+  "forTitle": "Южное побережье"
+ }
+}
