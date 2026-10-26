@@ -532,7 +532,8 @@ function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мир�
     // память истории
     {const ms=mainStoryOf(w);if(ms){box.append(el("h3",null,"Память истории"));const row=el("div","row");row.style.cssText="align-items:center;gap:6px;flex-wrap:wrap";const t=el("span","note","Хроника: "+(ms.summary||"").length+" знаков, сжато сообщений: "+(ms.sumIdx||0)+" из "+ms.history.length+".");t.style.flex="1 1 200px";
       const b2=el("button","btn sm ghost warn","↻ Собрать хронику заново");b2.onclick=async()=>{if(busy)return;if(!confirm("Хроника будет дополнена и перечитана по всей переписке кусками по 40 сообщений (старая хроника остаётся основой, переписка не меняется). Это несколько запросов к дешёвой модели. Продолжить?"))return;b2.disabled=true;toast("Собираю хронику…");try{const seed=ms.summary,seedIdx=ms.sumIdx;ms.sumIdx=0;let ok=true,guard=0;while(ok&&guard++<12){const before=ms.sumIdx;ok=await compressHistory(ms,"Рассказчик",w,true,40);if(!ok||ms.sumIdx<=before)break;toast("Хроника: "+ms.sumIdx+" из "+ms.history.length);if(ms.sumIdx>=ms.history.length-K().keep)break;}if(!ms.summary.trim()){ms.summary=seed;ms.sumIdx=seedIdx;}w.updated=Date.now();ms.updated=Date.now();save();toast("Хроника пересобрана.");}catch(e){toast("Не вышло: "+friendly(e),true);}draw();};
-      row.append(t,b2);box.append(row);}}
+      const b3=el("button","btn sm ghost","＋ Добавить обещания и сделанное");b3.onclick=()=>{const n=chronJournal(ms,w);w.updated=Date.now();ms.updated=Date.now();save();toast(n?"Добавил в хронику ("+n+" знаков).":"В журнале пока нечего добавлять.");draw();};
+      row.append(t,b3,b2);box.append(row);}}
     // самочувствие
     {const row=el("div","row");row.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";box.append(el("h3",null,"Самочувствие"));const t=el("span","note","Усталость: "+(+st.tired||0)+"/10 · "+tiredWord(st.tired)+((st.sleepless||0)>0?" · без нормального сна ночей: "+st.sleepless:""));t.style.flex="1 1 200px";
       const mk=(l,f)=>{const b2=el("button","btn sm ghost",l);b2.onclick=()=>{f();w.updated=Date.now();save();draw();};return b2;};
@@ -1439,10 +1440,19 @@ async function condenseFacts(c){
   const prompt=`Вот список фактов, которые помнит персонаж «${c.name}». Уплотни его: объедини повторы и близкое, убери мелочь, сохрани имена, обещания, секреты, даты, предметы и всё, что может выстрелить в сюжете. Факты идут по времени, последние — в конце: если два факта противоречат друг другу (например, «лодка сломана» и «лодка починена»), оставь только поздний, актуальный. Верни не больше ${lim} пунктов.\n\n${c.facts.map(f=>"- "+f).join("\n")}\n\nВерни JSON: {"facts":["..."]}`;
   const r=await askJSON(prompt,2000,"memory");if(Array.isArray(r.facts)&&r.facts.length){c.facts=r.facts.map(String);save();return true;}return false;
 }
+const JR_RE=/\n*=== ЖУРНАЛ[\s\S]*?=== \/ЖУРНАЛ ===\n*/;
+function journalBlock(w){const st=storyOf(w);if(!st)return "";const L=[];const ps=promList(st);
+  const act=ps.filter(p=>p.state==="active"),dn=ps.filter(p=>p.state!=="active");
+  if(act.length)L.push("ОБЕЩАНИЯ (ждут):\n"+act.map(p=>"- "+p.who+": "+p.what+(p.until?" (срок: "+p.until+")":"")).join("\n"));
+  if(dn.length)L.push("СДЕЛАНО И ЗАКРЫТО:\n"+dn.map(p=>"- "+(p.state==="done"?"✓ сдержано":p.state==="failed"?"✗ не сдержано":"снято")+": "+p.who+": "+p.what+(p.dayEnd?" ("+p.dayEnd+"-й день)":"")+(p.how?" · "+p.how:"")).join("\n"));
+  const qs=st.questState||{};const dq=(st.quests||[]).filter(q=>qs[q.id]==="done");
+  if(dq.length)L.push("ЗАВЕРШЁННЫЕ ИСТОРИИ:\n"+dq.map(q=>"- "+(q.title||q.name||q.id)).join("\n"));
+  return L.length?"\n\n=== ЖУРНАЛ (из раздела 📖, обновляется само) ===\n"+L.join("\n\n")+"\n=== /ЖУРНАЛ ===":"";}
+function chronJournal(ms,w){const base=(ms.summary||"").replace(JR_RE,"").trim();ms.summary=base+journalBlock(w);return ms.summary.length-base.length;}
 async function compressHistory(obj,who,w,force,cap){
   const KEEP=K().keep;let end=obj.history.length-KEEP;if(cap&&end>obj.sumIdx+cap)end=obj.sumIdx+cap;if(end<=obj.sumIdx){if(force)toast("Сжимать пока нечего.");return false;}
   const prompt=`Ты ведёшь хронику длинного разговора/сцены, чтобы ничего не забылось.
-Текущее краткое содержание: ${obj.summary.trim()||"(пусто)"}
+Текущее краткое содержание: ${obj.summary.replace(JR_RE,"").trim()||"(пусто)"}
 ${(()=>{const st=obj.main&&w?storyOf(w):null;const ps=st&&Array.isArray(st.promises)?st.promises:[];return ps.length?"Журнал обещаний (обязательно сохрани в разделе ОБЕЩАНИЯ И ДОЛГИ, с отметкой сделано/не сделано):\n"+ps.map(p=>"- день "+(p.day||"?")+": "+(p.who||"")+" — "+(p.what||"")+" ["+(p.state||"active")+"]").join("\n")+"\n":"";})()}Новый фрагмент:
 ${transcript(obj.history.slice(obj.sumIdx,end),w,who)}
 Напиши обновлённое краткое содержание всего (старое + новое). НЕ выбрасывай старые пункты ради краткости: старое можно сжимать, но не терять. Структура:
@@ -1453,7 +1463,7 @@ ${transcript(obj.history.slice(obj.sumIdx,end),w,who)}
 НЕЗАКРЫТОЕ — что осталось недоговорённым и ждёт ответа.
 Итог — не длиннее 6000 знаков: самое старое сжимай сильнее (одна строка на событие, закрытое и неважное можно выбросить), свежее держи подробно; обещания, долги и «кто что знает» не сжимай до потери смысла. Если новое противоречит старому, оставь новое и пометь, что изменилось. Имена, числа, предметы и сказанные слова важнее описаний погоды и жестов. Пунктами, на языке разговора. Только текст содержания.`;
   const t=await callModel({msgs:[{role:"user",content:prompt}],maxTokens:4500,cheap:true,signal:ctl&&ctl.signal,purpose:"memory"});
-  if(t.trim()){obj.summary=t.trim();obj.sumIdx=end;save();}return true;
+  if(t.trim()){obj.summary=t.trim();obj.sumIdx=end;if(obj.main&&w)chronJournal(obj,w);save();}return true;
 }
 async function writeChapter(w,opts){
   const src=[];if(opts.events)src.push("СОБЫТИЯ МИРА:\n"+w.events.slice(-opts.events).map(e=>"- "+(e.date?e.date+": ":"")+e.text+(e.public?"":" (скрыто от героя)")).join("\n"));
