@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=267;
+const APP_VER=268;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1765,7 +1765,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-novyi-baron.json",patchId:"south-novyi-baron",names:[],title:"Финал «Новый барон»",desc:"Если Уилл донесёт правду о мысе до судьи через мастера Эзру — барон падает, Эзра становится новым бароном, Фрейя получает вольную, Уилл — главный мастер верфи. Тихая цена — правда о хуторе."},
   {file:"presets/addons/south-edwin-voice.json",patchId:"south-edwin-voice",names:[],title:"Голос Эдвина: живой, без «коротко»",desc:"Из карточки Эдвина убраны «короткие фразы, одной строкой» и заезженные реплики про дружбу — модель твердила их по кругу. Вместо этого описано, как он строит речь, и дано много разных образцов по ситуациям."},
   {file:"presets/addons/south-edwin-voice-2.json",patchId:"south-edwin-voice-2",names:[],title:"Эдвин отвечает по существу",desc:"Убрано «молча суёт в руки дело» и «о важном молчит» — модель понимала это как «отвечай парой слов». Теперь он говорит окольно, но всегда отвечает."},
-  {file:"presets/addons/south-edwin-voice-3.json",patchId:"south-edwin-voice-3",names:[],title:"Эдвин: без заезженных фраз",desc:"Из образцов речи и примеров убраны сельдь/чайки, «три года», пирог и «друг ты мне или нет» в приветствии — модель копировала их в каждую сцену. Добавлено: не повторять слова собеседника."}]};
+  {file:"presets/addons/south-edwin-voice-3.json",patchId:"south-edwin-voice-3",names:[],title:"Эдвин: без заезженных фраз",desc:"Из образцов речи и примеров убраны сельдь/чайки, «три года», пирог и «друг ты мне или нет» в приветствии — модель копировала их в каждую сцену. Добавлено: не повторять слова собеседника."},
+  {file:"presets/addons/south-elinor-2.json",patchId:"south-elinor-2",names:["Мельник Уолтер"],title:"Элинор: дочь мельника, тайная любовь",desc:"Элинор теперь 24 года, дочь мельника Уолтера (новый персонаж), вдова дружинника Кенрика. Около двух лет тайно любит Уилла, боится сказать, ревнует к Фрейе. Обновлены её карточка, финалы, квест «Сито» и связи у Уилла, Эдвина, Бесс, Ханны, Лиз, Годрика."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -1785,7 +1786,7 @@ async function autoBuildCheck(){let id="";try{id=localStorage.getItem("zm:autobu
   try{fixAll();}catch(e){}toast("Приложение обновлено. Достраиваю мир…");await applyAllAddons(w,null);try{go({v:"world",id:w.id});}catch(e){}}
 const addonsLeft=missingAddons;
 // порядок персонажей по значимости для сюжета: герой первым, дальше по списку, неизвестные в конце
-const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Эзра", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Элинор", "Ханна", "Лиз", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
+const CHAR_RANK={"Южное побережье":["Фрейя", "Уилл", "Барон Освальд", "Мастер Эзра", "Эдвин", "Лив", "Бесс", "Капитан Торвальд", "Сэр Годрик Вэйн", "Сигурд Хват", "Сестра Агнесса", "Тобиас", "Брам", "Хёг", "Пип", "Старый Гарет", "Олдос", "Марта", "Элинор", "Мельник Уолтер", "Ханна", "Лиз", "Чингиз", "Нелл", "Том", "Мэг", "Энни"]};
 const byPlot=(w,cs)=>{const r=CHAR_RANK[tplOf(w)]||[];const k=c=>c.id===w.heroId?-1:(r.indexOf(c.name)<0?999:r.indexOf(c.name));return cs.slice().sort((a,b)=>k(a)-k(b)||(b.updated||0)-(a.updated||0));};
 const baseWorldName=n=>String(n||"").replace(/\s*·\s*линия\s*\d+$/,"");
 const tplOf=w=>(w&&w.tpl)||baseWorldName(w&&w.name);
