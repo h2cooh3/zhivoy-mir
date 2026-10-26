@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=317;
+const APP_VER=318;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1113,8 +1113,9 @@ function sbIn(c){const ch=ownOf(c);if(!ch||c._sbReal)return false;c._sbReal={};c
 function sbOut(c){if(!c._sbReal)return;const ch=c._sbChat;SB_KEYS.forEach(k=>{if(ch)ch.sb[k]=c[k];c[k]=c._sbReal[k];});delete c._sbReal;delete c._sbChat;}
 const SB_SETS=["Раннее утро","Завтрак","День, за работой","Вечер, ужин","Ночь, у огня","Глубокая ночь, все спят"];
 function sbRule(ch){return "ПРОБА (песочница автора для теста отношений): это отдельная пробная линия, не основная история; мир вокруг стоит, сюжетные события не случаются. ОБСТАНОВКА (её задаёт тестер, время сам не сдвигай): "+((ch.sb&&ch.sb.setting)||"не задана — обычный тихий день")+". Если тестер в сообщении сам меняет время или место (словами или в [скобках]) — принимай это как новую обстановку.";}
-function sbStatsEditor(c,ch){const st=ch.sb.state=ch.sb.state||{};const box=el("div");box.style.margin="6px 0";
-  const touch=()=>{ch.updated=Date.now();c.updated=Date.now();save();};
+function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=["like","trust","grudge","grudgeWhy","mood","now","stage"];const st={};KEYS.forEach(k=>{if(real[k]!==undefined)st[k]=real[k];});const box=el("div");box.style.margin="6px 0";
+  const ab=el("button","btn sm primary","✓ Применить");const cb=el("button","btn sm ghost","Отменить");const dirty=el("span","note","");
+  const touch=()=>{ab.disabled=false;cb.disabled=false;dirty.textContent="есть изменения — нажми «Применить»";};
   const row=(label,key,lo,hi,step)=>{const r=el("div","row");r.style.alignItems="center";r.style.gap="6px";r.style.margin="3px 0";const v=el("b");v.style.minWidth="38px";v.style.textAlign="center";const show=()=>{v.textContent=String(Math.round((+st[key]||0)*10)/10);};show();
     const mk=(t,d)=>{const b=el("button","btn sm ghost",t);b.onclick=()=>{st[key]=Math.max(lo,Math.min(hi,Math.round(((+st[key]||0)+d)*10)/10));show();touch();};return b;};
     const l=el("span",null,label);l.style.flex="1";r.append(l,mk("−",-step),v,mk("＋",step));return r;};
@@ -1122,6 +1123,10 @@ function sbStatsEditor(c,ch){const st=ch.sb.state=ch.sb.state||{};const box=el("
   const txt=(label,key,ph)=>{const lb=el("label");lb.append(document.createTextNode(label));const i=el("input");i.type="text";i.value=st[key]||"";i.placeholder=ph||"";i.oninput=()=>{st[key]=i.value;touch();};lb.append(i);return lb;};
   box.append(txt("Из-за чего обида","grudgeWhy",""),txt("Настроение","mood","например: насторожен, тёплый"),txt("Что сейчас (где, чем занят)","now",""));
   if(Array.isArray(c.stages)&&c.stages.length){const lb=el("label");lb.append(document.createTextNode("Ступень пути"));const se=el("select");c.stages.forEach((g,i)=>{const o=el("option",null,(i+1)+". "+g.name);o.value=i;se.append(o);});se.value=Math.max(0,Math.min(c.stages.length-1,parseInt(st.stage)||0));se.onchange=()=>{st.stage=parseInt(se.value)||0;touch();};lb.append(se);box.append(lb);}
+  ab.disabled=true;cb.disabled=true;
+  ab.onclick=()=>{KEYS.forEach(k=>{if(st[k]!==undefined)real[k]=st[k];});ch.updated=Date.now();c.updated=Date.now();save();ab.disabled=true;cb.disabled=true;dirty.textContent="";toast("✓ Применено: со следующего сообщения персонаж ведёт себя по новым показателям");};
+  cb.onclick=()=>{const p=box.parentNode;const nb=sbStatsEditor(c,ch);if(p)p.replaceChild(nb,box);};
+  const ar=el("div","row");ar.style.gap="8px";ar.style.alignItems="center";ar.style.marginTop="6px";ar.append(ab,cb,dirty);box.append(ar);
   return box;}
 function newSandbox(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));const n=c.chats.filter(x=>x.sandbox).length+1;const x={id:uid(),title:"🧪 Проба "+n,history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now(),sandbox:true,sb:{state:cl(c.state)||{},facts:cl(c.facts)||[],log:[],inertia:cl(c.inertia),setting:""}};c.chats.push(x);c.activeChat=x.id;save();return x;}
 function sbSetting(ch,done){const pick=v=>{ch.sb.setting=v;ch.updated=Date.now();save();toast("🕰 Обстановка: "+(v||"не задана"));if(done)done();};sheet([...SB_SETS.map(v=>[v,()=>pick(v)]),["Своё…",()=>{const v=prompt("Обстановка и время (например: «ночь, мастерская, гроза за окном»):",ch.sb.setting||"");if(v!==null)pick(v.trim());}]]);}
