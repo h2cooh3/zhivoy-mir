@@ -1,0 +1,21 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "charPatch": {
+  "Лиз": {
+   "coreReplace": [
+    [
+     "тёмные, почти чёрные волосы в косе под платком,",
+     "тёмные, почти чёрные волосы, собранные по-вдовьи в низкий узел на затылке под платком (кос не носит),"
+    ]
+   ],
+   "look": "Молодая женщина двадцати трёх лет, красивая брюнетка тонкой красотой: стройная, среднего роста, прямая спина, тонкая шея. Лицо нежное, овальное, высокие скулы, лёгкие веснушки, тёмные ровные брови, мягкие губы, серые внимательные глаза, взгляд робкий и умный, чуть исподлобья. Тёмные, почти чёрные волосы без косы: собраны в низкий тугой узел на затылке, по-вдовьи, и покрыты светлым льняным платком; у висков выбились мягкие пряди. Руки тонкие, но рабочие, на пальцах мучная пыль. Одета просто и опрятно: серо-голубое шерстяное платье, льняной передник, тёмная вдовья лента на поясе. В руках корзинка с деревянными ложками и мисками. Фон: деревянная водяная мельница на речке, мокрое колесо, мягкий вечерний свет.",
+   "lookEn": "portrait, young woman age twenty-three, beautiful brunette, quiet delicate beauty, slender, medium height, straight back, slim neck, soft oval face, high cheekbones, faint freckles, dark even eyebrows, soft lips, attentive grey eyes, shy intelligent glance, almost black hair worn without a braid, gathered in a low tight bun at the nape, widow-style, covered by a plain linen kerchief, soft loose strands at the temples, slim working hands with flour dust, simple tidy grey-blue wool dress, linen apron, dark widow ribbon at the waist, holding a basket of carved wooden spoons and bowls, wooden watermill on a small river, wet wheel, soft evening light, painterly realistic, muted colors, late medieval southern coastal village, cinematic"
+  }
+ },
+ "storyPatch": {
+  "id": "south-liz-look",
+  "forTitle": "Южное побережье"
+ }
+}

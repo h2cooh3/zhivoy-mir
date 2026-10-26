@@ -1,4 +1,4 @@
-const C="zhivoymir-v279";
+const C="zhivoymir-v280";
 const FILES=["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png"];
 // мир по умолчанию (5.6 МБ) кладём в кэш заранее и без ошибки установки, если связь плохая — тогда карточка «Готовые миры» работает даже без сети
 const BIG=["./presets/south-clean.json","./presets/maps/south-saltham.jpg"];
