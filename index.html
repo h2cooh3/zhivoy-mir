@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=271;
+const APP_VER=272;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1769,7 +1769,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-elinor-2.json",patchId:"south-elinor-2",names:["Мельник Уолтер"],title:"Элинор: дочь мельника, тайная любовь",desc:"Элинор теперь 24 года, дочь мельника Уолтера (новый персонаж), вдова дружинника Кенрика. Около двух лет тайно любит Уилла, боится сказать, ревнует к Фрейе. Обновлены её карточка, финалы, квест «Сито» и связи у Уилла, Эдвина, Бесс, Ханны, Лиз, Годрика."},
   {file:"presets/addons/south-ages.json",patchId:"south-ages",names:[],title:"Возраст: Уиллу 26, Элинор 23",desc:"Уилл моложе — 26 лет; Элинор 23, замуж вышла в 17, три года брака."},
   {file:"presets/addons/south-elinor-3.json",patchId:"south-elinor-3",names:[],title:"Элинор: ложки, робость и нож с колесом",desc:"Элинор — красивая брюнетка; не сватаются из-за слухов о бесплодии; продаёт ложки, которые заказывает у Уилла, чтобы видеть его. Жена Уилла ранила Кенрика, свои его добили; в бреду она описала его — Уилл помнит, и Элинор может узнать мужа."},
-  {file:"presets/addons/south-elinor-4.json",patchId:"south-elinor-4",names:[],title:"Элинор (Нора): цепочка и шрам",desc:"Дома Элинор зовут Нора. Приметы Кенрика в бреду жены Уилла теперь знает только Элинор: её цепочка с полумесяцем на его шее и шрам на груди — она сама ранила его ножом в брачную ночь."}]};
+  {file:"presets/addons/south-elinor-4.json",patchId:"south-elinor-4",names:[],title:"Элинор (Нора): цепочка и шрам",desc:"Дома Элинор зовут Нора. Приметы Кенрика в бреду жены Уилла теперь знает только Элинор: её цепочка с полумесяцем на его шее и шрам на груди — она сама ранила его ножом в брачную ночь."},
+  {file:"presets/addons/south-elinor-5.json",patchId:"south-elinor-5",names:[],title:"Цепочка у Брама",desc:"Брам нашёл в золе у порога хутора цепочку с полумесяцем и думает, что она жены Уилла; хранит, но отдать не может. Кенрик прятал шрам от насмешек; брак Элинор был жестоким."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
