@@ -1,0 +1,22 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "charPatch": {
+  "Чингиз": {
+   "coreReplace": [
+    [
+     "ВНЕШНОСТЬ: сухой, прямой старик. Смуглое лицо, широкие скулы, мелкие морщины. Глаза узкие, всегда полуприкрыты, будто дремлет, но видит хорошо и замечает всё: руки, обувь, кто на кого смотрит. Длинный стёганый халат чужого кроя, войлочная шапка, посох.",
+     "ВНЕШНОСТЬ (отсылка к Чингизу Айтматову — облик как есть): старик около семидесяти, крепкий, плотный, держится прямо и спокойно. Широкое лицо с высокими скулами, смуглая обветренная кожа, глубокие морщины у глаз и на лбу. Густые волнистые седые волосы, зачёсанные назад и чуть набок, без шапки. Тёмные густые брови с проседью, тёмные внимательные глаза, чуть прищуренные, — смотрит спокойно и видит всё: руки, обувь, кто на кого смотрит. Крупный прямой нос, гладко выбрит, полные сомкнутые губы, в уголках — тень улыбки. Длинный стёганый халат чужого кроя, подпоясанный кушаком, посох."
+    ]
+   ],
+   "look": "Старик около семидесяти, крепкий и плотный, держится прямо и спокойно. Широкое лицо с высокими скулами, смуглая обветренная кожа, глубокие морщины у глаз и на лбу. Густые волнистые серебристо-седые волосы, зачёсанные назад и чуть набок, высокий лоб. Тёмные густые брови с проседью, тёмные внимательные глаза, чуть прищуренные; взгляд спокойный, мудрый, немного печальный. Крупный прямой нос, гладко выбрит, полные сомкнутые губы, в уголках — едва заметная улыбка. Длинный стёганый халат чужого восточного кроя тёмно-серого цвета, подпоясанный тканым кушаком, под ним светлая рубаха. В руке посох, через плечо дорожная сумка. Фон: полутёмная рыбацкая хижина, огонь очага освещает лицо сбоку.",
+   "lookEn": "portrait of an elderly Central Asian storyteller and wanderer, around seventy, sturdy and solid build, calm upright posture, broad face with high cheekbones, sun-weathered tan skin, deep wrinkles around the eyes and on the forehead, thick wavy silver-grey hair swept back and slightly to the side, high forehead, no hat, thick dark eyebrows streaked with grey, dark attentive slightly narrowed eyes, calm wise slightly melancholic gaze, large straight nose, clean-shaven, full closed lips with a faint hint of a smile, long dark grey quilted robe of eastern cut tied with a woven sash, light shirt underneath, walking staff, travel bag over the shoulder, dim fisherman's hut, warm hearth fire lighting the face from the side, painterly realistic, muted colors, late medieval, cinematic",
+   "short": "Старик-странник с востока, гостит у Гарета. Смотрит спокойно, чуть прищурившись, и видит всё. Рассказывает сказания, которые слышал в дороге."
+  }
+ },
+ "storyPatch": {
+  "id": "south-chingiz-look",
+  "forTitle": "Южное побережье"
+ }
+}

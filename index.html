@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=282;
+const APP_VER=283;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1803,7 +1803,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-hutor-truth.json",patchId:"south-hutor-truth",names:[],title:"Правда о хуторе: телега и служанка Эзры",desc:"Жена Уилла спрятала беглую впервые. Уилл в ту ночь спрятался в кустах и видел на телеге плачущую северянку — светлые волосы со спины, рабская рубаха (это и цепляет его во Фрейе). Северянку спас Эзра: заплатил возчикам, чтобы доложили барону «сгорела», и держит её служанкой — свою улику против барона. Квесты «Дверь у Трёх Ясеней», «Чужой след», «Недовес» поправлены."},
   {file:"presets/addons/south-liz-hair.json",patchId:"south-liz-hair",names:[],title:"Пастушка без седины",desc:"У матери Пипа убрана ранняя седая прядь."},
   {file:"presets/addons/south-names-swap.json",patchId:"south-names-swap",names:[],title:"Имена: дочь мельника — Лиз, пастушка — Нора",desc:"Дочь мельника теперь Лиз (полное имя Элизабет), мать Пипа — Нора (Элинор Хоуп). Имена меняются во всём мире: карточки, связи, сюжет, разговоры. Ставить последним."},
-  {file:"presets/addons/south-liz-look.json",patchId:"south-liz-look",names:[],title:"Лиз без косы",desc:"У Лиз (дочь мельника) волосы собраны по-вдовьи в низкий узел под платком — чтобы не путать с Фрейей."}]};
+  {file:"presets/addons/south-liz-look.json",patchId:"south-liz-look",names:[],title:"Лиз без косы",desc:"У Лиз (дочь мельника) волосы собраны по-вдовьи в низкий узел под платком — чтобы не путать с Фрейей."},
+  {file:"presets/addons/south-chingiz-look.json",patchId:"south-chingiz-look",names:[],title:"Чингиз — облик Айтматова",desc:"Внешность странника Чингиза — прямая отсылка к Чингизу Айтматову: густые седые волосы назад, широкое лицо, спокойный прищур, гладко выбрит."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
