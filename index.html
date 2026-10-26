@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=310;
+const APP_VER=311;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1844,7 +1844,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-cart-girl.json",patchId:"south-cart-girl",names:[],title:"Девушка с телеги и «Полумесяц»",desc:"Уилл запомнил спину и голос девушки с телеги — в Фрейе он поначалу видит её. Новая цепочка «Полумесяц»: цепочка Брама, шрам и правда о Кенрике для Лиз. Ровена в бреду: «он не ударил в ответ». Фрейя — близость по общей настройке, на поздних ступенях и по её согласию."},
   {file:"presets/addons/south-liz-endings.json",patchId:"south-liz-endings",names:[],title:"Финалы Лиз",desc:"У Лиз восемь финалов под разные исходы: с Уиллом (Фрейя — сестра), с Уиллом после ухода Фрейи на север, с Фрейей на мельнице, замужем за другим по своей воле, одна, порознь, помогает бежать, выдаёт. Сердце Уилла решает игра."},
   {file:"presets/addons/south-liz-endings-2.json",patchId:"south-liz-endings-2",names:[],title:"«Та, что осталась» — Лиз понимает Кенрика",desc:"В финале «Та, что осталась» Лиз, живя с Уиллом, который смотрит на север, впервые понимает, что проживал с ней Кенрик."},
-  {file:"presets/addons/south-liz-kenric-5.json",patchId:"south-liz-kenric-5",names:[],title:"Лиз и Кенрик: не любила, но не оставила",desc:"Лиз не любила Кенрика, но была достаточно доброй и понимающей, чтобы не оставить его."}]};
+  {file:"presets/addons/south-liz-kenric-5.json",patchId:"south-liz-kenric-5",names:[],title:"Лиз и Кенрик: не любила, но не оставила",desc:"Лиз не любила Кенрика, но была достаточно доброй и понимающей, чтобы не оставить его."},
+  {file:"presets/addons/south-liz-endings-3.json",patchId:"south-liz-endings-3",names:[],title:"«Та, что осталась» — глубокое понимание",desc:"Финал без сравнения Лиз с Кенриком: только её понимание того, что он прожил."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
