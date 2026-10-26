@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=276;
+const APP_VER=277;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1774,7 +1774,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-elinor-6.json",patchId:"south-elinor-6",names:[],title:"Уилл и Брам не ладят",desc:"Уилл не простил Браму, что тот приехал на сгоревший хутор и никого не искал; Брам обходит его стороной — и поэтому тоже не отдаёт цепочку."},
   {file:"presets/addons/south-elinor-7.json",patchId:"south-elinor-7",names:[],title:"Голос Норы",desc:"Элинор робка от природы (в мать), но не запугана: говорит с каждым на его языке, на рынке торгует робко, но умело; при Уилле тише всего, задетая — подчёркнуто деловая. У Фрейи записана её природа: яркая и общительная, задавленная неволей."},
   {file:"presets/addons/south-elinor-8.json",patchId:"south-elinor-8",names:[],title:"Нора и Уилл — партнёры",desc:"Элинор продаёт на рынке всё, что делает Уилл (не только ложки), и отдаёт ему половину прибыли — так у неё есть честный повод быть рядом. В деньгах истории: доля Уилла ≈0,5–1 серебра в неделю."},
-  {file:"presets/addons/south-elinor-9.json",patchId:"south-elinor-9",names:[],title:"Уилл понимает Нору",desc:"Уилл не слепой: понимает, что Элинор к нему неравнодушна, но внутри пуст и не готов — не отвечает и не отталкивает."}]};
+  {file:"presets/addons/south-elinor-9.json",patchId:"south-elinor-9",names:[],title:"Уилл понимает Нору",desc:"Уилл не слепой: понимает, что Элинор к нему неравнодушна, но внутри пуст и не готов — не отвечает и не отталкивает."},
+  {file:"presets/addons/south-witness.json",patchId:"south-witness",names:[],title:"Почему жену Уилла оставили в живых",desc:"Налётчики сочли её мёртвой; узнав, что жива, барон послал Брама — тот слышал её бред и доложил «не жилец». Ответ: «не искать»."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
