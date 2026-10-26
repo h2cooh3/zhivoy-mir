@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=315;
+const APP_VER=316;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -843,6 +843,10 @@ const STORY_AI_OPENINGS={"south-freedom":"ПРОЛОГ УЖЕ ПОКАЗАН И�
 const STORY_OPENCAST={"south-freedom":["Старый Гарет"]},STORY_STARTPART={"south-freedom":"ночь"};
 function mainStoryOf(w){return S.scenes.find(x=>x.worldId===w.id&&x.main)||null;}
 function openMainStory(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});return;}
+  const st0=storyOf(w);const prog=st0&&((+st0.day||1)>1||(+st0.ticks||0)>0||st0.done);
+  if(prog){sheet([["🌱 Новая история с нуля — отдельная линия мира: день 1, все всё забыли (рекомендую)",()=>startOver(w)],["Продолжить этот мир — сейчас день "+st0.day+", персонажи помнят прошлую игру",()=>openMainStoryGo(w)]]);return;}
+  openMainStoryGo(w);}
+function openMainStoryGo(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});return;}
   x=blankScene();x.worldId=w.id;x.main=true;x.title="История "+genName(heroName(w));
   // продолжить с самого длинного разговора (обычно — с Фреей)
   const best=npcsOf(w.id).map(c=>({c,n:c.history.length})).sort((a,b)=>b.n-a.n)[0];
