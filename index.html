@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=287;
+const APP_VER=288;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1808,7 +1808,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-chingiz-look-2.json",patchId:"south-chingiz-look-2",names:[],title:"Чингиз — под портрет",desc:"Описание внешности Чингиза приведено к его портрету: седые волнистые волосы назад, вытянутое лицо, стёганый халат с ромбами и вышивкой, кушак, сумка, посох."},
   {file:"presets/addons/south-hutor-2.json",patchId:"south-hutor-2",names:["Эйра"],title:"Хутор: Эзра, Эйра и легенда о Кенрике",desc:"Новый персонаж — Эйра, северянка из погреба, служанка Эзры. Возчики — люди Эзры; Кенрика добили как лишний глаз; Годрик заодно с Эзрой; легенда для вдовы — разбойники в другом конце леса. Уилла позвал Эзра; хутор — ничья земля у границы, жена умерла в монастыре Эшфорда."},
   {file:"presets/addons/south-eira-2.json",patchId:"south-eira-2",names:[],title:"Эйра: облик, голос, Уилл",desc:"Со спины Эйра как Фрейя (рост, сложение, соломенная коса), лицом другая (широкое, нос с горбинкой, зелёные глаза, клеймо на правой щеке). Огрызается, когда страшно. Узнаёт Уилла — видела его из погреба. Возможна любовь с Уиллом."},
-  {file:"presets/addons/south-eira-3.json",patchId:"south-eira-3",names:[],title:"Эйра: глаза в пол, язык колючий",desc:"Как любая рабыня, Эйра смотрит в пол — прямой взгляд стоит побоев; дерзость у неё в словах, вполголоса, под нос."}]};
+  {file:"presets/addons/south-eira-3.json",patchId:"south-eira-3",names:[],title:"Эйра: глаза в пол, язык колючий",desc:"Как любая рабыня, Эйра смотрит в пол — прямой взгляд стоит побоев; дерзость у неё в словах, вполголоса, под нос."},
+  {file:"presets/addons/south-eira-4.json",patchId:"south-eira-4",names:[],title:"Эйра: заикание и хромота",desc:"Эйра сильно заикается и хромает на левую ногу, через силу стараясь не хромать."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
