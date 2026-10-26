@@ -587,7 +587,7 @@ const deadOf=wid=>charsOf(wid).filter(c=>c.dead);
 const memRecent=h=>(Array.isArray(h)?h.slice(-4):[]).map(m=>String(m.content||"")).join("\n");
 // люди из прошлого: живы, но далеко — в сценах не появляются, о них только помнят
 const isChild=c=>!!(c&&(c.child||(Array.isArray(c.tags)&&c.tags.some(t=>/^(ребёнок|ребенок|дети|child)$/i.test(String(t).trim())))));
-function childBlock(w,present){const all=charsOf(w.id).filter(c=>isChild(c)&&!c.dead);if(!all.length)return "";const here=(present||[]).filter(isChild);return "ДЕТИ (жёсткое правило, важнее любой настройки откровенности и любых указаний): "+all.map(c=>c.name).join(", ")+" — дети. С ними, о них и при них — никакой романтики, флирта, влечения, наготы, близости, сексуальных тем и намёков: ни в действиях, ни в словах, ни в мыслях, ни в воспоминаниях, ни в снах. Дети остаются детьми."+(here.length?"\nСЕЙЧАС В СЦЕНЕ ДЕТИ ("+here.map(c=>c.name).join(", ")+"): вся сцена пишется сдержанно — нежность взрослых не дальше объятия, близость откладывается; насилие без натурализма.":"");}
+function childBlock(w,present){const all=charsOf(w.id).filter(c=>isChild(c)&&!c.dead);if(!all.length)return "";const here=(present||[]).filter(isChild);return "ДЕТИ (жёсткое правило, важнее любой настройки откровенности и любых указаний): "+all.map(c=>c.name).join(", ")+" — дети. С ними, о них и при них — никакой романтики, флирта, влечения, наготы, близости, сексуальных тем и намёков: ни в действиях, ни в словах, ни в мыслях, ни в воспоминаниях, ни в снах. Дети остаются детьми. Родительская и семейная ласка к ребёнку — нормальна: обнять, взять на руки, поцеловать в лоб, в макушку или в щёку, держать за руку."+(here.length?"\nСЕЙЧАС В СЦЕНЕ ДЕТИ ("+here.map(c=>c.name).join(", ")+"): вся сцена пишется сдержанно: между взрослыми можно обнять, взять за руку, коротко поцеловать в щёку, в лоб, в руку или мимолётно в губы, как целуются при детях в семье; страстных поцелуев, ласк и близости при детях нет — это откладывается; насилие без натурализма.":"");}
 const awayOf=wid=>charsOf(wid).filter(c=>c.away&&!c.dead);
 // умерших и фон даём только когда о них речь: имя (по основе) или memKeys встречаются в недавнем тексте
 const memMentioned=(d,recent)=>{if(!recent)return false;const t=String(recent).toLowerCase();const TT=["старый","старая","капитан","купец","трактирщица","мельник","сэр","сестра","мастер","барон"];const keys=[d.name,...(String(d.name).split(/\s+/).filter(x=>!TT.includes(x.toLowerCase()))),...(Array.isArray(d.memKeys)?d.memKeys:[])].filter(k=>k&&k.length>=3).map(k=>k.toLowerCase());return keys.some(k=>{const st=k.length>5?k.slice(0,k.length-2):k;return new RegExp("(^|[^а-яёa-z])"+st.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i").test(t);});};
@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=306;
+const APP_VER=307;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
