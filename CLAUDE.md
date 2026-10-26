@@ -10,7 +10,7 @@
 - Файлы через чат на телефоне у него не открываются — всё доставляй через репозиторий (пресеты, дополнения), а не файлами.
 
 ## Приложение
-- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас v258, 26.10.2026).
+- Один файл `index.html` (весь JS/CSS внутри), `sw.js` — service worker, network-first, кэш `zhivoymir-vN`. **При каждом релизе поднимай N** (сейчас v259, 26.10.2026).
 - Проверка синтаксиса: вытащить `<script>` в файл и `node --check`.
 - Тест: `python3 -m http.server 8815` в корне + Playwright (Chromium есть). На старте может быть открыт диалог API (`#dlg`) — закрыть перед кликами.
 - Состояние `S`: `worlds`, `chars`, `scenes`, `api`, `sync`. Хранение — IndexedDB. Синхронизация — GitHub gist, слияние по `updated`.
