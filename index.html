@@ -633,7 +633,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=295;
+const APP_VER=296;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1829,7 +1829,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-eira-6.json",patchId:"south-eira-6",names:[],title:"Эйра путает слова, когда волнуется",desc:"При сильном волнении Эйра путает слова в предложении местами; в спокойной речи порядок обычный."},
   {file:"presets/addons/south-kenric.json",patchId:"south-kenric",names:["Кенрик"],title:"Кенрик (умерший)",desc:"Карточка покойного мужа Лиз — для воспоминаний: в сценах не появляется. В приложении появилась категория «Умершие»."},
   {file:"presets/addons/south-will-family.json",patchId:"south-will-family",names:["Ровена","Нэд"],title:"Семья Уилла (умершие)",desc:"Карточки для воспоминаний: жена Ровена и сын Нэд (2 года). Знают о них только те, кто знает правду о Уилле. Люлька под верстаком стала кроваткой."},
-  {file:"presets/addons/south-freya-past.json",patchId:"south-freya-past",names:["Капитан Хаук"],title:"Прошлое Фрейи",desc:"Люди из прошлого Фрейи: отец Хальвар и купец Гуннар, трактирщица Ульва (далеко, живы), мать Сигрид, писец Эйвинд и капитан Хаук (умерли). В сценах не появляются — только в воспоминаниях. Категория «Фон»."}]};
+  {file:"presets/addons/south-freya-past.json",patchId:"south-freya-past",names:["Капитан Хаук"],title:"Прошлое Фрейи",desc:"Люди из прошлого Фрейи: отец Хальвар и купец Гуннар, трактирщица Ульва (далеко, живы), мать Сигрид, писец Эйвинд и капитан Хаук (умерли). В сценах не появляются — только в воспоминаниях. Категория «Фон»."},
+  {file:"presets/addons/south-memory-details.json",patchId:"south-memory-details",names:[],title:"Детали для воспоминаний",desc:"Умершие и люди из прошлого получили живые подробности и слова, по которым рассказчик понимает, что о них вспомнили. Откуда у Эйры шрам и хромота. Мельница Уолтера. Поправка: писец Фрейи умер, обеих продал его наследник."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
