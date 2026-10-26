@@ -2270,7 +2270,11 @@ function renderHome(){
   const avail=PRESETS;
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
     avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt",S.worlds.some(w=>w.name===x.world)?"мир по умолчанию · нажми, чтобы добавить ещё одну чистую копию":"мир по умолчанию · нажми, чтобы добавить"));
-      c.onclick=async()=>{c.disabled=true;try{const r=await fetch(x.file,{cache:"no-store"});if(!r.ok)throw new Error(r.status);await importFile(await r.blob());}catch(e){alert("Не удалось загрузить: "+e.message);c.disabled=false;}};g2.append(c);});
+      c.onclick=async()=>{if(c.disabled)return;c.disabled=true;const mt=c.querySelector(".mt");const old=mt?mt.textContent:"";const say=t=>{if(mt)mt.textContent=t;};const n0=S.worlds.length;say("⏳ Загружаю мир…");
+        try{const ac=new AbortController();const to=setTimeout(()=>ac.abort(),90000);let blob;try{const r=await fetch(x.file,{cache:"no-store",signal:ac.signal});if(!r.ok)throw new Error("файл не найден ("+r.status+")");const len=+r.headers.get("content-length")||0;if(r.body&&r.body.getReader){const rd=r.body.getReader();const parts=[];let got=0;for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;say("⏳ Загружаю мир… "+(got/1048576).toFixed(1)+(len?" из "+(len/1048576).toFixed(1):"")+" МБ");}blob=new Blob(parts);}else blob=await r.blob();}finally{clearTimeout(to);}
+          say("⏳ Собираю мир…");await new Promise(r=>setTimeout(r,30));await importFile(blob);
+          if(S.worlds.length<=n0){alert("Файл мира загрузился, но мир не добавился. Нажми ещё раз; если повторится — напиши, что видишь на экране.");c.disabled=false;say(old);}}
+        catch(e){alert("Не удалось загрузить мир: "+(e&&e.name==="AbortError"?"слишком долго (плохая связь). Попробуй ещё раз.":(e&&e.message)||e));c.disabled=false;say(old);}};g2.append(c);});
     p.append(g2);}
   const n=el("p","note","Мир — это место, правила и время. Персонажи живут в мире, помнят всё, меняются от разговоров с тобой и друг от друга. Когда проходит время, они живут без тебя.");p.append(n);
   $("view").append(p);
