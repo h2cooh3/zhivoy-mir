@@ -408,7 +408,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",layout:"split",frank:"adult",hero:"strict",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,gone:{},worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],helperArchive:[],helperMem:"",style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",photos:[],short:"",pub:"",seen:"",tags:[],core:"",examples:"",voice:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,like:0,grudge:0,grudgeWhy:"",arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -604,14 +604,16 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(!S.api.layout)S.api.layout="split";if(!S.api.hero)S.api.hero="strict";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;if(d.gone&&typeof d.gone==="object")S.gone=d.gone;if(d.snapsCleaned)S.snapsCleaned=d.snapsCleaned;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(!S.api.layout)S.api.layout="split";if(!S.api.hero)S.api.hero="strict";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
   save();
 }
-let saveT;
-function save(){S.stamp=Date.now();S.sync.dirty=true;schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
+let saveT,_prevIds=null;
+// «надгробия»: что удалено на этом устройстве, помнится в S.gone и уходит в синхронизацию — иначе удалённое возвращается из хранилища
+function trackGone(){try{const cur=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));if(!S.gone||typeof S.gone!=="object")S.gone={};if(_prevIds){_prevIds.forEach(id=>{if(!cur.has(id))S.gone[id]=Date.now();});cur.forEach(id=>{if(S.gone[id]&&_prevIds.has(id))delete S.gone[id];});}_prevIds=cur;}catch(e){}}
+function save(){trackGone();S.stamp=Date.now();S.sync.dirty=true;schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
 window.addEventListener("pagehide",()=>{clearTimeout(saveT);try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");}catch(e){}});
 
 // ---- режим экономии: все лимиты в одном месте
@@ -1526,7 +1528,7 @@ async function genWorld(w){
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
 const syncSkip=(k,v)=>k==="editUndo"?undefined:v;
-const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
+const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,gone:S.gone||{},worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
 let syncEtag="",syncBytes=0;
 async function gh(path,method,body,etag){const hd={"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"};if(etag)hd["If-None-Match"]=etag;const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:hd,body:body?JSON.stringify(body):undefined});
   if(etag!==undefined){if(r.status===304)return null;const et=r.headers.get("ETag");if(r.ok&&et)syncEtag=et;}
@@ -1550,21 +1552,22 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
   if(!force){if(d.rev){if(d.rev===S.sync.rev)return false;}else if(remoteStamp<=S.sync.pulled)return false;}
   const localChanged=!!S.sync.dirty;
   // слепок «до синхронизации» — только при полной замене или не чаще раза в час, иначе он забьёт память
-  if(S.worlds.length&&useIdb&&(force||(localChanged&&Date.now()-(S.sync.snapT||0)>3600000))){S.sync.snapT=Date.now();try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
+  if(S.worlds.length&&useIdb&&force){S.sync.snapT=Date.now();try{await idb.put("snaps",{id:uid(),name:"До синхронизации "+new Date().toLocaleString("ru"),t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});}catch(e){}}
   if(!force){
     // Сливаем, а не затираем: по каждому миру/персонажу/сцене берём более свежую версию (поле updated)
     let keptLocal=false;
     // фото не теряем: если у более свежей версии персонажа фото нет, а у другой есть — оставляем фото (иначе правка героя в игре затирает фото, добавленное с другого устройства)
     const keepPh=(win,lose)=>{try{const wp=Array.isArray(win.photos)?win.photos:[],lp=Array.isArray(lose.photos)?lose.photos:[];let ch=false;if(!wp.length&&lp.length){win.photos=lp.slice();ch=true;}if(!win.avatar&&lose.avatar){win.avatar=lose.avatar;ch=true;}return ch;}catch(e){return false;}};
     const keepHelper=(win,lose)=>{try{if((lose.helperT||0)>(win.helperT||0)&&Array.isArray(lose.helper)){["helper","helperArchive","helperMem","helperDec","helperT"].forEach(k=>{if(lose[k]!==undefined)win[k]=lose[k];});return true;}}catch(e){}return false;};
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()];};
-    S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);
+    const gone=Object.assign({},d.gone||{});Object.entries(S.gone||{}).forEach(([k,v])=>{if(!(gone[k]>=v))gone[k]=v;});
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!(gone[o.id]&&gone[o.id]>=(o.updated||0)));};
+    S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);S.gone=gone;_prevIds=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
     fixAll();S.sync.pulled=remoteStamp;S.sync.rev=d.rev||"";S.sync.last=Date.now();
     if(keptLocal||localChanged){S.sync.dirty=true;S.stamp=Date.now();schedulePush();}else S.stamp=remoteStamp;
     persistQuiet();return true;}
-  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai)){S.ai=d.ai;S.aiArchive=d.aiArchive||[];S.aiMem=d.aiMem||"";S.aiUpdated=d.aiUpdated||0;}if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
+  S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];if(d.gone)S.gone=d.gone;_prevIds=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(Array.isArray(d.ai)){S.ai=d.ai;S.aiArchive=d.aiArchive||[];S.aiMem=d.aiMem||"";S.aiUpdated=d.aiUpdated||0;}if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));
   fixAll();S.stamp=remoteStamp;S.sync.pulled=remoteStamp;S.sync.rev=d.rev||"";S.sync.dirty=false;S.sync.last=Date.now();persistQuiet();return true;}
 const CFG_KEYS=["provider","base","model","cheap","temp","maxtok","budget","every","drama","len","layout","frank","hero","yUrl","ySecret","yNarr","eco","think","pIn","pCache","pOut"];
 const apiCfg=()=>Object.fromEntries(CFG_KEYS.map(k=>[k,S.api[k]]));
@@ -3079,7 +3082,7 @@ function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const 
   const rows=Object.entries(g.by).sort((a,b)=>(b[1].inp+b[1].cacheR+b[1].out)-(a[1].inp+a[1].cacheR+a[1].out));if(rows.length){const d=el("div","block",rows.map(([k,u])=>{const c=cost(u);return (PURPOSE[k]||k)+": "+u.calls+" запр., "+(u.inp+u.cacheR+u.cacheW).toLocaleString("ru")+" вход / "+u.out.toLocaleString("ru")+" выход"+(c!=null?" ≈ $"+c.toFixed(3):"");}).join("\n"));b.append(d);}}
 $("forget").onclick=()=>{if(!confirm("Удалить ключ с этого устройства?"))return;S.api.key="";save();fillSettings();};
 $("testBtn").onclick=async()=>{const o=$("testOut");o.textContent="Проверяю…";try{ctl=new AbortController();const t=await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal});o.textContent="Работает. Модель ответила: "+t.trim();}catch(e){o.textContent=friendly(e);}finally{ctl=null;}};
-async function drawSnaps(){const l=$("snapList");l.innerHTML="";if(!useIdb){l.append(el("p","note","Сохранения недоступны в этом браузере."));return;}const all=(await idb.all("snaps")).sort((a,b)=>b.t-a.t);if(!all.length)l.append(el("p","note","Сохранений пока нет."));
+async function drawSnaps(){const l=$("snapList");l.innerHTML="";if(!useIdb){l.append(el("p","note","Сохранения недоступны в этом браузере."));return;}const all=(await idb.all("snaps")).sort((a,b)=>b.t-a.t);if(!all.length)l.append(el("p","note","Сохранений пока нет."));else{const da=el("button","btn warn","🗑 Удалить все сохранения ("+all.length+")");da.onclick=async()=>{if(!confirm("Удалить все "+all.length+" сохранений? Текущие миры не тронутся."))return;for(const sn of all)await idb.del("snaps",sn.id);drawSnaps();toast("Все сохранения удалены.");};l.append(da);}
   all.forEach(sn=>{const it=el("div","item");it.append(el("div","t",new Date(sn.t).toLocaleString("ru")));it.append(el("div","x",sn.name));const ld=el("button","btn sm","Загрузить");ld.onclick=async()=>{if(!confirm("Загрузить «"+sn.name+"»? Текущее состояние миров заменится. Ключ и настройки останутся."))return;const d=JSON.parse(JSON.stringify(sn.data));const nowT=Date.now();S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];S.persona=d.persona||S.persona;[...S.worlds,...S.chars,...S.scenes].forEach(o=>{o.updated=nowT;});fixAll();save();$("dlg").close();stack.length=0;go({v:"home"},true);};const de=el("button","btn sm ghost warn","✕");de.onclick=async()=>{await idb.del("snaps",sn.id);drawSnaps();};it.append(ld,de);l.append(it);});}
 $("snapBtn").onclick=async()=>{if(!useIdb)return;const name=$("snapName").value.trim()||"Сохранение "+new Date().toLocaleString("ru");await idb.put("snaps",{id:uid(),name,t:Date.now(),data:JSON.parse(JSON.stringify({worlds:S.worlds,chars:S.chars,scenes:S.scenes,persona:S.persona}))});$("snapName").value="";drawSnaps();};
 $("exportBtn").onclick=expAll;
@@ -3090,7 +3093,7 @@ $("persistBtn").onclick=async()=>{try{await navigator.storage.persist();}catch(e
 
 // ============ СТАРТ ============
 applyTheme();
-(async()=>{await load();let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;if(sortChars())_m=true;}catch(e){}if(fixOpening()||_m)save();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}try{await autoBuildCheck();}catch(e){}})();
+(async()=>{await load();try{if(useIdb&&!S.snapsCleaned){const all=await idb.all("snaps");for(const sn of all)await idb.del("snaps",sn.id);S.snapsCleaned=Date.now();save();}}catch(e){}let _m=false;try{scrubSpoilers();_m=fixGeo();if(fixDesc())_m=true;if(fixBess())_m=true;if(fixLooks())_m=true;if(sortChars())_m=true;}catch(e){}if(fixOpening()||_m)save();applyTheme();pushHist();if(!S.worlds.length&&!S.sync.on&&!S.defaultLoaded){try{const r=await fetch("presets/south-clean.json",{cache:"no-store"});if(r.ok){S.defaultLoaded=true;await importFile(await r.blob());}}catch(e){}}render();if(S.sync.on){try{if(await syncPull(false))render();}catch(e){}if(S.sync.dirty)schedulePush();}try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}if(!S.api.key){fillSettings();drawSnaps();storeInfo();$("dlg").showModal();}try{await autoBuildCheck();}catch(e){}})();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
