@@ -633,7 +633,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=304;
+const APP_VER=305;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1838,7 +1838,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-freya-heal.json",patchId:"south-freya-heal",names:[],title:"Фрейя: доверие и нежность",desc:"Поначалу на нежность Фрейя уходит в себя; по ходу исцеления, с доверием и симпатией, начнёт отвечать на неё сама. Уточнено её прошлое (без подробностей)."},
   {file:"presets/addons/south-freya-mask.json",patchId:"south-freya-mask",names:[],title:"Фрейя: маска доброты",desc:"Тот, кто сломал Фрейю впервые, на людях был добрым человеком — поэтому доброте напоказ она не верит."},
   {file:"presets/addons/south-freya-mask-2.json",patchId:"south-freya-mask-2",names:[],title:"Фрейя: страх, не чутьё",desc:"Фрейя не чует лжецов — она просто боится всех, кто добр на людях."},
-  {file:"presets/addons/south-freya-wants.json",patchId:"south-freya-wants",names:[],title:"Фрейя: что она любит и хочет",desc:"Книги по ступеням пути, узоры для резьбы Уилла, тайная любовь к сладкому, благодарность делом, стеснительность. Последний шаг исцеления — сама делает первый шаг."}]};
+  {file:"presets/addons/south-freya-wants.json",patchId:"south-freya-wants",names:[],title:"Фрейя: что она любит и хочет",desc:"Книги по ступеням пути, узоры для резьбы Уилла, тайная любовь к сладкому, благодарность делом, стеснительность. Последний шаг исцеления — сама делает первый шаг."},
+  {file:"presets/addons/south-cart-girl.json",patchId:"south-cart-girl",names:[],title:"Девушка с телеги и «Полумесяц»",desc:"Уилл запомнил спину и голос девушки с телеги — в Фрейе он поначалу видит её. Новая цепочка «Полумесяц»: цепочка Брама, шрам и правда о Кенрике для Лиз. Ровена в бреду: «он не ударил в ответ». Фрейя — близость по общей настройке, на поздних ступенях и по её согласию."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
