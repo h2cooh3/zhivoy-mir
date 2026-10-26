@@ -531,7 +531,7 @@ function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мир�
       if(!st.ears.length)box.append(el("div","note","Пока пусто. Записи появятся сами, когда в истории случится что-то важное."));}
     // память истории
     {const ms=mainStoryOf(w);if(ms){box.append(el("h3",null,"Память истории"));const row=el("div","row");row.style.cssText="align-items:center;gap:6px;flex-wrap:wrap";const t=el("span","note","Хроника: "+(ms.summary||"").length+" знаков, сжато сообщений: "+(ms.sumIdx||0)+" из "+ms.history.length+".");t.style.flex="1 1 200px";
-      const b2=el("button","btn sm ghost warn","↻ Собрать хронику заново");b2.onclick=async()=>{if(busy)return;if(!confirm("Хроника будет написана заново по всей переписке (сама переписка остаётся). Это один долгий запрос к дешёвой модели. Продолжить?"))return;ms.summary="";ms.sumIdx=0;b2.disabled=true;toast("Собираю хронику…");try{ms.sumIdx=0;const ok=await compressHistory(ms,"Рассказчик",w,true);w.updated=Date.now();ms.updated=Date.now();save();toast(ok?"Хроника собрана заново.":"Не вышло, попробуй позже.");}catch(e){toast("Не вышло: "+friendly(e),true);}draw();};
+      const b2=el("button","btn sm ghost warn","↻ Собрать хронику заново");b2.onclick=async()=>{if(busy)return;if(!confirm("Хроника будет дополнена и перечитана по всей переписке кусками по 40 сообщений (старая хроника остаётся основой, переписка не меняется). Это несколько запросов к дешёвой модели. Продолжить?"))return;b2.disabled=true;toast("Собираю хронику…");try{const seed=ms.summary,seedIdx=ms.sumIdx;ms.sumIdx=0;let ok=true,guard=0;while(ok&&guard++<12){const before=ms.sumIdx;ok=await compressHistory(ms,"Рассказчик",w,true,40);if(!ok||ms.sumIdx<=before)break;toast("Хроника: "+ms.sumIdx+" из "+ms.history.length);if(ms.sumIdx>=ms.history.length-K().keep)break;}if(!ms.summary.trim()){ms.summary=seed;ms.sumIdx=seedIdx;}w.updated=Date.now();ms.updated=Date.now();save();toast("Хроника пересобрана.");}catch(e){toast("Не вышло: "+friendly(e),true);}draw();};
       row.append(t,b2);box.append(row);}}
     // самочувствие
     {const row=el("div","row");row.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";box.append(el("h3",null,"Самочувствие"));const t=el("span","note","Усталость: "+(+st.tired||0)+"/10 · "+tiredWord(st.tired)+((st.sleepless||0)>0?" · без нормального сна ночей: "+st.sleepless:""));t.style.flex="1 1 200px";
@@ -1439,14 +1439,14 @@ async function condenseFacts(c){
   const prompt=`Вот список фактов, которые помнит персонаж «${c.name}». Уплотни его: объедини повторы и близкое, убери мелочь, сохрани имена, обещания, секреты, даты, предметы и всё, что может выстрелить в сюжете. Факты идут по времени, последние — в конце: если два факта противоречат друг другу (например, «лодка сломана» и «лодка починена»), оставь только поздний, актуальный. Верни не больше ${lim} пунктов.\n\n${c.facts.map(f=>"- "+f).join("\n")}\n\nВерни JSON: {"facts":["..."]}`;
   const r=await askJSON(prompt,2000,"memory");if(Array.isArray(r.facts)&&r.facts.length){c.facts=r.facts.map(String);save();return true;}return false;
 }
-async function compressHistory(obj,who,w,force){
-  const KEEP=K().keep;const end=obj.history.length-KEEP;if(end<=obj.sumIdx){if(force)toast("Сжимать пока нечего.");return false;}
+async function compressHistory(obj,who,w,force,cap){
+  const KEEP=K().keep;let end=obj.history.length-KEEP;if(cap&&end>obj.sumIdx+cap)end=obj.sumIdx+cap;if(end<=obj.sumIdx){if(force)toast("Сжимать пока нечего.");return false;}
   const prompt=`Ты ведёшь хронику длинного разговора/сцены, чтобы ничего не забылось.
 Текущее краткое содержание: ${obj.summary.trim()||"(пусто)"}
-Новый фрагмент:
+${(()=>{const st=obj.main&&w?storyOf(w):null;const ps=st&&Array.isArray(st.promises)?st.promises:[];return ps.length?"Журнал обещаний (обязательно сохрани в разделе ОБЕЩАНИЯ И ДОЛГИ, с отметкой сделано/не сделано):\n"+ps.map(p=>"- день "+(p.day||"?")+": "+(p.who||"")+" — "+(p.what||"")+" ["+(p.state||"active")+"]").join("\n")+"\n":"";})()}Новый фрагмент:
 ${transcript(obj.history.slice(obj.sumIdx,end),w,who)}
 Напиши обновлённое краткое содержание всего (старое + новое). НЕ выбрасывай старые пункты ради краткости: старое можно сжимать, но не терять. Структура:
-СОБЫТИЯ — по порядку, с днём/временем, кто где был и что сделал.
+СОБЫТИЯ — по порядку, с днём/временем, кто где был и что сделал (сделанное остаётся сделанным: что построено, куплено, отдано, обещано и выполнено — не теряй).
 ОБЕЩАНИЯ И ДОЛГИ — кто кому что обещал (дословно, с сроком), что взято в долг, что куплено и подарено, кто сколько заплатил.
 КТО ЧТО ЗНАЕТ — какие тайны и новости известны кому, а от кого скрыты; какие клятвы и молчание.
 ОТНОШЕНИЯ — как поменялось между кем (что сказано, чем обидели или порадовали).
