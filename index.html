@@ -620,7 +620,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=283;
+const APP_VER=284;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1804,7 +1804,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz-hair.json",patchId:"south-liz-hair",names:[],title:"Пастушка без седины",desc:"У матери Пипа убрана ранняя седая прядь."},
   {file:"presets/addons/south-names-swap.json",patchId:"south-names-swap",names:[],title:"Имена: дочь мельника — Лиз, пастушка — Нора",desc:"Дочь мельника теперь Лиз (полное имя Элизабет), мать Пипа — Нора (Элинор Хоуп). Имена меняются во всём мире: карточки, связи, сюжет, разговоры. Ставить последним."},
   {file:"presets/addons/south-liz-look.json",patchId:"south-liz-look",names:[],title:"Лиз без косы",desc:"У Лиз (дочь мельника) волосы собраны по-вдовьи в низкий узел под платком — чтобы не путать с Фрейей."},
-  {file:"presets/addons/south-chingiz-look.json",patchId:"south-chingiz-look",names:[],title:"Чингиз — облик Айтматова",desc:"Внешность странника Чингиза — прямая отсылка к Чингизу Айтматову: густые седые волосы назад, широкое лицо, спокойный прищур, гладко выбрит."}]};
+  {file:"presets/addons/south-chingiz-look.json",patchId:"south-chingiz-look",names:[],title:"Чингиз — облик Айтматова",desc:"Внешность странника Чингиза — прямая отсылка к Чингизу Айтматову: густые седые волосы назад, широкое лицо, спокойный прищур, гладко выбрит."},
+  {file:"presets/addons/south-chingiz-look-2.json",patchId:"south-chingiz-look-2",names:[],title:"Чингиз — под портрет",desc:"Описание внешности Чингиза приведено к его портрету: седые волнистые волосы назад, вытянутое лицо, стёганый халат с ромбами и вышивкой, кушак, сумка, посох."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
