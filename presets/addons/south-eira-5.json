@@ -1,0 +1,23 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "charPatch": {
+  "Эйра": {
+   "coreReplace": [
+    [
+     "узкие зелёные глаза под густыми светлыми бровями;",
+     "узкие зелёные глаза под густыми светлыми бровями; через правую бровь и веко идёт старый шрам, и правый глаз почти наполовину закрыт;"
+    ]
+   ],
+   "look": "Молодая северянка лет двадцати двух, ростом чуть выше среднего, худая и жилистая, сильные от работы плечи. Длинные волосы цвета выгоревшей соломы заплетены в толстую косу, перекинутую через плечо, сверху тёмный льняной платок. Лицо широкое и скуластое, тяжёлая челюсть, короткий нос с горбинкой от старого перелома, узкие зелёные глаза под густыми светлыми бровями, через правую бровь и веко — старый шрам, правый глаз почти наполовину закрыт, большой рот с обветренными губами, россыпь веснушек; на правой щеке — старое выжженное клеймо, край платка прижат к нему. Глаза опущены, уголок рта кривится в недоброй усмешке. Руки красные от воды. Стоит, перенеся вес на правую ногу. Простое серое платье служанки, грубый передник, в руке деревянное ведро. Фон: тесная кухня каменного дома при конторе у ворот крепости, очаг, мешки и счётные доски, вечерний полумрак.",
+   "lookEn": "portrait of a young northern woman about twenty-two, slightly taller than average, thin and wiry, strong shoulders from work, long sun-bleached straw-blonde hair in a thick braid over one shoulder under a dark linen kerchief, broad face with high cheekbones and a heavy jaw, short nose with a bump from an old break, narrow green eyes under thick light eyebrows, an old scar running through her right eyebrow and eyelid, right eye half-closed, wide mouth with chapped lips, scattered freckles, an old branded scar on her right cheek with the edge of the kerchief pressed to it, eyes cast down, a wry bitter half-smile at the corner of the mouth, hands red from water, standing with her weight shifted onto her right leg, plain grey servant's dress, coarse apron, wooden bucket in hand, cramped kitchen of a stone house by a fortress gate, hearth, sacks and tally boards, dim evening light, ink-lined illustration, muted colors, late medieval, cinematic",
+   "seen": "Северная работница в доме мастера Эзры при конторе: высокая, светлая коса, щеку прикрывает платком, через правый глаз — шрам, глаз полузакрыт, глаза в пол; хромает на левую ногу и прячет это. По-южному говорит ломано, сильно заикается и бурчит себе под нос. Говорят — нанятая, платная.",
+   "greeting": "*У двери дома при конторе стоит высокая худая северянка в тёмном платке, светлая коса через плечо, в руке ведро. Увидев тебя, она опускает глаза и прижимает край платка к щеке — правый глаз у неё почти закрыт старым шрамом; отступая к стене, ставит левую ногу с усилием, чтобы не хромнуть.*\n\n«Х-хозяин нет. Хозяин — в к-конторе, — и тише, себе под нос: — Заблудился, что ли. Туда иди»."
+  }
+ },
+ "storyPatch": {
+  "id": "south-eira-5",
+  "forTitle": "Южное побережье"
+ }
+}
