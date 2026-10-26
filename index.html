@@ -613,14 +613,19 @@ async function load(){
     }catch(e){}
   }
   if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;if(d.gone&&typeof d.gone==="object")S.gone=d.gone;if(d.snapsCleaned)S.snapsCleaned=d.snapsCleaned;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(!S.api.layout)S.api.layout="split";if(!S.api.hero)S.api.hero="strict";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  dropGone();
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));
   save();
 }
 let saveT,_prevIds=null;
+const APP_VER=267;
+// удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
+const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
+function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
 // «надгробия»: что удалено на этом устройстве, помнится в S.gone и уходит в синхронизацию — иначе удалённое возвращается из хранилища
-function trackGone(){try{const cur=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));if(!S.gone||typeof S.gone!=="object")S.gone={};if(_prevIds){_prevIds.forEach(id=>{if(!cur.has(id))S.gone[id]=Date.now();});cur.forEach(id=>{if(S.gone[id]&&_prevIds.has(id))delete S.gone[id];});}_prevIds=cur;}catch(e){}}
+function trackGone(){try{const cur=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));if(!S.gone||typeof S.gone!=="object")S.gone={};if(_prevIds){_prevIds.forEach(id=>{if(!cur.has(id))S.gone[id]=Date.now();});cur.forEach(id=>{if(S.gone[id]&&!_prevIds.has(id)){const o=[...S.worlds,...S.chars,...S.scenes].find(x=>x.id===id);if(o)o.revived=Date.now();delete S.gone[id];}});}_prevIds=cur;}catch(e){}}
 function save(){trackGone();S.stamp=Date.now();S.sync.dirty=true;schedulePush();clearTimeout(saveT);saveT=setTimeout(async()=>{try{if(useIdb)await idb.put("kv",JSON.parse(JSON.stringify(S)),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S));}catch(e){toast("Не удалось сохранить: хранилище заполнено. Сделай копию в файл и удали лишнее.",true);}},250);}
 window.addEventListener("pagehide",()=>{clearTimeout(saveT);try{if(useIdb)idb.put("kv",JSON.parse(JSON.stringify(S)),"state");}catch(e){}});
 
@@ -1537,7 +1542,7 @@ async function genWorld(w){
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
 const syncSkip=(k,v)=>k==="editUndo"?undefined:v;
-const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,gone:S.gone||{},worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
+const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",ver:APP_VER,rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,gone:S.gone||{},worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
 let syncEtag="",syncBytes=0;
 async function gh(path,method,body,etag){const hd={"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"};if(etag)hd["If-None-Match"]=etag;const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:hd,body:body?JSON.stringify(body):undefined});
   if(etag!==undefined){if(r.status===304)return null;const et=r.headers.get("ETag");if(r.ok&&et)syncEtag=et;}
@@ -1568,8 +1573,9 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     // фото не теряем: если у более свежей версии персонажа фото нет, а у другой есть — оставляем фото (иначе правка героя в игре затирает фото, добавленное с другого устройства)
     const keepPh=(win,lose)=>{try{const wp=Array.isArray(win.photos)?win.photos:[],lp=Array.isArray(lose.photos)?lose.photos:[];let ch=false;if(!wp.length&&lp.length){win.photos=lp.slice();ch=true;}if(!win.avatar&&lose.avatar){win.avatar=lose.avatar;ch=true;}return ch;}catch(e){return false;}};
     const keepHelper=(win,lose)=>{try{if((lose.helperT||0)>(win.helperT||0)&&Array.isArray(lose.helper)){["helper","helperArchive","helperMem","helperDec","helperT"].forEach(k=>{if(lose[k]!==undefined)win[k]=lose[k];});return true;}}catch(e){}return false;};
+    if(!d.ver||d.ver<APP_VER)toast("Синхронизацию записала старая версия приложения (не v"+APP_VER+"). Скорее всего, это вкладка на компьютере — обнови её, иначе она возвращает удалённое.",true);
     const gone=Object.assign({},d.gone||{});Object.entries(S.gone||{}).forEach(([k,v])=>{if(!(gone[k]>=v))gone[k]=v;});
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!(gone[o.id]&&gone[o.id]>=(o.updated||0)));};
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!isGone(o,gone));};
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);S.gone=gone;_prevIds=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
@@ -2293,7 +2299,7 @@ function renderHome(){
           if(S.worlds.length<=n0){alert("Файл мира загрузился, но мир не добавился. Нажми ещё раз; если повторится — напиши, что видишь на экране.");c.disabled=false;say(old);}}
         catch(e){alert("Не удалось загрузить мир: "+(e&&e.name==="AbortError"?"слишком долго (плохая связь). Попробуй ещё раз.":(e&&e.message)||e));c.disabled=false;say(old);}};g2.append(c);});
     p.append(g2);}
-  const n=el("p","note","Мир — это место, правила и время. Персонажи живут в мире, помнят всё, меняются от разговоров с тобой и друг от друга. Когда проходит время, они живут без тебя.");p.append(n);p.append(el("p","note","Версия приложения: v266"));
+  const n=el("p","note","Мир — это место, правила и время. Персонажи живут в мире, помнят всё, меняются от разговоров с тобой и друг от друга. Когда проходит время, они живут без тебя.");p.append(n);p.append(el("p","note","Версия приложения: v"+APP_VER));
   $("view").append(p);
 }
 function makeExample(){
