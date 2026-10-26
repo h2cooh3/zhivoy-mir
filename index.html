@@ -633,7 +633,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=299;
+const APP_VER=300;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1833,7 +1833,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-memory-details.json",patchId:"south-memory-details",names:[],title:"Детали для воспоминаний",desc:"Умершие и люди из прошлого получили живые подробности и слова, по которым рассказчик понимает, что о них вспомнили. Откуда у Эйры шрам и хромота. Мельница Уолтера. Поправка: писец Фрейи умер, обеих продал его наследник."},
   {file:"presets/addons/south-kenric-2.json",patchId:"south-kenric-2",names:[],title:"Кенрик — несчастливый брак",desc:"Кенрик не злодей: он любил Лиз всем сердцем и страдал в браке не меньше её; в ночь на хуторе хотел отпустить хозяйку. Переписаны Кенрик, Лиз, мельник Уолтер, Годрик."},
   {file:"presets/addons/south-eyvind-2.json",patchId:"south-eyvind-2",names:[],title:"Писец Эйвинд и прошлое Фрейи",desc:"Писец любил Фрейю как дочь, написал вольную, но его дочь из ревности её уничтожила и продала обеих. Фрейю не продавали в постельное рабство; было два страшных дня, уже взрослой. Переписаны Эйвинд, Фрейя, Лив, Торвальд."},
-  {file:"presets/addons/south-kenric-3.json",patchId:"south-kenric-3",names:[],title:"Кенрик: страх и отвращение",desc:"Кенрика ранил не нож, а страх Лиз и, хуже всего, её отвращение к нему."}]};
+  {file:"presets/addons/south-kenric-3.json",patchId:"south-kenric-3",names:[],title:"Кенрик: страх и отвращение",desc:"Кенрика ранил не нож, а страх Лиз и, хуже всего, её отвращение к нему."},
+  {file:"presets/addons/south-kenric-4.json",patchId:"south-kenric-4",names:[],title:"Первая ночь Лиз; исцеление Фрейи",desc:"Отвращение Лиз было только в брачную ночь, но Кенрик уже почувствовал себя отвергнутым. Фрейя уходит в себя только от прикосновения без согласия; исцеление — безвозмездное добро и когда с ней считаются по имени."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
