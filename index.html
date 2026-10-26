@@ -699,10 +699,10 @@ function factsBlock(c,n,query){const all=c.facts||[];const lim=n||Math.min(30,K(
     const rest=all.slice(0,-recent.length).map((t,i)=>{const lt=t.toLowerCase();let sc=0;words.forEach(w=>{if(lt.includes(w.slice(0,Math.max(4,w.length-2))))sc++;});return {t,i,sc};}).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc||b.i-a.i).slice(0,lim-recent.length).sort((a,b)=>a.i-b.i).map(x=>x.t);
     f=[...rest,...recent];}
   return f.length?"ПАМЯТЬ ПЕРСОНАЖА — факты, которые он точно помнит (самые свежие и относящиеся к теме):\n"+f.map(x=>"- "+x).join("\n"):"";}
-function recall(c,query){const old=c.history.slice(0,c.sumIdx);if(!old.length)return "";const words=(query||"").toLowerCase().match(/[a-zа-яёa-z0-9]{4,}/g)||[];if(!words.length)return "";
+function recall(c,query){const old=c.history.slice(0,c.sumIdx);if(!old.length)return "";const stem=w=>w.length>6?w.slice(0,w.length-2):w;const low=old.map(m=>m.content.toLowerCase());let words=((query||"").toLowerCase().match(/[a-zа-яёa-z0-9]{4,}/g)||[]).map(stem);words=[...new Set(words)].filter(w=>low.filter(t=>t.includes(w)).length<=Math.max(3,old.length*0.25));if(!words.length)return "";
   const sc=old.map((m,i)=>{const t=m.content.toLowerCase();let s=0;words.forEach(w=>{if(t.includes(w))s++;});return {i,s};}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,3);
   if(!sc.length)return "";const pick=new Set();sc.forEach(x=>{pick.add(x.i);if(x.i>0)pick.add(x.i-1);});
-  return "ВСПОМНИЛОСЬ ДОСЛОВНО (старые фрагменты разговора, относящиеся к теме):\n"+[...pick].sort((a,b)=>a-b).map(i=>{const m=old[i];return (m.role==="user"?heroName(W(c.worldId)):c.name)+": "+m.content.slice(0,500);}).join("\n");}
+  return "ВСПОМНИЛОСЬ ДОСЛОВНО (старые фрагменты разговора, относящиеся к теме):\n"+[...pick].sort((a,b)=>a-b).map(i=>{const m=old[i];return (m.role==="user"?heroName(W(c.worldId)):(c.name||"Рассказчик"))+": "+m.content.slice(0,500);}).join("\n");}
 // Личность для промпта: без общего шаблона «ПРАВИЛА ДЛЯ ИГРЫ» (он в общем правиле знания) и без «МАНЕРЫ РЕЧИ», если есть карточка голоса
 const PLAY_TPL="ПРАВИЛА ДЛЯ ИГРЫ: не знает того, чего не видел сам; о Фрейе знает только то, что указано в «знает сейчас». Живёт своей жизнью и своими целями, а не вокруг Уилла. Меняется медленно: одна сцена — максимум один сдвиг.";
 function coreP(c,w){const hide=Array.isArray(c.stages)&&c.stages.length&&Array.isArray(c.stageHide)?c.stageHide:[];let t=String(c.core||"").split("\n\n").filter(b=>!hide.some(h=>b.trim().startsWith(h))).join("\n\n").split("\n").filter(l=>l.trim()!==PLAY_TPL&&!((c.voice||"").trim()&&/^МАНЕРА РЕЧИ:/.test(l.trim()))&&!hide.some(h=>l.trim().startsWith(h))).join("\n").replace(/\n{3,}/g,"\n\n");return fill(t,w,c);}
@@ -1041,7 +1041,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Bo
   layoutRule(),frankRule(),CHOICE_RULE,SPEECH_RULE,LOGIC_RULE,knowRule(w),FIRST_RULE,
   "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+(x.noHero?absentRule(w):heroRule(w))+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника."].filter(Boolean).join("\n\n");}
-function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),MOVE_RULE,LIVE_RULE,stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
+function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(Boolean);return [worldEvents(w),(x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():"",(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu?recall(x,lu.content):"";})(),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),MOVE_RULE,LIVE_RULE,stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w))].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
@@ -1370,8 +1370,8 @@ ${st&&!st.done?"\n"+storyBlock(w)+"\nМЕСТО ФОРМИРУЕТ ЧЕЛОВЕ�
   w.updated=Date.now();save();return r;
 }
 async function condenseFacts(c){
-  const lim=K().facts;if((c.facts||[]).length<=lim*1.5)return false;
-  const prompt=`Вот список фактов, которые помнит персонаж «${c.name}». Уплотни его: объедини повторы и близкое, убери мелочь, сохрани имена, обещания, секреты, даты, предметы и всё, что может выстрелить в сюжете. Верни не больше ${lim} пунктов.\n\n${c.facts.map(f=>"- "+f).join("\n")}\n\nВерни JSON: {"facts":["..."]}`;
+  const lim=Math.min(K().facts,30);if((c.facts||[]).length<=40)return false;
+  const prompt=`Вот список фактов, которые помнит персонаж «${c.name}». Уплотни его: объедини повторы и близкое, убери мелочь, сохрани имена, обещания, секреты, даты, предметы и всё, что может выстрелить в сюжете. Факты идут по времени, последние — в конце: если два факта противоречат друг другу (например, «лодка сломана» и «лодка починена»), оставь только поздний, актуальный. Верни не больше ${lim} пунктов.\n\n${c.facts.map(f=>"- "+f).join("\n")}\n\nВерни JSON: {"facts":["..."]}`;
   const r=await askJSON(prompt,2000,"memory");if(Array.isArray(r.facts)&&r.facts.length){c.facts=r.facts.map(String);save();return true;}return false;
 }
 async function compressHistory(obj,who,w,force){
@@ -1380,8 +1380,14 @@ async function compressHistory(obj,who,w,force){
 Текущее краткое содержание: ${obj.summary.trim()||"(пусто)"}
 Новый фрагмент:
 ${transcript(obj.history.slice(obj.sumIdx,end),w,who)}
-Напиши обновлённое краткое содержание всего (старое + новое): события по порядку, факты, имена, обещания, секреты, перемены в отношениях и настроении. Сжато, пунктами, на языке разговора. Только текст содержания.`;
-  const t=await callModel({msgs:[{role:"user",content:prompt}],maxTokens:1500,cheap:true,signal:ctl&&ctl.signal,purpose:"memory"});
+Напиши обновлённое краткое содержание всего (старое + новое). НЕ выбрасывай старые пункты ради краткости: старое можно сжимать, но не терять. Структура:
+СОБЫТИЯ — по порядку, с днём/временем, кто где был и что сделал.
+ОБЕЩАНИЯ И ДОЛГИ — кто кому что обещал (дословно, с сроком), что взято в долг, что куплено и подарено, кто сколько заплатил.
+КТО ЧТО ЗНАЕТ — какие тайны и новости известны кому, а от кого скрыты; какие клятвы и молчание.
+ОТНОШЕНИЯ — как поменялось между кем (что сказано, чем обидели или порадовали).
+НЕЗАКРЫТОЕ — что осталось недоговорённым и ждёт ответа.
+Если новое противоречит старому, оставь новое и пометь, что изменилось. Имена, числа, предметы и сказанные слова важнее описаний погоды и жестов. Пунктами, на языке разговора. Только текст содержания.`;
+  const t=await callModel({msgs:[{role:"user",content:prompt}],maxTokens:3000,cheap:true,signal:ctl&&ctl.signal,purpose:"memory"});
   if(t.trim()){obj.summary=t.trim();obj.sumIdx=end;save();}return true;
 }
 async function writeChapter(w,opts){
