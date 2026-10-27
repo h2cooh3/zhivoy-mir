@@ -1,0 +1,30 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "name": "Эдвин: ракушка от Мэг",
+ "desc": "Ракушка на шее Эдвина — подарок дочери Мэг, носит из любви к ней; круг Высшего — под рубахой.",
+ "charPatch": {
+  "Эдвин": {
+   "look": "Мужчина тридцати лет, лицо огрубело от моря. Широкий в плечах, жилистый и крепкий, руки длинные и тяжёлые. Лицо скуластое, обветренное до красноты, с морщинками от смеха у глаз, обгоревшим носом и россыпью веснушек. Волосы ярко-рыжие, густые, до плеч, взлохмачены ветром; борода короткая, рыжая, с белыми крупинками соли. Глаза серо-голубые, тёплые, с хитрым прищуром; улыбается широко, во весь рот. Руки большие, в частой сетке белых шрамов от лесы и сетей, костяшки сбиты. На нём старая тёмно-серая суконная куртка в заплатах, под ней светлая холщовая рубаха с завязками у ворота. На шее на кожаном шнурке — спиральная ракушка, подарок дочери Мэг; круг Высшего, который вырезал Уилл, он носит под рубахой. Через плечо — смотанная мокрая сеть и верёвки, другой рукой опирается на ловушку для крабов. Фон — деревянная пристань, рыбацкие лодки с мачтами, сети сушатся на шестах, спокойная утренняя вода, холмы за бухтой, рассеянный свет.",
+   "lookEn": "portrait of a 30-year-old fisherman, broad-shouldered, wiry and strong, long heavy arms, weathered wind-reddened face with high cheekbones, freckles, laugh lines, sunburned nose, thick bright red shoulder-length hair tousled by the wind, short red beard with salt crystals, warm grey-blue squinting eyes, wide open grin, big hands covered in a mesh of white scars from fishing lines and nets, battered knuckles, old dark-grey patched wool jacket over a pale linen shirt with a laced collar, a small spiral seashell pendant on a leather cord (a gift from his little daughter), coiled wet fishing net and ropes over one shoulder, other hand resting on a wooden crab trap, wooden pier, fishing boats with masts, nets drying on poles, calm morning water, hills across the bay, diffused light, painterly realistic, muted colors, late medieval southern coastal village, cinematic",
+   "coreReplace": [
+    [
+     "На шее — деревянный круг Высшего с точкой на самой линии, на шнурке; его вырезал Уилл.",
+     "На шее на шнурке — спиральная ракушка: её нашла на берегу и подарила ему дочь Мэг, и он носит её из любви к ней, не снимая. Круг Высшего с точкой на линии, который вырезал Уилл, носит под рубахой."
+    ],
+    [
+     "трогает деревянный круг на шнурке, когда врёт Бесс",
+     "трогает ракушку Мэг на шнурке, когда врёт Бесс"
+    ]
+   ]
+  },
+  "Мэг": {
+   "coreAdd": "ПОДАРОК ОТЦУ: нашла на берегу спиральную ракушку и подарила папе; он носит её на шее на шнурке и не снимает — Мэг этим очень гордится."
+  }
+ },
+ "storyPatch": {
+  "id": "south-edwin-shell",
+  "forTitle": "Южное побережье"
+ }
+}

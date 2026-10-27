@@ -641,7 +641,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=339;
+const APP_VER=340;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1908,7 +1908,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-ansel-look.json",patchId:"south-ansel-look",names:[],title:"Ансельм: проседь и одежда Дома",desc:"Проседь; кафтан старшего мастера вместо рясы, охристая полоса с кругами, мерило вместо посоха."},
   {file:"presets/addons/south-ansel-look-2.json",patchId:"south-ansel-look-2",names:[],title:"Ансельм: некрасивое лицо",desc:"Тяжёлая челюсть, мясистый свёрнутый нос, оспины; глаза — лучшее в лице."},
   {file:"presets/addons/south-edwin-look.json",patchId:"south-edwin-look",names:[],title:"Эдвин: внешность по портрету",desc:"Рыжие волосы до плеч, веснушки, жилистый, куртка в заплатах — как на портрете."},
-  {file:"presets/addons/south-edwin-look-2.json",patchId:"south-edwin-look-2",names:[],title:"Эдвин: амулет в промпте",desc:"В промпте явно: круг Высшего, не раковина и не спираль."}]};
+  {file:"presets/addons/south-edwin-look-2.json",patchId:"south-edwin-look-2",names:[],title:"Эдвин: амулет в промпте",desc:"В промпте явно: круг Высшего, не раковина и не спираль."},
+  {file:"presets/addons/south-edwin-shell.json",patchId:"south-edwin-shell",names:[],title:"Эдвин: ракушка от Мэг",desc:"Ракушка на шее — подарок дочери Мэг; круг Высшего — под рубахой."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
