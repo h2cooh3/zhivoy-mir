@@ -1,0 +1,31 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "name": "Агнесса: круг вместо раковины",
+ "desc": "Новое описание Агнессы: на груди деревянный круг — знак веры в Высшего (вместо морской раковины). Правки в карточке Эдвина про его круг.",
+ "charPatch": {
+  "Сестра Агнесса": {
+   "look": "Женщина около сорока пяти лет, высокая, сухая, очень прямая, с длинной шеей и узкими плечами. Узкое бледное лицо с впалыми щеками, тонкий прямой нос, сухие сомкнутые губы, тонкие морщины у рта и вертикальная складка между бровей; кожа светлая, без загара, под глазами синеватые тени от бессонных ночей. Волосы коротко острижены и скрыты под простым серым шерстяным покрывалом, у висков видна седина. Глаза серо-зелёные, спокойные и усталые, взгляд прямой и точный. Пальцы длинные, тонкие, в чернильных пятнах, на костяшках трещинки от холодной воды и трав. Длинное серое платье из грубой шерсти, подпоясанное верёвкой; на груди на кожаном шнурке небольшой деревянный круг — знак веры в Высшего, вытертый пальцами. Прижимает к груди тяжёлую книгу в потёртом кожаном переплёте с медной застёжкой, между страниц заложено гусиное перо. Выражение спокойное, уголки губ опущены, но в лице угадывается редкая настоящая улыбка. Фон: полутёмная каменная молельня, свечи, пучки сухих трав под балками, узкое окно на серое море, мягкий рассеянный свет.",
+   "lookEn": "portrait, woman around forty-five, tall, thin and very upright, long neck, narrow pale face with hollow cheeks, thin straight nose, fine lines around mouth, crease between brows, bluish shadows under tired grey-green eyes, calm direct gaze, short hair hidden under plain grey wool veil with grey at temples, long ink-stained fingers, coarse grey wool robe belted with rope, small plain carved wooden circle pendant on a leather cord resting on her chest, the sign of her faith, worn smooth by fingers, holding a heavy worn leather-bound book with brass clasp and quill pen, dim stone chapel, candles, dried herbs hanging from beams, narrow window onto grey sea, soft diffused light, painterly realistic, muted colors, late medieval southern coastal village, whitewashed stone and red tile roofs, cypresses, cinematic",
+   "coreReplace": [
+    [
+     "собирает морские раковины с узором, как у той, что на её шнурке",
+     "собирает морские раковины с узором — память о море; на её шнурке не раковина, а деревянный круг, знак веры"
+    ]
+   ]
+  },
+  "Эдвин": {
+   "coreReplace": [
+    [
+     "трогает амулет-раковину, когда врёт Бесс",
+     "трогает деревянный круг на шнурке, когда врёт Бесс"
+    ]
+   ]
+  }
+ },
+ "storyPatch": {
+  "id": "south-agnes-circle",
+  "forTitle": "Южное побережье"
+ }
+}

@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=328;
+const APP_VER=329;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1893,7 +1893,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-faith-2.json",patchId:"south-faith-2",names:[],title:"Вера, уточнение: рабство не запрещено",desc:"Рабство законом не запрещено; король назвал юг Землёй Верных, истинные верующие рабов не держат. Помощь Уилла — выбор против закона. Договор барона — ради лица."},
   {file:"presets/addons/south-faith-3.json",patchId:"south-faith-3",names:[],title:"Вера, уточнение 2: письмо — это измена",desc:"Рабство — позор, а барона губит письмо: сделки с Севером в обход короны — измена. Без королевской милости барон простой человек, и обиженные сводят счёты."},
   {file:"presets/addons/south-faith-4.json",patchId:"south-faith-4",names:[],title:"Вера, итог: закон для знати",desc:"Вера запрещает рабство искренне верующим, но не всем. Король карает смертью знать за рабство. Барон — атеист по убеждению, письмо смертельно: доказывает торговлю людьми."},
-  {file:"presets/addons/south-ansel.json",patchId:"south-ansel",names:["Отец Ансельм"],title:"Отец Ансельм — епископ Эшфорда",desc:"Гордый епископ, автор закона о знати, скрывающий падучую. Связи с Агнессой, бароном, Эзрой, Тобиасом, Ханной; личные финалы."}]};
+  {file:"presets/addons/south-ansel.json",patchId:"south-ansel",names:["Отец Ансельм"],title:"Отец Ансельм — епископ Эшфорда",desc:"Гордый епископ, автор закона о знати, скрывающий падучую. Связи с Агнессой, бароном, Эзрой, Тобиасом, Ханной; личные финалы."},
+  {file:"presets/addons/south-agnes-circle.json",patchId:"south-agnes-circle",names:[],title:"Агнесса: круг вместо раковины",desc:"Новое описание Агнессы: деревянный круг — знак веры в Высшего. Согласованы карточки Эдвина."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
