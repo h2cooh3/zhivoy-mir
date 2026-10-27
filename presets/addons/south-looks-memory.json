@@ -1,0 +1,55 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "name": "Внешность людей из прошлого",
+ "desc": "У умерших и фоновых персонажей (Ровена, Нэд, Кенрик, Хаук, Эйвинд, Ульва, Гуннар, Хальвар, Сигрид) полное описание внешности и промпт для портрета, согласованные с их карточками. Нэду исправлены глаза на отцовские серые.",
+ "charPatch": {
+  "Ровена": {
+   "look": "Молодая женщина двадцати трёх лет, невысокая, крепкая, круглолицая. Тёмно-русые волосы в небрежной косе, которая вечно расплеталась, выбившиеся пряди под льняным платком. Тёплые карие глаза, смешливые морщинки в уголках, на переносице веснушки, румяные щёки. Широкая открытая улыбка. Загорелые крепкие руки в мозолях от серпа и вёдер, рукава засучены. Простое холщовое платье, передник, на поясе тряпица. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a young woman about twenty-three, short and sturdy, round face, dark blonde hair in a loose untidy braid with strands escaping from under a linen kerchief, warm brown eyes with laugh lines, freckles across the nose, rosy cheeks, wide open smile, sun-tanned strong hands calloused from a sickle and buckets, sleeves rolled up, plain homespun dress and apron, faded colors, soft haze like a memory, ink-lined illustration, muted colors, late medieval, cinematic"
+  },
+  "Нэд": {
+   "look": "Мальчик двух лет, круглолицый, щёки вечно в чём-то. Светлый тёмно-русый пушок и вихры, в которых застряла стружка. Серые отцовские глаза, курносый нос, смеётся, показывая молочные зубы. Широкая холщовая рубашонка до колен, босые ножки, в руке деревянная уточка на верёвке. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a two-year-old toddler boy, round chubby face with smudged cheeks, soft light dark-blonde fuzz and tousled tufts with wood shavings caught in them, grey eyes like his father's, button nose, laughing with tiny baby teeth, wide plain linen smock to the knees, bare feet, holding a small wooden duck on a string, faded colors, soft haze like a memory, ink-lined illustration, muted colors, late medieval, cinematic, gentle and wholesome",
+   "coreReplace": [
+    [
+     "отцовские тёмные глаза",
+     "отцовские серые глаза"
+    ]
+   ]
+  },
+  "Кенрик": {
+   "look": "Молодой мужчина двадцати трёх лет, крепкий, широкоплечий, чуть выше среднего. Русые волосы коротко острижены, лицо открытое, грубоватое, гладко выбрит, на людях самоуверенная громкая усмешка, а когда думает, что никто не видит, — усталые, потухшие глаза. Простая стёганая куртка дружинника, наглухо застёгнутая у ворота, кожаный пояс, нож в ножнах. Рубаху при людях не снимает. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a young man about twenty-three, sturdy and broad-shouldered, short-cropped light brown hair, clean-shaven open coarse face, loud self-assured smirk for show but tired dull eyes underneath, plain quilted soldier's jacket buttoned to the collar, leather belt with a knife, faded colors, soft haze like a memory, ink-lined illustration, muted colors, late medieval, cinematic"
+  },
+  "Капитан Хаук": {
+   "look": "Грузный мужчина около пятидесяти, тяжёлый в плечах, обветренный, с короткой тёмной бородой с проседью, в левом ухе серьга. Мягкий, почти ласковый взгляд и тихая улыбка — от неё страшнее, чем от крика. На правой ладони бугристый след от ожога. Тяжёлый тёмный морской плащ, под ним рубаха, на груди под рубахой оттопыренный промасленный мешочек, к которому он всё время тянется рукой. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a heavyset weathered northern sea captain about fifty, broad heavy shoulders, short dark beard streaked with grey, a single earring, soft almost kind gaze and quiet smile that feels menacing, bumpy burn scar across one palm, heavy dark sea cloak, hand resting on a small oilskin pouch under his shirt, storm and dark sea behind him, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  },
+  "Старый писец Эйвинд": {
+   "look": "Маленький сухой старик за семьдесят, сутулый, в чернильных пятнах до локтей. Седые редкие волосы вокруг лысины, худое морщинистое лицо с доброй рассеянной улыбкой. Очки из двух стёкол на проволоке, держатся на шнурке; плохо видит, щурится, наклоняет голову к странице. Длинная тёмная шерстяная рубаха с закатанными рукавами, на пальцах чернила и мозоль от пера. Кругом книги, свитки, свеча. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a small frail dry old scribe over seventy, stooped, thin white hair around a bald crown, thin wrinkled face with a kind absent-minded smile, spectacles of two lenses on wire hanging on a cord, squinting at a page, long dark wool tunic with sleeves rolled up, ink-stained fingers and forearms, books and scrolls by candlelight, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  },
+  "Трактирщица Ульва": {
+   "look": "Крупная женщина лет пятидесяти, широкая в плечах и бёдрах, красное лицо, маленькие цепкие глаза, которые всё считают. Седеющие русые волосы убраны под потёртый платок. Рукава засучены до локтей, сильные красные руки, мокрый подол и фартук. На поясе связка ключей, голос громкий, от него звенит посуда. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a big broad northern innkeeper woman about fifty, red face, small shrewd counting eyes, greying fair hair under a worn kerchief, sleeves rolled to the elbows, strong red hands, damp apron and hem, bunch of keys at her belt, smoky roadside tavern behind her, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  },
+  "Купец Гуннар": {
+   "look": "Высокий тяжёлый в плечах мужчина около пятидесяти пяти, седая борода заплетена в две косицы, седые волосы зачёсаны назад с высокого лба. Холодные маленькие глаза, тонкие губы, лицо обветренное, как солёная доска. На толстых пальцах пара перстней. Тёмный кафтан, поверх засаленный кожаный фартук, пахнет солью и дёгтем. Рядом бочки с солью и вяленая рыба. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a tall heavy-shouldered northern merchant about fifty-five, grey beard braided into two plaits, grey hair combed back from a high forehead, small cold eyes, thin lips, weathered face like a salted plank, thick fingers with a couple of rings, dark coat under a greasy leather apron, salt barrels and dried fish behind him, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  },
+  "Хальвар": {
+   "look": "Высокий сутулый мужчина лет сорока, выгоревшие до рыжины светлые волосы и нечёсаная борода, красное обветренное лицо, взгляд всегда в сторону. Руки в старых порезах от сетей, толстые рыбацкие пальцы. Выцветшая рубаха, залатанная куртка, на плече смоленая сеть. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a tall stooped northern fisherman about forty, sun-bleached reddish-blond hair and an unkempt beard, red weathered face, eyes looking away, hands covered in old net cuts, faded shirt and patched jacket, tarred net over one shoulder, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  },
+  "Сигрид": {
+   "look": "Молодая женщина лет двадцати восьми, северянка, худая от голодной зимы. Длинная светлая коса, перекинутая через плечо, тонкое усталое лицо, впалые щёки, светлые глаза. Тёплая улыбка и тёплые руки, которыми она заплетает косу. Простое домотканое платье, платок на плечах, запах дыма и сушёной травы. Лицо как в памяти ребёнка: чуть расплывчатое, чёткими остаются коса, руки и улыбка. Портрет как воспоминание: выцветшие тона, мягкая дымка.",
+   "lookEn": "memory portrait of a young northern woman about twenty-eight, thin from a hungry winter, long pale blonde braid over one shoulder, thin tired face with hollow cheeks, light eyes, a warm smile, gentle hands braiding hair, plain homespun dress and shawl, smoky hut, face slightly blurred as a child's memory with the braid, hands and smile sharp, singing softly, faded colors, soft haze like a memory, ink-lined illustration, muted colors, northern kingdom, late medieval, cinematic"
+  }
+ },
+ "storyPatch": {
+  "id": "south-looks-memory",
+  "forTitle": "Южное побережье"
+ }
+}
