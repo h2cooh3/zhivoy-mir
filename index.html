@@ -641,7 +641,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=334;
+const APP_VER=335;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1904,7 +1904,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-sign.json",patchId:"south-sign",names:[],title:"Знак веры: круг с точкой",desc:"Замкнутый круг с точкой в середине: жизнь замыкается на себе, конец есть начало, точка — новая жизнь. Описания Агнессы, Ансельма, Эдвина."},
   {file:"presets/addons/south-sign-2.json",patchId:"south-sign-2",names:[],title:"Знак веры: точка на линии",desc:"Точка лежит на линии круга, где конец встречает начало; круг ровный или нарастающий; жизнь продолжается дальше."},
   {file:"presets/addons/south-sign-3.json",patchId:"south-sign-3",names:[],title:"Знак веры: круг — Высший",desc:"Круг — Высший, вечный; точка на линии — конечность всего остального, включая мир."},
-  {file:"presets/addons/south-looks-faith.json",patchId:"south-looks-faith",names:[],title:"Внешность: Ансельм, Агнесса, Эдвин",desc:"Ансельм без карикатуры — следы болезни видны только вблизи; знак веры в промптах портретов."}]};
+  {file:"presets/addons/south-looks-faith.json",patchId:"south-looks-faith",names:[],title:"Внешность: Ансельм, Агнесса, Эдвин",desc:"Ансельм без карикатуры — следы болезни видны только вблизи; знак веры в промптах портретов."},
+  {file:"presets/addons/south-ansel-look.json",patchId:"south-ansel-look",names:[],title:"Ансельм: проседь и одежда Дома",desc:"Проседь; кафтан старшего мастера вместо рясы, охристая полоса с кругами, мерило вместо посоха."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);

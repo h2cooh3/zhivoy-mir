@@ -1,0 +1,24 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "name": "Ансельм: проседь и одежда Дома",
+ "desc": "Волосы с проседью; одежда не церковная — кафтан старшего мастера, охристая полоса с кругами (знак сана), мерило вместо посоха.",
+ "charPatch": {
+  "Отец Ансельм": {
+   "look": "Мужчина около шестидесяти лет, высокий, худощавый, держится очень прямо — привычка человека, которому нельзя показаться слабым. Лицо узкое, нос крупный, с небольшой горбинкой, у рта глубокие складки; кожа бледная, без загара, под глазами серые тени плохого сна. Тёмные волосы с сильной проседью — седые виски и седая прядь надо лбом — аккуратно зачёсаны назад. Глаза светлые, серо-голубые, умные и внимательные; смотрит прямо и спокойно и редко первым отводит взгляд. Если приглядеться, видны следы падений: тонкий белый шрам через левую бровь, ещё один маленький на подбородке, у виска под волосами — старый желтеющий синяк, в углу нижней губы подживающая ранка. Одет как старший мастер, а не как священник: длинный, до щиколоток, кафтан из некрашеной тёмно-серой шерсти, запахнутый и перехваченный широким кожаным поясом; рукава узкие, у запястий подвёрнуты, и из-под отворота правого виден кончик потёртого кожаного ремешка. Поверх на плечах — узкая тканая полоса цвета охры с вытканными кругами, знак сана. На цепи посеребрённый замкнутый круг, линия которого к концу утолщается в точку, — знак Высшего. В руке мерило — прямая трость тёмного дерева в рост человека с медными зарубками, как мерка мастера: Высший мерит и принимает работу. Всё чистое и тщательно заштопанное. Руки длинные, спокойные. В лице — сдержанное достоинство и усталость, без злобы. Фон: каменный зал Дома Высшего в Эшфорде — беленые стены, круги, вырезанные над дверью; он стоит спиной к стене, в стороне от окна; свечи, мягкий тёплый свет.",
+   "lookEn": "portrait of a tall lean man around sixty, very upright dignified posture, narrow face with a strong slightly aquiline nose and deep lines around the mouth, pale untanned skin, faint grey shadows of poor sleep under the eyes, dark hair heavily streaked with grey, grey temples and a grey lock above the forehead, neatly combed back, intelligent attentive pale grey-blue eyes with a calm steady gaze, subtle signs of old falls visible only up close: a thin white scar through the left eyebrow, a small scar on the chin, a fading yellowish bruise at the temple half hidden by hair, a small healing cut at the corner of the lower lip, dressed like a senior master craftsman, not a priest: ankle-length undyed dark-grey wool coat wrapped and cinched with a wide leather belt, narrow sleeves with turned-back cuffs, a narrow ochre woven band over the shoulders patterned with small rings as the mark of his office, clean and carefully mended, no cassock, no church vestments, no cross, silvered pendant on a chain: a closed ring whose line gradually thickens into a single bead-like dot on the rim where the end meets the beginning (not in the center), tip of a worn leather strap showing from under the right cuff, holding a tall straight staff of dark wood marked with brass notches like a master's measuring rod, long calm hands, restrained dignity and quiet weariness, humane, not sinister, plain whitewashed stone hall of a temple of an invented faith, carved ring signs above the door, no stained glass, standing with his back to the wall away from the window, candles, soft warm light, painterly realistic, muted colors, late medieval, cinematic",
+   "greeting": "*Эшфорд, Дом Высшего. Каменная келья с единственным окном, закрытым ставнями. На столе одна свеча, листы с ровными строками, чернильница. У стены, не у окна, стоит высокий человек с сильной проседью, в длинном сером кафтане с охристой полосой на плечах; он не оборачивается сразу.*\n\n«Вы вошли без стука. Это либо дерзость, либо большая нужда. — *поворачивается; взгляд неподвижный, дольше, чем принято.* — Сядьте. Говорите по порядку и не жалуйтесь, пока не изложите дело. Я Ансельм, епископ этого города. Что привело вас в Эшфорд?»",
+   "coreReplace": [
+    [
+     "Тёмная ряса с широкими рукавами,",
+     "Длинный тёмно-серый кафтан старшего мастера с широким кожаным поясом и охристой полосой с кругами на плечах (знак сана), в руке мерило — трость с медными зарубками;"
+    ]
+   ]
+  }
+ },
+ "storyPatch": {
+  "id": "south-ansel-look",
+  "forTitle": "Южное побережье"
+ }
+}
