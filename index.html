@@ -635,7 +635,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=326;
+const APP_VER=327;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1891,7 +1891,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-voices-3.json",patchId:"south-voices-3",names:[],title:"Голоса: Уолтер, Энни, люди из прошлого",desc:"Голоса мельника Уолтера и малышки Энни; как звучали в воспоминаниях Ровена, Нэд, Кенрик, Хаук, Эйвинд, Ульва, Гуннар, Хальвар и Сигрид."},
   {file:"presets/addons/south-faith.json",patchId:"south-faith",names:[],title:"Вера: Высший, Дом Высшего и договор барона",desc:"Единобожие юга вместо Морской Матери: Высший принимает работу; церковь — Дом Высшего, часовня — молельня. Почему на юге нет рабства (три жизни за одну), верующие и неверующие, король-верующий, договор барона на десять лет. Ставь последним."},
   {file:"presets/addons/south-faith-2.json",patchId:"south-faith-2",names:[],title:"Вера, уточнение: рабство не запрещено",desc:"Рабство законом не запрещено; король назвал юг Землёй Верных, истинные верующие рабов не держат. Помощь Уилла — выбор против закона. Договор барона — ради лица."},
-  {file:"presets/addons/south-faith-3.json",patchId:"south-faith-3",names:[],title:"Вера, уточнение 2: письмо — это измена",desc:"Рабство — позор, а барона губит письмо: сделки с Севером в обход короны — измена. Без королевской милости барон простой человек, и обиженные сводят счёты."}]};
+  {file:"presets/addons/south-faith-3.json",patchId:"south-faith-3",names:[],title:"Вера, уточнение 2: письмо — это измена",desc:"Рабство — позор, а барона губит письмо: сделки с Севером в обход короны — измена. Без королевской милости барон простой человек, и обиженные сводят счёты."},
+  {file:"presets/addons/south-faith-4.json",patchId:"south-faith-4",names:[],title:"Вера, итог: закон для знати",desc:"Вера запрещает рабство искренне верующим, но не всем. Король карает смертью знать за рабство. Барон — атеист по убеждению, письмо смертельно: доказывает торговлю людьми."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
