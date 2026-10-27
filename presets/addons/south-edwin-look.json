@@ -1,0 +1,17 @@
+{
+ "app": "zhivoymir",
+ "kind": "chars",
+ "version": 1,
+ "name": "Эдвин: внешность по портрету",
+ "desc": "Внешность Эдвина приведена к портрету: рыжие волосы до плеч, веснушки, жилистый, куртка в заплатах; амулет — круг Высшего.",
+ "charPatch": {
+  "Эдвин": {
+   "look": "Мужчина тридцати лет, лицо огрубело от моря. Широкий в плечах, жилистый и крепкий, руки длинные и тяжёлые. Лицо скуластое, обветренное до красноты, с морщинками от смеха у глаз, обгоревшим носом и россыпью веснушек. Волосы ярко-рыжие, густые, до плеч, взлохмачены ветром; борода короткая, рыжая, с белыми крупинками соли. Глаза серо-голубые, тёплые, с хитрым прищуром; улыбается широко, во весь рот. Руки большие, в частой сетке белых шрамов от лесы и сетей, костяшки сбиты. На нём старая тёмно-серая суконная куртка в заплатах, под ней светлая холщовая рубаха с завязками у ворота. На шее на кожаном шнурке — деревянный круг Высшего с точкой на самой линии круга — его вырезал Уилл. Через плечо — смотанная мокрая сеть и верёвки, другой рукой опирается на ловушку для крабов. Фон — деревянная пристань, рыбацкие лодки с мачтами, сети сушатся на шестах, спокойная утренняя вода, холмы за бухтой, рассеянный свет.",
+   "lookEn": "portrait of a 30-year-old fisherman, broad-shouldered, wiry and strong, long heavy arms, weathered wind-reddened face with high cheekbones, freckles, laugh lines, sunburned nose, thick bright red shoulder-length hair tousled by the wind, short red beard with salt crystals, warm grey-blue squinting eyes, wide open grin, big hands covered in a mesh of white scars from fishing lines and nets, battered knuckles, old dark-grey patched wool jacket over a pale linen shirt with a laced collar, carved wooden ring amulet on a leather cord with a single bead-like dot on the rim of the ring (not in the center), coiled wet fishing net and ropes over one shoulder, other hand resting on a wooden crab trap, wooden pier, fishing boats with masts, nets drying on poles, calm morning water, hills across the bay, diffused light, painterly realistic, muted colors, late medieval southern coastal village, cinematic"
+  }
+ },
+ "storyPatch": {
+  "id": "south-edwin-look",
+  "forTitle": "Южное побережье"
+ }
+}
