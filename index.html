@@ -641,7 +641,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=344;
+const APP_VER=345;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -753,7 +753,9 @@ async function askJSON(prompt,maxTokens,purpose){const mt=Math.max(maxTokens||25
 const friendly=e=>{if(!e)return "";if(e.name==="AbortError")return "";if(e.message==="Failed to fetch")return "Нет соединения с API (сеть, адрес или блокировка браузера).";return e.message||"Ошибка";};
 
 // ============ ПРОМПТЫ ============
-function worldBlock(w){if(!w)return "";const p=["МИР: "+w.name];if(w.desc.trim())p.push(w.desc.trim());if(w.rules.trim())p.push("ПРАВИЛА И УСЛОВИЯ ЖИЗНИ:\n"+w.rules.trim());if(w.places.trim())p.push("МЕСТА:\n"+w.places.trim());return p.join("\n");}
+// noNarr: для персонажей и режиссёра убираем абзацы «(для рассказчика)» — там арки других героев (напр. любовная линия Уилла и Фрейи), их нельзя переносить на другого человека
+function stripNarr(t){return String(t||"").split(/\n[ \t]*\n/).filter(b=>!/^[^\n]{0,80}\(для рассказчика\)/.test(b.trim())).join("\n\n");}
+function worldBlock(w,noNarr){if(!w)return "";const p=["МИР: "+w.name];if(w.desc.trim())p.push(w.desc.trim());const rl=noNarr?stripNarr(w.rules):w.rules;if(rl.trim())p.push("ПРАВИЛА И УСЛОВИЯ ЖИЗНИ:\n"+rl.trim());if(w.places.trim())p.push("МЕСТА:\n"+w.places.trim());return p.join("\n");}
 function worldEvents(w,n){const ev=(w.events||[]).slice(-(n||K().events));return ev.length?"ХРОНИКА МИРА (последнее):\n"+ev.map(e=>"- "+(e.date?e.date+": ":"")+e.text).join("\n"):"";}
 function heroBlock(w,ext){const n=heroName(w);const d=heroDesc(w,ext);return "СОБЕСЕДНИК (пользователь): "+n+(d?"\n"+d:"");}
 function stateBlock(c){const st=c.state,p=[];if(st.mood)p.push("Настроение сейчас: "+st.mood);if(st.now)p.push("Что в нём изменилось / каков он сейчас: "+st.now);if(st.goals&&st.goals.length)p.push("Цели: "+st.goals.join("; "));if(st.relUser)p.push("Отношение к "+heroName(W(c.worldId))+": "+st.relUser);p.push("Доверие к "+heroName(W(c.worldId))+": "+trustWord(st.trust)+". Не выходи за этот уровень: не раскрывайся и не сближайся сильнее, чем он позволяет, даже если собеседник очень добр — людям нужно время.");if(st.arc)p.push("История ваших отношений: "+st.arc);
@@ -773,7 +775,7 @@ function recall(c,query){const old=c.history.slice(0,c.sumIdx);if(!old.length)re
 const PLAY_TPL="ПРАВИЛА ДЛЯ ИГРЫ: не знает того, чего не видел сам; о Фрейе знает только то, что указано в «знает сейчас». Живёт своей жизнью и своими целями, а не вокруг Уилла. Меняется медленно: одна сцена — максимум один сдвиг.";
 function coreP(c,w){const hide=Array.isArray(c.stages)&&c.stages.length&&Array.isArray(c.stageHide)?c.stageHide:[];let t=String(c.core||"").split("\n\n").filter(b=>!hide.some(h=>b.trim().startsWith(h))).join("\n\n").split("\n").filter(l=>l.trim()!==PLAY_TPL&&!((c.voice||"").trim()&&/^МАНЕРА РЕЧИ:/.test(l.trim()))&&!hide.some(h=>l.trim().startsWith(h))).join("\n").replace(/\n{3,}/g,"\n\n");return fill(t,w,c);}
 const hasVoice=c=>!!(c&&(c.voice||"").trim());
-function charStable(c){const w=W(c.worldId);const p=[worldBlock(w),
+function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   "ТЫ ИГРАЕШЬ ПЕРСОНАЖА: "+c.name+(c.short?" — "+c.short:""),
   "ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ (основа, не меняется):\n"+coreP(c,w),
   c.examples.trim()&&!hasVoice(c)?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
@@ -1397,7 +1399,7 @@ async function directChar(c,force){
   const w=W(c.worldId);const others=charsOf(w.id).filter(o=>o.id!==c.id);
   const prompt=`Ты — режиссёр интерактивной истории. Персонаж «${c.name}» только что говорил с ${heroName(w)}. Разбери фрагмент и обнови персонажа.
 
-${worldBlock(w)}
+${worldBlock(w,true)}
 
 ОСНОВА ПЕРСОНАЖА:
 ${c.core}
@@ -1413,6 +1415,7 @@ ${JSON.stringify({mood:c.state.mood,now:c.state.now,goals:c.state.goals,relUser:
 trust (от −10 до 10) за один разбор может сдвинуться не больше, чем на impact/3 (округляя вниз, минимум 1 при impact ≥ инертности). Доброта сама по себе — это impact 3–4, и к ней привыкают неделями, а не за разговор. Недоверие растёт быстрее, чем доверие: падение может быть вдвое больше роста.
 like — симпатия к герою (от −10 до 10, нравится ли он как человек): за разбор сдвигается не больше чем на 2; тёплое слово +0.5…+1, настоящее добро +1…+2, грубость −1…−2; комплимент от чужого или недоверчивого почти не греет, лесть без повода не считается. grudge — обида (0…10): оскорбление +1…+2, предательство или унижение +3, извинение делом −1…−2, словами не снимается; grudgeWhy — причина обиды в 3–8 слов, пусто, если обиды нет.
 Большинство разборов должны возвращать пустой log — это нормально. Не придумывай перемен ради перемен.
+ТОЛЬКО ЭТОТ ЧЕЛОВЕК: оценивай перемену относительно ОСНОВЫ и прежнего поведения именно «${c.name}». Арки других героев (особенно Фрейи: первое «нет», первое «я», «хочет, а не должна») на неё не переносятся. Слова «впервые», «никогда раньше», «впервые в жизни» — только если это прямо следует из ОСНОВЫ, фактов или арки отношений этого персонажа; иначе опиши просто поступок («отказала, настояла на своём»), без «впервые».
 
 УЖЕ ИЗВЕСТНЫЕ ФАКТЫ (не повторяй): ${(c.facts||[]).slice(-40).join("; ")||"нет"}
 ДРУГИЕ ПЕРСОНАЖИ МИРА: ${others.map(o=>o.name).join(", ")||"нет"}
