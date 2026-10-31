@@ -642,7 +642,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=366;
+const APP_VER=367;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2076,7 +2076,8 @@ const ADDONS={"Южное побережье":[
 {file:"presets/addons/south-hauk-letter.json",patchId:"south-hauk-letter",names:[],title:"Письмо в ночь шторма",desc:"Хаук держал письмо в сундуке и велел Фрейе принести мешочек; раненого Хаука вытащил Эдвин — и перед смертью тот выдал, что письмо у светлой рабыни. Фрейя — подарок Хаука барону."},
 {file:"presets/addons/south-hauk-letter-2.json",patchId:"south-hauk-letter-2",names:[],title:"Письмо в ночь шторма — поправка",desc:"Хаук сам отдаёт Фрейе мешочек и уходит командовать; Эдвин везёт раненого Хаука к барону, тот умирает у барона."},
 {file:"presets/addons/south-chapter1.json",patchId:"south-chapter1",names:[],title:"Первая глава: триггеры Уилла",desc:"Два триггера Уилла (девушка с телеги и слова жены), мысль о деньгах за беглую, Бесс отказывает приютить — Уилл несёт Фрейю к себе."},
-{file:"presets/addons/south-chapter1-2.json",patchId:"south-chapter1-2",names:[],title:"Первая глава: Бесс",desc:"Бесс переодевает девушку и делает что может, потом велит Уиллу забрать её к себе сразу."}]};
+{file:"presets/addons/south-chapter1-2.json",patchId:"south-chapter1-2",names:[],title:"Первая глава: Бесс",desc:"Бесс переодевает девушку и делает что может, потом велит Уиллу забрать её к себе сразу."},
+{file:"presets/addons/south-hog-siege.json",patchId:"south-hog-siege",names:[],title:"Хёг: осада и четыре дороги",desc:"Хёг держит осаду, тает по деталям; колыбельная его рода; четыре дороги с ценой; почему барон не берёт силой и когда решится."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
