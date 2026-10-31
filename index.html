@@ -642,7 +642,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=350;
+const APP_VER=351;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -984,7 +984,8 @@ const DEEDS={
  broke:["нарушил слово",{t:-.8,r:-.5,g:.5}],
  lie:["обман, подлость исподтишка",{t:-.9,r:-.6,g:.5}],
  betray:["предательство",{t:-1.5,r:-1,l:-.6,g:1}],
- force:["принуждение, угроза, насилие, унижение",{t:-1.2,r:-.6,l:-.8,g:1}],
+ pushy:["давление, бестактность, не услышал просьбу (без угрозы)",{t:-.4,l:-.2,r:-.3,g:.3}],
+ force:["принуждение, угроза, насилие, унижение (серьёзное нарушение границы, не мелкая бестактность)",{t:-1.2,r:-.6,l:-.8,g:1}],
  weak:["трусость, слабость, пустые слова",{r:-.5}],
  enemy:["честная вражда, открытый спор врага (без подлости)",{t:-.5}],
  sorry:["искупление, извинение делом",{g:-.8,t:.2}]
@@ -1064,6 +1065,7 @@ function toneLine(c,hn){const s=c.state||{},t=Math.round(+s.trust||0),l=+s.like|
  else if(t>=3)tone="приветлив, но без откровенности";
  else tone="вежлив и осторожен, держит нейтралитет";
  p.push("ТОН С НИМ: "+tone+".");
+ if(Array.isArray(c.stages)&&c.stages.length)p.push("У этого персонажа есть путь (ступени ниже): доверие говорит, КАК он относится к герою, а ступень пути — КАК и насколько он это может показать; ступень — потолок проявления, общие слова про доверие её не отменяют.");
  return p.join(" ");}
 function feelApply(w,st,r,skip){const L=Array.isArray(r.feel)?r.feel:[];L.forEach(o=>{if(!o||!o.who)return;const c=byName(w.id,String(o.who));if(!c||c.id===w.heroId||(skip&&skip.includes(c.id)))return;
   if(Array.isArray(o.deeds)){applyDeeds(w,c,o.deeds,"хранитель сюжета");return;}
