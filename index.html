@@ -642,7 +642,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=363;
+const APP_VER=364;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2073,7 +2073,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-holes.json",patchId:"south-holes",names:[],title:"Дыры сюжета: закон, письмо, Фрейя",desc:"Береговое право и возврат беглых, печать барона, барон и Фрейя, неверие барона, слабый Дом Высшего, два слоя Фрейи."},
   {file:"presets/addons/south-voices-4.json",patchId:"south-voices-4",names:[],title:"Голос Уолтера: без воды в каждой фразе",desc:"Голос мельника — манера, а не набор примет: ремесло и присказки звучат редко."},
 {file:"presets/addons/south-secrets.json",patchId:"south-secrets",names:[],title:"Тайны — только рассказчику",desc:"Канон не меняется: тайны из правил мира (письмо, каменоломня, неверие барона, Фрейя и барон) видит только рассказчик, а не персонажи в личных чатах. О Фрейе, Лив и Сигурде знают только те, кто знал их до начала истории."},
-{file:"presets/addons/south-hauk-letter.json",patchId:"south-hauk-letter",names:[],title:"Письмо в ночь шторма",desc:"Хаук держал письмо в сундуке и велел Фрейе принести мешочек; раненого Хаука вытащил Эдвин — и перед смертью тот выдал, что письмо у светлой рабыни. Фрейя — подарок Хаука барону."}]};
+{file:"presets/addons/south-hauk-letter.json",patchId:"south-hauk-letter",names:[],title:"Письмо в ночь шторма",desc:"Хаук держал письмо в сундуке и велел Фрейе принести мешочек; раненого Хаука вытащил Эдвин — и перед смертью тот выдал, что письмо у светлой рабыни. Фрейя — подарок Хаука барону."},
+{file:"presets/addons/south-hauk-letter-2.json",patchId:"south-hauk-letter-2",names:[],title:"Письмо в ночь шторма — поправка",desc:"Хаук сам отдаёт Фрейе мешочек и уходит командовать; Эдвин везёт раненого Хаука к барону, тот умирает у барона."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
