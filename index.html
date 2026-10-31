@@ -642,7 +642,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=361;
+const APP_VER=362;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1280,7 +1280,7 @@ function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=[
   fb.onclick=()=>{if(!confirm("Применить показатели и убрать прошлую переписку из запроса к модели? Сообщения останутся на экране (серые), но персонаж их не будет помнить."))return;applyAll();ch.sumIdx=(ch.history||[]).length;ch.summary="";ch.dirIdx=ch.sumIdx;ch.updated=Date.now();c.updated=Date.now();save();ab.disabled=true;cb.disabled=true;dirty.textContent="";toast("✓ Применено. Прошлая переписка в запрос не идёт — персонаж ведёт себя по показателям.");try{if(typeof drawLog==="function")drawLog("");}catch(e){}};
   ab.onclick=()=>{applyAll();ch.updated=Date.now();c.updated=Date.now();save();ab.disabled=true;cb.disabled=true;dirty.textContent="";toast("✓ Применено: со следующего сообщения персонаж ведёт себя по новым показателям");};
   cb.onclick=()=>{const p=box.parentNode;const nb=sbStatsEditor(c,ch);if(p)p.replaceChild(nb,box);};
-  const ar=el("div","row");ar.style.gap="8px";ar.style.alignItems="center";ar.style.marginTop="6px";ar.append(ab,fb,cb,dirty);box.append(ar);
+  const ar=el("div","row");ar.style.cssText="gap:8px;align-items:center;margin-top:6px;position:sticky;bottom:calc(-14px - env(safe-area-inset-bottom,0px));z-index:3;background:var(--panel2);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);flex-wrap:wrap";ar.append(ab,fb,cb,dirty);box.append(ar);
   return box;}
 function newSandbox(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));const n=c.chats.filter(x=>x.sandbox).length+1;const x={id:uid(),title:"🧪 Проба "+n,history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now(),sandbox:true,sb:{state:cl(c.state)||{},facts:cl(c.facts)||[],log:[],inertia:cl(c.inertia),setting:""}};c.chats.push(x);c.activeChat=x.id;save();return x;}
 function sbSetting(ch,done){const pick=v=>{ch.sb.setting=v;ch.updated=Date.now();save();toast("🕰 Обстановка: "+(v||"не задана"));if(done)done();};sheet([...SB_SETS.map(v=>[v,()=>pick(v)]),["Своё…",()=>{const v=prompt("Обстановка и время (например: «ночь, мастерская, гроза за окном»):",ch.sb.setting||"");if(v!==null)pick(v.trim());}]]);}
