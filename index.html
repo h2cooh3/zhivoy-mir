@@ -649,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=375;
+const APP_VER=376;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3263,6 +3263,8 @@ function audLoad(){const it=AUD.list[AUD.i];if(!it){audStop();toast("Дослу�
 function audStop(){if(AUD.el){AUD.el.pause();if(AUD.el.src)URL.revokeObjectURL(AUD.el.src);AUD.el=null;}if(AUD.bar){AUD.bar.remove();AUD.bar=null;}document.querySelectorAll(".tts-now").forEach(x=>x.classList.remove("tts-now"));}
 // ---- Книга: связная проза из разговора. Чат не трогаем; реплики героя только выправляем, без новых решений за него
 const BOOK_CHUNK=12000;
+// v376: книга и для сцен (История Уилла): сцена подаётся как «персонаж» с одним чатом — все функции книги и аудио работают без изменений
+function sceneBookC(id){const x=SC(id);if(!x)return null;return {id:x.id,name:"Рассказчик",label:x.title||"История",worldId:x.worldId,history:x.history,chats:[x],activeChat:x.id,isScene:true};}
 function bookOf(c){const ch=c.chats.find(x=>x.id===c.activeChat)||c.chats[0];if(!ch.book)ch.book={parts:[],upto:0,t:""};const b=ch.book;
   if(b.upto>c.history.length){b.parts=b.parts.filter(p=>p.to<=c.history.length);b.upto=b.parts.length?b.parts[b.parts.length-1].to:0;}return b;}
 async function bookStep(c,onText){const w=W(c.worldId);const b=bookOf(c);const h=c.history;if(b.upto>=h.length)return false;
@@ -3281,23 +3283,24 @@ ${worldBlock(w)}
   let text=await callModel({stable,msgs:[{role:"user",content:msg}],onText,signal:ctl&&ctl.signal,maxTokens:Math.min(8000,Math.round(len/2.2)+800),purpose:"book",cacheMsgs:false});
   if(lastStop==="length")text=trimToSentence(text);
   b.parts.push({from:b.upto,to,text:text.trim()});b.upto=to;b.t=now();save();return true;}
-function renderBook(){const c=C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);$("hTitle").textContent="Книга · "+c.name;
+function renderBook(){const c=route.sc?sceneBookC(route.id):C(route.id);if(!c){go({v:"home"},true);return;}const w=W(c.worldId);const cn=c.label||c.name;$("hTitle").textContent="Книга · "+cn;
   FMT={main:null,hero:heroName(w),names:[...charsOf(c.worldId).map(x=>x.name),heroName(w)].filter(Boolean),heroText:()=>""};
   const ch=c.chats.find(x=>x.id===c.activeChat)||c.chats[0];const b=bookOf(c);const v=$("view");const box=el("div","book");v.append(box);
   const head=el("div","row");head.style.flexWrap="wrap";head.style.gap="8px";
   const left=c.history.length-b.upto;
   const mk=el("button","btn primary",b.parts.length?(left?"Дособрать ("+left+" сообщ.)":"Книга собрана"):"Собрать книгу");mk.disabled=!left;
   const ls=el("button","btn","🎧 Слушать");ls.disabled=!b.parts.length;ls.onclick=()=>ttsStart(b.parts.map(p=>({role:"assistant",content:p.text})),0);
-  const ex=el("button","btn","Сохранить .txt");ex.disabled=!b.parts.length;ex.onclick=()=>download((w.name+" — "+c.name+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".txt",w.name+"\n"+c.name+" · "+ch.title+"\n\n"+b.parts.map(p=>p.text).join("\n\n"),"text/plain;charset=utf-8");
+  const cpb=el("button","btn","📋 Копировать текст");cpb.disabled=!b.parts.length;cpb.onclick=async()=>{const t=b.parts.map(p=>p.text).join("\n\n");try{await navigator.clipboard.writeText(t);toast("Скопировано: "+Math.round(t.length/1000)+" тыс. знаков. Вставляй в озвучку.");}catch(e){showCopy("Книга",t);}};
+  const ex=el("button","btn","Сохранить .txt");ex.disabled=!b.parts.length;ex.onclick=()=>download((w.name+" — "+cn+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".txt",w.name+"\n"+cn+" · "+ch.title+"\n\n"+b.parts.map(p=>p.text).join("\n\n"),"text/plain;charset=utf-8");
   const rs=el("button","btn ghost warn","Пересобрать с нуля");rs.hidden=!b.parts.length;rs.onclick=()=>{if(!confirm("Удалить собранную книгу и собрать заново?"))return;ch.book=null;save();render();};
   const vo=el("button","btn","🎙 Озвучить живыми голосами");vo.disabled=!b.parts.length;const pl=el("button","btn","▶ Слушать аудио");pl.hidden=true;const dl=el("button","btn","Скачать mp3");dl.hidden=true;
   (async()=>{let n=0;for(let i=0;i<b.parts.length;i++)if(await audGet(ch,i))n++;if(n){pl.hidden=false;dl.hidden=false;pl.textContent="▶ Слушать аудио ("+n+"/"+b.parts.length+")";if(n===b.parts.length)vo.textContent="🎙 Аудио готово (переозвучить новое)";}})();
   pl.onclick=()=>audPlay(c,0);
-  dl.onclick=async()=>{const bl=[];for(let i=0;i<b.parts.length;i++){const a=await audGet(ch,i);if(a)bl.push(a.blob);}if(!bl.length)return;download((w.name+" — "+c.name+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".mp3",new Blob(bl,{type:"audio/mpeg"}),"audio/mpeg");};
+  dl.onclick=async()=>{const bl=[];for(let i=0;i<b.parts.length;i++){const a=await audGet(ch,i);if(a)bl.push(a.blob);}if(!bl.length)return;download((w.name+" — "+cn+" — "+ch.title).replace(/[\\/:*?"<>|]/g,"")+".mp3",new Blob(bl,{type:"audio/mpeg"}),"audio/mpeg");};
   vo.onclick=withBusy(vo,async()=>{if(!S.api.yUrl){alert("Сначала подключи Yandex SpeechKit: Настройки → «Живые голоса».");return;}const chars=b.parts.reduce((n,p)=>n+p.text.length,0);
     if(!confirm("Озвучить книгу живыми голосами?\n≈ "+Math.round(chars/1000)+" тыс. символов ≈ "+Math.max(1,Math.round(chars/250*0.1626))+" ₽ ("+Math.round(chars/900)+" мин аудио). Уже озвученные части не трогаю."))return;
     await voiceBook(c,(i,n,k,m)=>{vo.lastChild&&(vo.lastChild.textContent="Озвучиваю часть "+(i+1)+"/"+n+" · "+Math.round(k/m*100)+"%");});toast("Аудио готово — слушай офлайн.");render();});
-  head.append(mk,ls,vo,pl,dl,ex,rs);box.append(head);
+  head.append(mk,ls,cpb,vo,pl,dl,ex,rs);box.append(head);
   box.append(el("p","note",b.parts.length?("Разговор «"+ch.title+"»: собрано "+b.upto+" из "+c.history.length+" сообщений. Если правил старые сообщения — «Пересобрать с нуля»."):"Связная проза из разговора «"+ch.title+"» ("+c.history.length+" сообщ.). Твои реплики выправляются и оформляются, но ничего не добавляется за тебя. Чат не меняется. Стоимость — примерно как у "+Math.max(1,Math.ceil(c.history.length/12))+" обычных ответов."));
   const text=el("div");box.append(text);
   const draw=()=>{text.innerHTML="";b.parts.forEach((p,i)=>{const d=el("div","bookp");d.dataset.mi=i;fmt(d,p.text);text.append(d);});};draw();
@@ -3461,6 +3464,7 @@ function renderScene(){
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
     if(x.main){const mv=el("button","btn sm ghost","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};
       const ld=el("button","btn sm","⇣ Загрузить переписку из файла");ld.onclick=()=>pickFile(async f=>{const d=parseChatFile(await f.text(),w);if(!d){alert("Не получилось прочитать переписку. Нужен файл из «Экспорт → Только переписка» (.json) или текстовый (.txt) экспорт разговора.");return;}importChatToMain(w,d);});aside.append(el("div","row"),ld,mv);}
+    {const br=el("div","row");const lb=el("button","btn sm","🎧 Слушать");lb.onclick=()=>ttsStart(x.history,0);const bk=el("button","btn sm","📖 Книга");bk.title="Связная проза из этой истории: твои ходы выправлены, ничего не добавлено, чат не трогается";bk.onclick=()=>go({v:"book",id:x.id,sc:1});br.append(lb,bk);aside.append(br);}
     {const pv=el("button","btn sm ghost","🔍 Что видит ИИ");pv.onclick=()=>{const hs=x.history.slice(x.sumIdx).map(m=>(m.role==="user"?"ТЫ: ":"")+m.content).join("\n\n");showPrompt("Что видит ИИ — "+(x.title||"сцена"),[["ПОСТОЯННОЕ (мир, персонажи, правила)",sceneStable(x)],["МЕНЯЮЩЕЕСЯ (состояние, сюжет)",sceneDynamic(x)],["СЖАТАЯ ПАМЯТЬ (хроника)",x.summary],["ПЕРЕПИСКА",hs]]);};aside.append(pv);}
     if(dramaEvery()){const dd=x.drama;aside.append(el("h3",null,"Драматург"));aside.append(el("div","block",dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Вступит перед следующим ходом."));
       if(dd&&dd.direction){const sp2=el("details","sp");sp2.append(el("summary",null,"Что он задумал (спойлер)"));sp2.append(el("div",null,dd.direction+(dd.event?"\n"+dd.event:"")+(dd.threads&&dd.threads.length?"\n\nНазревает:\n• "+dd.threads.join("\n• "):"")));aside.append(sp2);}
