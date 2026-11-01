@@ -293,6 +293,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
       <button type="button" data-sec="game">Игра</button>
       <button type="button" data-sec="voice">Голоса</button>
       <button type="button" data-sec="use">Расход</button>
+      <button type="button" data-sec="spend">Траты по ходам</button>
       <button type="button" data-sec="look">Вид и ты</button>
       <button type="button" data-sec="save">Сохранение</button>
     </div>
@@ -362,6 +363,12 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     </div>
     <p class="note">Для моделей Claude 5.5 цены подставляются сами (Sonnet: $2 вход, $0,10 из кэша, $10 выход за млн токенов; Haiku: $0,10 / $0,01 / $0,50). Поля ниже — для других моделей и провайдеров.</p>
     <button class="btn sm" id="usageReset" style="align-self:flex-start">Обнулить счётчик</button>
+</section>
+<section class="sset" data-sec="spend">
+    <h2>Траты по ходам</h2>
+    <p class="note">Для проверки расходов. Каждый твой ход — со всеми запросами, которые он вызвал: ответ, переписывание от повторов, режиссёр, хранитель сюжета, драматург, сжатие памяти. Цена считается по ценам модели; сверяй «сегодня» со списанием на сайте провайдера.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" id="spendRefresh">↻ Обновить</button><button class="btn sm ghost warn" id="spendClear">Очистить журнал</button></div>
+    <div id="spendBox"></div>
 </section>
 <section class="sset" data-sec="look">
     <h2>Оформление</h2>
@@ -642,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=371;
+const APP_VER=372;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3448,7 +3455,7 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";try{const bg=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#111316";const m=$("themeColor");if(m)m.setAttribute("content",bg);document.documentElement.style.background=bg;}catch(e){}}
-function fillSettings(){const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("spell").checked=A.spell!==false;$("think").checked=!!A.think;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("yUrl").value=A.yUrl||"";$("ySecret").value=A.ySecret||"";$("yNarr").value=A.yNarr||"filipp";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
+function fillSettings(){try{drawSpend();}catch(e){}const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("spell").checked=A.spell!==false;$("think").checked=!!A.think;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("yUrl").value=A.yUrl||"";$("ySecret").value=A.ySecret||"";$("yNarr").value=A.yNarr||"filipp";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",plainS(),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S,sbSafe));}catch(e){}
@@ -3494,12 +3501,23 @@ $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включи
   if(navigator.share){const sh=el("button","btn","Отправить…");sh.onclick=async()=>{try{await navigator.share({text:code});}catch(e){}};$("repBody").querySelector(".row").append(sh);}};
 $("cfgPaste").onclick=async()=>{let t="";try{t=await navigator.clipboard.readText();}catch(e){}if(!/^ZMCFG:/.test(t||""))t=prompt("Вставь строку настроек (начинается с ZMCFG:)","")||"";t=t.trim();if(!t)return;
   try{const c=JSON.parse(decodeURIComponent(escape(atob(t.replace(/^ZMCFG:/,"")))));applyCfg(c);save();fillSettings();keyStatus(c.key?"✓ Настройки и ключ вставлены. Нажми «Сохранить ключ», чтобы проверить.":"✓ Настройки вставлены. Ключ остался прежний.");}catch(e){alert("Не получилось прочитать строку настроек.");}};
+$("spendRefresh").onclick=()=>drawSpend();$("spendClear").onclick=()=>{if(!confirm("Очистить журнал трат?"))return;S.usageLog=[];save();drawSpend();};
 $("usageReset").onclick=()=>{if(!confirm("Обнулить счётчик расхода?"))return;S.usage={calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}};save();drawUsage();};
 const PURPOSE={ai:"ИИ-чат",book:"Книга",test:"Проверка ключа",chat:"Разговоры",scene:"Сцены",director:"Режиссёр",time:"Ход времени",memory:"Память (сжатие)",story:"Главы",helper:"Соавтор",generate:"Генерация"};
+
+function drawSpend(){const b=$("spendBox");if(!b)return;b.innerHTML="";const L=Array.isArray(S.usageLog)?S.usageLog:[];if(!L.length){b.append(el("p","note","Пока пусто: журнал начнёт заполняться со следующего запроса к модели."));return;}
+  const lbl=p=>PURPOSE[p]||p,tm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");},usd=x=>"$"+(x||0).toFixed(4),tin=r=>(r.i||0)+(r.c||0)+(r.w||0);
+  const groups=[];let g=null;L.forEach(r=>{const main=r.p==="chat"||r.p==="scene";if(!g||(main&&!(g.main&&r.t-g.last<20000))){g={t:r.t,last:r.t,main,list:[]};groups.push(g);}g.list.push(r);g.last=r.t;});
+  const today=new Date().toISOString().slice(0,10),tl=L.filter(r=>new Date(r.t).toISOString().slice(0,10)===today);
+  const sum=a=>a.reduce((n,r)=>n+(r.usd||0),0);const byP={};tl.forEach(r=>{const k=lbl(r.p);byP[k]=byP[k]||{n:0,usd:0,i:0,c:0};byP[k].n++;byP[k].usd+=r.usd||0;byP[k].i+=tin(r);byP[k].c+=r.c||0;});
+  const turnsToday=groups.filter(x=>x.main&&new Date(x.t).toISOString().slice(0,10)===today);const cin=tl.reduce((n,r)=>n+tin(r),0),cca=tl.reduce((n,r)=>n+(r.c||0),0);
+  {const sb=el("div","block");sb.style.whiteSpace="pre-wrap";sb.textContent="Сегодня: ≈ "+usd(sum(tl))+" за "+tl.length+" запросов"+(turnsToday.length?" · ходов: "+turnsToday.length+" · в среднем за ход ≈ "+usd(sum(tl)/turnsToday.length):"")+"\nИз кэша: "+(cin?Math.round(100*cca/cin):0)+"% входа"+(S.api.think?"\n⚠ Включено «думать» — рассуждения оплачиваются как ответ":"")+"\n\nНа что ушло сегодня:\n"+Object.entries(byP).sort((a,b)=>b[1].usd-a[1].usd).map(([k,v])=>"• "+k+": "+usd(v.usd)+" ("+v.n+" запр., кэш "+(v.i?Math.round(100*v.c/v.i):0)+"%)").join("\n");b.append(sb);}
+  b.append(el("h3",null,"Последние ходы"));
+  groups.slice(-40).reverse().forEach(x=>{const it=el("details","block");it.style.margin="4px 0";const su=el("summary",null,tm(x.t)+" · "+(x.main?"ход":"фон")+" · "+x.list.length+" запр. · ≈ "+usd(sum(x.list))+" · "+x.list.map(r=>lbl(r.p)).join(", "));it.append(su);const pre=el("div");pre.style.cssText="font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;margin-top:6px";pre.textContent=x.list.map(r=>lbl(r.p)+" · "+r.m+(r.think?" (думает)":"")+"\n  вход "+tin(r)+" (кэш "+(r.c||0)+", "+(tin(r)?Math.round(100*(r.c||0)/tin(r)):0)+"%) · выход "+(r.o||0)+" · ≈ "+usd(r.usd)+(r.st!=null?"\n  правила "+r.st+" зн. · текущее "+r.dy+" зн. · переписка "+r.ms+" зн. ("+r.n+" сообщ.)":"")).join("\n");it.append(pre);b.append(it);});}
 function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const tot=g.usd!=null&&g.calls?g.usd:cost(g);const tin=g.inp+g.cacheR+g.cacheW;
   b.append(el("div","block","Всего запросов: "+g.calls+"\nВход: "+tin.toLocaleString("ru")+" токенов, из них из кэша "+g.cacheR.toLocaleString("ru")+" ("+(tin?Math.round(100*g.cacheR/tin):0)+"%)\nВыход: "+g.out.toLocaleString("ru")+" токенов"+(tot!=null?"\nИтого ≈ $"+tot.toFixed(3):"")+(g.day&&g.day.calls?"\nСегодня ("+g.day.d+"): ≈ $"+g.day.usd.toFixed(3)+" за "+g.day.calls+" запросов":"")));
   const rows=Object.entries(g.by).sort((a,b)=>(b[1].inp+b[1].cacheR+b[1].out)-(a[1].inp+a[1].cacheR+a[1].out));if(rows.length){const d=el("div","block",rows.map(([k,u])=>{const c=cost(u);return (PURPOSE[k]||k)+": "+u.calls+" запр., "+(u.inp+u.cacheR+u.cacheW).toLocaleString("ru")+" вход / "+u.out.toLocaleString("ru")+" выход"+(c!=null?" ≈ $"+c.toFixed(3):"");}).join("\n"));b.append(d);}
-  {const L=Array.isArray(S.usageLog)?S.usageLog:[];if(L.length){const h=el("h3",null,"Журнал запросов (для разработчика, последние "+Math.min(60,L.length)+")");const pre=el("div","block");pre.style.cssText="font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;max-height:50vh;overflow:auto";pre.textContent=L.slice(-60).reverse().map(r=>{const d=new Date(r.t);const tm=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");const tin=(r.i||0)+(r.c||0)+(r.w||0);return tm+"  "+(PURPOSE[r.p]||r.p)+"  "+r.m+(r.think?" (думает)":"")+"\n   вход "+tin+" (кэш "+(r.c||0)+", "+(tin?Math.round(100*(r.c||0)/tin):0)+"%), выход "+(r.o||0)+"  ≈ $"+(r.usd||0).toFixed(4)+(r.st!=null?"\n   размер: правила "+r.st+" зн., текущее "+r.dy+" зн., переписка "+r.ms+" зн. ("+r.n+" сообщ.)":"");}).join("\n");const cl=el("button","btn sm ghost","Очистить журнал");cl.onclick=()=>{S.usageLog=[];save();drawUsage();};b.append(h,pre,cl);}}}
+}
 $("forget").onclick=()=>{if(!confirm("Удалить ключ с этого устройства?"))return;S.api.key="";save();fillSettings();};
 $("testBtn").onclick=async()=>{const o=$("testOut");o.textContent="Проверяю…";try{ctl=new AbortController();const t=await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal});o.textContent="Работает. Модель ответила: "+t.trim();}catch(e){o.textContent=friendly(e);}finally{ctl=null;}};
 async function drawSnaps(){const l=$("snapList");l.innerHTML="";if(!useIdb){l.append(el("p","note","Сохранения недоступны в этом браузере."));return;}const all=(await idb.all("snaps")).sort((a,b)=>b.t-a.t);if(!all.length)l.append(el("p","note","Сохранений пока нет."));else{const da=el("button","btn warn","🗑 Удалить все сохранения ("+all.length+")");da.onclick=async()=>{if(!confirm("Удалить все "+all.length+" сохранений? Текущие миры не тронутся."))return;for(const sn of all)await idb.del("snaps",sn.id);drawSnaps();toast("Все сохранения удалены.");};l.append(da);}
@@ -3519,7 +3537,7 @@ if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator
 (function(){var nv=document.getElementById('setNav');if(!nv)return;
 function go(k){nv.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.sec===k)});
 document.querySelectorAll('#dlg .sset').forEach(function(x){x.classList.toggle('on',x.dataset.sec===k)});
-var inn=document.querySelector('#dlg .in');if(inn)inn.scrollTop=0;try{sessionStorage.setItem('setSec',k)}catch(e){}}
+var inn=document.querySelector('#dlg .in');if(inn)inn.scrollTop=0;try{sessionStorage.setItem('setSec',k)}catch(e){}if(k==='spend'&&typeof drawSpend==='function')drawSpend();}
 nv.addEventListener('click',function(e){var b=e.target.closest('button');if(b)go(b.dataset.sec)});
 var sb=document.getElementById('setBtn');if(sb)sb.addEventListener('click',function(){var k='api';try{k=sessionStorage.getItem('setSec')||'api'}catch(e){}go(k)});})();
 </script>
