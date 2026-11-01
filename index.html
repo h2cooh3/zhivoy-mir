@@ -649,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=377;
+const APP_VER=378;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2567,28 +2567,38 @@ function fmt(e,text,opt){
   // имя ищем только с начала слова: иначе «Том» находится в «потом», «Лиз» в «близко», «Мэг» и т.п. — и реплика красится чужим цветом
   const nameRxs=names.map(n=>[n,new RegExp("(?:^|[^а-яёa-z0-9])("+stem(n).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","g")]);
   const namePos=(t,last)=>{const low=t.toLowerCase();let best=null,pos=last?-1:1e9;nameRxs.forEach(([n,rx])=>{rx.lastIndex=0;let m;while((m=rx.exec(low))){const i=m.index+m[0].length-m[1].length;if(last?i>pos:i<pos){pos=i;best=n;}if(!last)break;}});return best;};
+  // v378: кто говорит — по подлежащему (имя в именительном падеже в начале предложения), а не по любому имени рядом
+  const nomMap={};names.forEach(n=>{nomMap[n.toLowerCase()]=n;const ws=n.trim().split(/\s+/);if(ws.length>1)nomMap[ws[ws.length-1].toLowerCase()]=n;});
+  const ALN={kf:["девочка","девчонка","малышка","девчушка"],km:["мальчик","мальчишка","мальчонка","парнишка","малец"],af:["девушка","женщина","северянка"],am:["мужчина","старик"]};
   // v377: «девочка», «мальчишка», «девушка»… вместо имени — если в этом сообщении такой человек один (Лив в чате с Фрейей), реплика его цветом
   try{const low0=String(text).toLowerCase();const ment=new Set(nameRxs.filter(([n,rx])=>{rx.lastIndex=0;return rx.test(low0);}).map(([n])=>n));if(FMT&&FMT.main)ment.add(FMT.main);
     {const rc=route&&C(route.id);if(rc&&typeof guestsOf==="function")(guestsOf(rc)||[]).forEach(g=>{const gc=g&&g.id?g:C(g);if(gc&&gc.name)ment.add(gc.name);});const rx=route&&SC(route.id);if(rx&&rx.charIds)rx.charIds.forEach(id=>{const gc=C(id);if(gc&&gc.name)ment.add(gc.name);});}
     const wid0=route&&((C(route.id)||SC(route.id))||{}).worldId;const AL={kf:"девочк|девчонк|малышк|девчушк",km:"мальчик|мальчишк|мальчонк|парнишк|малец|мальц",af:"девушк|женщин|северянк",am:"мужчин|старик"};const byCat={};
     ment.forEach(n=>{const c=S.chars.find(x=>x.name===n&&(!wid0||x.worldId===wid0));if(!c||c.dead)return;const k=(isChild(c)?"k":"a")+(ttsGender(n)==="f"?"f":"m");(byCat[k]=byCat[k]||[]).push(n);});
-    Object.entries(byCat).forEach(([k,l])=>{if(l.length===1&&AL[k])nameRxs.push([l[0],new RegExp("(?:^|[^а-яёa-z0-9])("+AL[k]+")","g")]);});}catch(e){}
+    Object.entries(byCat).forEach(([k,l])=>{if(l.length===1&&AL[k]){nameRxs.push([l[0],new RegExp("(?:^|[^а-яёa-z0-9])("+AL[k]+")","g")]);(ALN[k]||[]).forEach(wd=>{nomMap[wd]=l[0];});}});}catch(e){}
   const lastName=t=>namePos(t,true);
   const firstName=t=>namePos(t,false);
   // кто говорит: берём ближайшее предложение перед репликой, где есть имя (подлежащее обычно первое), а не самое первое имя за всё время после прошлой реплики
-  const speakerIn=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1,k=0;i>=0&&k<3;i--,k++){const w=firstName(parts[i]);if(w)return w;}return null;};
+  // подлежащее: имя в начале предложения («Лив поворачивает голову»); предложения без своего подлежащего («Смотрит на Уилла») продолжают прежнее; «X молчит/не отвечает» — говорит не X
+  const subjOf=sn=>{const t=sn.replace(/^[\s*«»"“„—–\-]+/,"").replace(/^(и|а|но|тогда|потом|тут|вдруг)\s+/i,"");const ws=t.split(/[\s,.!?…:;—–]+/).filter(Boolean);for(const L of [2,1]){if(ws.length<L)continue;const k=ws.slice(0,L).join(" ").toLowerCase();if(nomMap[k])return nomMap[k];}return null;};
+  // в сцене без собеседника (рассказчик): если подлежащего нет — как раньше, ближайшее имя
+  const nearName=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1,k=0;i>=0&&k<3;i--,k++){const w=firstName(parts[i]);if(w)return w;}return null;};
+  const SILENT=/(не отвечает|не отвечая|молчит|промолчал|не говорит|ничего не говорит|спит|не слышит)/i;
+  const speakerIn=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1;i>=0;i--){const w=subjOf(parts[i]);if(w)return SILENT.test(parts[i])?null:w;}return null;};
+  // после реплики: «…», — шепчет Лив / — говорит Фрейя тихо: имя в именительном среди первых трёх слов после тире
+  const afterWho=a=>{const m=a.match(/^\s*,?\s*[—–-]\s*(.*)$/);if(!m)return null;const ws=m[1].replace(/\*/g,"").split(/[\s,.!?…:;]+/).filter(Boolean).slice(0,3);for(let L=2;L>=1;L--)for(let i=0;i+L<=ws.length;i++){const k=ws.slice(i,i+L).join(" ").toLowerCase();if(nomMap[k])return nomMap[k];}return null;};
   let sinceQ="",lastWho=null,lastCol="";
   const quotes=(part,col)=>{const bits=splitQ(part).map(x=>x.t);
     bits.forEach((q,k)=>{if(!q)return;if(/^(«|“|„|")/.test(q)){
         // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
-        const after=(bits[k+1]||"").slice(0,40);const who=(/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||speakerIn(sinceQ)||lastWho;
+        const after=(bits[k+1]||"").slice(0,40);const who=afterWho(after)||speakerIn(sinceQ)||lastWho||(!main?((/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||nearName(sinceQ)):null);
         if(who)lastWho=who;lastCol=who?nameColor(who):col;e.append(say(q,lastCol));sinceQ="";}
       else{e.append(txt(q));sinceQ+=q;}});};
   // реплика, которую автор прервал *действием* («Видал? — *кричит.* — Корабль.»): пока кавычка не закрыта, текст между *…* — тоже речь
   const plain=(part,col)=>{let open=false;part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(narSpan(p.slice(1,-1)));sinceQ+=p;return;}
     if(open){const k=p.indexOf("»");const head=k>=0?p.slice(0,k+1):p;e.append(sayPlain(head,lastCol||col));if(k>=0){open=false;if(p.slice(k+1))quotes(p.slice(k+1),col);}return;}
     quotes(p,col);const lq=splitQ(p).filter(x=>x.q).pop();if(lq&&lq.t[0]==="«"&&!/»\s*$/.test(lq.t))open=true;});};
-  let carry="";String(text).split("\n").forEach((line,li)=>{line=fixQ(line);if(li)e.append(document.createTextNode("\n"));sinceQ=carry;lastWho=null;carry=(/[«“„"]|^\s*([—–]|-\s)/.test(line)||!line.trim())?(line.trim()?"":carry):line;
+  String(text).split("\n").forEach((line,li)=>{line=fixQ(line);if(li)e.append(document.createTextNode("\n"));sinceQ+="\n";lastWho=null;
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
