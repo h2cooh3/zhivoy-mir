@@ -642,7 +642,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=368;
+const APP_VER=369;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -656,11 +656,12 @@ window.addEventListener("pagehide",()=>{clearTimeout(saveT);try{if(useIdb)idb.pu
 
 // ---- режим экономии: все лимиты в одном месте
 const K=()=>S.api.eco?{facts:30,events:6,recent:10,keep:10,helperChat:1500,helperFull:false,maxtok:Math.min(+S.api.maxtok,700),budget:Math.min(+S.api.budget,25000)}:{facts:60,events:10,recent:14,keep:14,helperChat:5000,helperFull:true,maxtok:+S.api.maxtok,budget:+S.api.budget};
-function addUsage(u,purpose,model){if(!u)return;const pr=priceFor(model)||[parseFloat(S.api.pIn),parseFloat(S.api.pCache),parseFloat(S.api.pOut)];if(pr[0]>=0&&pr[2]>=0){const pc=pr[1]>=0?pr[1]:pr[0]/10;u.usd=((u.inp||0)*pr[0]+(u.cacheR||0)*pc+(u.cacheW||0)*pr[0]*1.25+(u.out||0)*pr[2])/1e6;}const g=S.usage;g.usd=(g.usd||0)+(u.usd||0);g.calls++;g.inp+=u.inp||0;g.cacheR+=u.cacheR||0;g.cacheW+=u.cacheW||0;g.out+=u.out||0;const b=g.by[purpose]=g.by[purpose]||{calls:0,inp:0,cacheR:0,cacheW:0,out:0};b.usd=(b.usd||0)+(u.usd||0);b.calls++;b.inp+=u.inp||0;b.cacheR+=u.cacheR||0;b.cacheW+=u.cacheW||0;b.out+=u.out||0;lastUsage=u;save();}
+function addUsage(u,purpose,model){if(!u)return;const pr=priceFor(model)||[parseFloat(S.api.pIn),parseFloat(S.api.pCache),parseFloat(S.api.pOut)];if(pr[0]>=0&&pr[2]>=0){const pc=pr[1]>=0?pr[1]:pr[0]/10;u.usd=((u.inp||0)*pr[0]+(u.cacheR||0)*pc+(u.cacheW||0)*pr[0]*1.25+(u.out||0)*pr[2])/1e6;}const g=S.usage;g.usd=(g.usd||0)+(u.usd||0);g.calls++;g.inp+=u.inp||0;g.cacheR+=u.cacheR||0;g.cacheW+=u.cacheW||0;g.out+=u.out||0;const b=g.by[purpose]=g.by[purpose]||{calls:0,inp:0,cacheR:0,cacheW:0,out:0};b.usd=(b.usd||0)+(u.usd||0);b.calls++;b.inp+=u.inp||0;b.cacheR+=u.cacheR||0;b.cacheW+=u.cacheW||0;b.out+=u.out||0;{const d=new Date().toISOString().slice(0,10);if(!g.day||g.day.d!==d)g.day={d,usd:0,calls:0};g.day.usd+=(u.usd||0);g.day.calls++;}sinceToast.usd+=(u.usd||0);sinceToast.calls++;lastUsage=u;save();}
+const sinceToast={usd:0,calls:0};
 let lastUsage=null;
 function cost(u){if(u&&u.usd!=null)return u.usd;const pi=parseFloat(S.api.pIn),pc=parseFloat(S.api.pCache),po=parseFloat(S.api.pOut);if(!(pi>=0)||!(po>=0))return null;const pcv=pc>=0?pc:pi/10;return ((u.inp||0)*pi+(u.cacheR||0)*pcv+(u.cacheW||0)*pi*1.25+(u.out||0)*po)/1e6;}
 function priceFor(model){const m=String(model||"");if(/kimi-k2\.6/.test(m))return [0.95,0.16,4];if(/kimi-k2\.5/.test(m))return [0.60,0.10,3];if(/kimi-k3/.test(m))return [3,0.30,15];if(/deepseek.*flash/i.test(m))return [0.15,0.003,0.60];if(/haiku-5-5/.test(m))return [0.10,0.01,0.50];if(/sonnet-5-5/.test(m))return [2,0.10,10];if(/opus-5-5/.test(m))return [4,0.20,20];return null;}
-function usageStr(u){if(!u)return "";const c=cost(u);return "токены: "+((u.inp||0)+(u.cacheR||0)+(u.cacheW||0))+" вход ("+(u.cacheR||0)+" из кэша) + "+(u.out||0)+" выход"+(c!=null?" ≈ $"+c.toFixed(4):"");}
+function usageStr(u){if(!u)return "";const c=cost(u);const tin=(u.inp||0)+(u.cacheR||0)+(u.cacheW||0);const n=sinceToast.calls,tu=sinceToast.usd;sinceToast.usd=0;sinceToast.calls=0;const day=S.usage&&S.usage.day;return "ответ: "+tin+" вход ("+(u.cacheR||0)+" из кэша) + "+(u.out||0)+" выход"+(c!=null?" ≈ $"+c.toFixed(4):"")+(n>1?" · все запросы с прошлого раза ("+n+"): ≈ $"+tu.toFixed(4):"")+(day&&day.usd?" · сегодня: ≈ $"+day.usd.toFixed(2)+" за "+day.calls+" запр.":"");}
 // ============ API ============
 let busy=false,ctl=null;
 async function* sse(res){const r=res.body.getReader(),dec=new TextDecoder();let buf="";
@@ -679,7 +680,7 @@ let lastStop="";
 async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false}){
   const A=S.api;if(!A.key)throw new Error("Нет API-ключа — открой «Настройки».");
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
-  msgs=normalize(msgs);if(purpose==="scene"||purpose==="chat")msgs=cleanHist(msgs);const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
+  msgs=normalize(msgs);if(purpose==="scene"||purpose==="chat")msgs=cleanHist(msgs);const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||u.cached_tokens||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
   if(A.provider==="anthropic"){
     // В system — только неизменное. Меняющийся контекст (факты, настроение, драматург) кладём в начало последнего
     // сообщения: тогда мир, карточка и вся прошлая переписка совпадают с прошлым ходом и читаются из кэша (10% цены).
@@ -3490,7 +3491,7 @@ $("cfgPaste").onclick=async()=>{let t="";try{t=await navigator.clipboard.readTex
 $("usageReset").onclick=()=>{if(!confirm("Обнулить счётчик расхода?"))return;S.usage={calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}};save();drawUsage();};
 const PURPOSE={ai:"ИИ-чат",book:"Книга",test:"Проверка ключа",chat:"Разговоры",scene:"Сцены",director:"Режиссёр",time:"Ход времени",memory:"Память (сжатие)",story:"Главы",helper:"Соавтор",generate:"Генерация"};
 function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const tot=g.usd!=null&&g.calls?g.usd:cost(g);const tin=g.inp+g.cacheR+g.cacheW;
-  b.append(el("div","block","Всего запросов: "+g.calls+"\nВход: "+tin.toLocaleString("ru")+" токенов, из них из кэша "+g.cacheR.toLocaleString("ru")+" ("+(tin?Math.round(100*g.cacheR/tin):0)+"%)\nВыход: "+g.out.toLocaleString("ru")+" токенов"+(tot!=null?"\nИтого ≈ $"+tot.toFixed(3):"")));
+  b.append(el("div","block","Всего запросов: "+g.calls+"\nВход: "+tin.toLocaleString("ru")+" токенов, из них из кэша "+g.cacheR.toLocaleString("ru")+" ("+(tin?Math.round(100*g.cacheR/tin):0)+"%)\nВыход: "+g.out.toLocaleString("ru")+" токенов"+(tot!=null?"\nИтого ≈ $"+tot.toFixed(3):"")+(g.day&&g.day.calls?"\nСегодня ("+g.day.d+"): ≈ $"+g.day.usd.toFixed(3)+" за "+g.day.calls+" запросов":"")));
   const rows=Object.entries(g.by).sort((a,b)=>(b[1].inp+b[1].cacheR+b[1].out)-(a[1].inp+a[1].cacheR+a[1].out));if(rows.length){const d=el("div","block",rows.map(([k,u])=>{const c=cost(u);return (PURPOSE[k]||k)+": "+u.calls+" запр., "+(u.inp+u.cacheR+u.cacheW).toLocaleString("ru")+" вход / "+u.out.toLocaleString("ru")+" выход"+(c!=null?" ≈ $"+c.toFixed(3):"");}).join("\n"));b.append(d);}}
 $("forget").onclick=()=>{if(!confirm("Удалить ключ с этого устройства?"))return;S.api.key="";save();fillSettings();};
 $("testBtn").onclick=async()=>{const o=$("testOut");o.textContent="Проверяю…";try{ctl=new AbortController();const t=await callModel({msgs:[{role:"user",content:"Ответь одним словом: готов"}],maxTokens:20,signal:ctl.signal});o.textContent="Работает. Модель ответила: "+t.trim();}catch(e){o.textContent=friendly(e);}finally{ctl=null;}};
