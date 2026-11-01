@@ -649,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=376;
+const APP_VER=377;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2567,6 +2567,12 @@ function fmt(e,text,opt){
   // имя ищем только с начала слова: иначе «Том» находится в «потом», «Лиз» в «близко», «Мэг» и т.п. — и реплика красится чужим цветом
   const nameRxs=names.map(n=>[n,new RegExp("(?:^|[^а-яёa-z0-9])("+stem(n).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","g")]);
   const namePos=(t,last)=>{const low=t.toLowerCase();let best=null,pos=last?-1:1e9;nameRxs.forEach(([n,rx])=>{rx.lastIndex=0;let m;while((m=rx.exec(low))){const i=m.index+m[0].length-m[1].length;if(last?i>pos:i<pos){pos=i;best=n;}if(!last)break;}});return best;};
+  // v377: «девочка», «мальчишка», «девушка»… вместо имени — если в этом сообщении такой человек один (Лив в чате с Фрейей), реплика его цветом
+  try{const low0=String(text).toLowerCase();const ment=new Set(nameRxs.filter(([n,rx])=>{rx.lastIndex=0;return rx.test(low0);}).map(([n])=>n));if(FMT&&FMT.main)ment.add(FMT.main);
+    {const rc=route&&C(route.id);if(rc&&typeof guestsOf==="function")(guestsOf(rc)||[]).forEach(g=>{const gc=g&&g.id?g:C(g);if(gc&&gc.name)ment.add(gc.name);});const rx=route&&SC(route.id);if(rx&&rx.charIds)rx.charIds.forEach(id=>{const gc=C(id);if(gc&&gc.name)ment.add(gc.name);});}
+    const wid0=route&&((C(route.id)||SC(route.id))||{}).worldId;const AL={kf:"девочк|девчонк|малышк|девчушк",km:"мальчик|мальчишк|мальчонк|парнишк|малец|мальц",af:"девушк|женщин|северянк",am:"мужчин|старик"};const byCat={};
+    ment.forEach(n=>{const c=S.chars.find(x=>x.name===n&&(!wid0||x.worldId===wid0));if(!c||c.dead)return;const k=(isChild(c)?"k":"a")+(ttsGender(n)==="f"?"f":"m");(byCat[k]=byCat[k]||[]).push(n);});
+    Object.entries(byCat).forEach(([k,l])=>{if(l.length===1&&AL[k])nameRxs.push([l[0],new RegExp("(?:^|[^а-яёa-z0-9])("+AL[k]+")","g")]);});}catch(e){}
   const lastName=t=>namePos(t,true);
   const firstName=t=>namePos(t,false);
   // кто говорит: берём ближайшее предложение перед репликой, где есть имя (подлежащее обычно первое), а не самое первое имя за всё время после прошлой реплики
@@ -2582,7 +2588,7 @@ function fmt(e,text,opt){
   const plain=(part,col)=>{let open=false;part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(narSpan(p.slice(1,-1)));sinceQ+=p;return;}
     if(open){const k=p.indexOf("»");const head=k>=0?p.slice(0,k+1):p;e.append(sayPlain(head,lastCol||col));if(k>=0){open=false;if(p.slice(k+1))quotes(p.slice(k+1),col);}return;}
     quotes(p,col);const lq=splitQ(p).filter(x=>x.q).pop();if(lq&&lq.t[0]==="«"&&!/»\s*$/.test(lq.t))open=true;});};
-  String(text).split("\n").forEach((line,li)=>{line=fixQ(line);if(li)e.append(document.createTextNode("\n"));sinceQ="";lastWho=null;
+  let carry="";String(text).split("\n").forEach((line,li)=>{line=fixQ(line);if(li)e.append(document.createTextNode("\n"));sinceQ=carry;lastWho=null;carry=(/[«“„"]|^\s*([—–]|-\s)/.test(line)||!line.trim())?(line.trim()?"":carry):line;
     let col=main?nameColor(main):"";let rest=line;
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
