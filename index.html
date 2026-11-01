@@ -649,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=374;
+const APP_VER=375;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2128,7 +2128,8 @@ const ADDONS={"Южное побережье":[
 {file:"presets/addons/south-chapter1-2.json",patchId:"south-chapter1-2",names:[],title:"Первая глава: Бесс",desc:"Бесс переодевает девушку и делает что может, потом велит Уиллу забрать её к себе сразу."},
 {file:"presets/addons/south-hog-siege.json",patchId:"south-hog-siege",names:[],title:"Хёг: осада и четыре дороги",desc:"Хёг держит осаду, тает по деталям; колыбельная его рода; четыре дороги с ценой; почему барон не берёт силой и когда решится."},
 {file:"presets/addons/south-voices-freq.json",patchId:"south-voices-freq",names:[],title:"Голоса: частота черт",desc:"В карточках голоса — какие словечки и тики звучат всегда, часто, иногда, редко; сначала смысл, черты — приправа."},
-{file:"presets/addons/south-freya-growth.json",patchId:"south-freya-growth",names:["Фрейя"],title:"Фрейя растёт по ступеням",desc:"Запреты травмы («не может сказать нет», «только после») привязаны к ранним ступеням; в безопасности она говорит «нет» и Уиллу и сама начинает прикосновение."}]};
+{file:"presets/addons/south-freya-growth.json",patchId:"south-freya-growth",names:["Фрейя"],title:"Фрейя растёт по ступеням",desc:"Запреты травмы («не может сказать нет», «только после») привязаны к ранним ступеням; в безопасности она говорит «нет» и Уиллу и сама начинает прикосновение."},
+{file:"presets/addons/south-torvald-trade.json",patchId:"south-torvald-trade",names:["Капитан Торвальд","Хёг"],title:"Торвальд: обмен «Фрейя за Лив»",desc:"Торвальд в убытке и требует Фрейю (и письмо) за Лив; пока барон стоит — ждёт, падает — бежит ночью. Сорвать обмен может Хёг (выкрадет Лив) или Эзра."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
