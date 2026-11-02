@@ -649,7 +649,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=379;
+const APP_VER=380;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -817,8 +817,8 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   peopleBlock(c),
   lenRule(),
   layoutRule(),frankRule(),CHOICE_RULE,SPEECH_RULE,LOGIC_RULE,knowRule(w),FIRST_RULE,
-  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
-  "ПРАВИЛА: Оставайся в роли. Главный голос — "+c.name+(guestsOf(c).length?"; присутствующих рядом играешь тоже (их реплики — с именем: «Имя: …»)":"")+". Ты пишешь и окружение: если по ходу сцены естественно появляется другой человек — пришёл по своему делу, его позвал герой, он живёт рядом, проходил мимо, — коротко сыграй и его: реплику подписывай именем, характер бери из списка людей мира. Не приводи людей без причины и не держи их дольше, чем нужно сцене; помни, где кто должен быть по своим делам. "+heroRule(w)+" Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+(guestsOf(c).length?"; реплики присутствующих — с новой строки: Имя: «текст»":"")+". Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника.",
+  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — его реплику с новой строки и с именем: Имя: «текст».",
+  "ПРАВИЛА: Оставайся в роли. Главный голос — "+c.name+"; присутствующих рядом играешь тоже"+". Ты пишешь и окружение: если по ходу сцены естественно появляется другой человек — пришёл по своему делу, его позвал герой, он живёт рядом, проходил мимо, — коротко сыграй и его: реплику подписывай именем, характер бери из списка людей мира. Не приводи людей без причины и не держи их дольше, чем нужно сцене; помни, где кто должен быть по своим делам. "+heroRule(w)+" Действия и описания — в *звёздочках*, реплики — в «ёлочках»"+". ЧЬЯ РЕПЛИКА — ВИДНО ВСЕГДА: слова любого человека, кроме "+genName(c.name)+", пиши с новой строки и обязательно с именем — Имя: «текст». Это обязательно и для ребёнка, и для того, кого ты только что назвал «девочка», «старик», «северянка»: без имени приложение отдаст реплику не тому человеку. Персонаж живой: у него свои цели, он может врать, молчать, уходить, менять мнение, помнить обиды. Реагируй правдоподобно для этого характера и текущего состояния, двигай сцену. Отвечай на языке собеседника.",
   heroBlock(w,true),MOVE_RULE,LIVE_RULE,
   c.summary&&c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():""].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
@@ -1366,7 +1366,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=
   x.main?spineBlock(w):"",
   sceneLenRule(),x.main?styleRule(w):"",
   layoutRule(),frankRule(),CHOICE_RULE,SPEECH_RULE,LOGIC_RULE,knowRule(w),FIRST_RULE,
-  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — назови его рядом с репликой.",
+  "ОФОРМЛЕНИЕ (строго): всё, что персонажи произносят вслух, — ТОЛЬКО в «ёлочках», всегда, даже посреди описания; реплики через тире и без кавычек запрещены. Действия и описания — без кавычек, можно в *звёздочках*. Пример: *Бесси протягивает пирог.* «Ну-ка, милая. Садись.» Если говорит не главный персонаж — его реплику с новой строки и с именем: Имя: «текст».",
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+(x.noHero?absentRule(w):heroRule(w))+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника.",
   (x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w,false,"static"),MOVE_RULE,LIVE_RULE,
   x.summary&&x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():""].filter(Boolean).join("\n\n");}
@@ -2569,7 +2569,7 @@ function fmt(e,text,opt){
   // *описание/мысли* — цитаты в нём это вспомненные слова: цвет того, кто сказал, курсивом и бледнее
   const narSpanPlain=t=>{const f=document.createDocumentFragment();splitQ(t).forEach(x=>{if(x.q){const sp=el("span","say echo");addNames(sp,x.t);const c2=main?nameColor(main):"";if(c2)sp.style.color=c2;f.append(sp);}else addNames(f,x.t);});return f;};
   const narSpan=t=>{const nr=el("span","nar");let ctx="";splitQ(t).map(x=>x.t).forEach(q=>{if(!q)return;
-      if(/^(«|“|„|")/.test(q)){const who=speakerIn(ctx)||(heroSaid(q)?FMT.hero:main);const sp=el("span","say echo");addNames(sp,q);const c2=who?nameColor(who):"";if(c2)sp.style.color=c2;nr.append(sp);ctx="";}
+      if(/^(«|“|„|")/.test(q)){const who=speakerIn(ctx)||(heroSaid(q)?FMT.hero:(soleThird(ctx)||(thirdIn(ctx)?null:main)));const sp=el("span","say echo");addNames(sp,q);const c2=who?nameColor(who):(thirdIn(ctx)?UNK:"");if(c2)sp.style.color=c2;nr.append(sp);ctx="";}
       else{addNames(nr,q);ctx+=q;}});return nr;};
   const names=((FMT&&FMT.names)||[]).slice().sort((a,b)=>b.length-a.length);
   const stem=n=>n.toLowerCase().slice(0,Math.max(3,n.length-2)); // «Бесси», «Бесс», «Бессе»
@@ -2585,15 +2585,28 @@ function fmt(e,text,opt){
     const wid0=route&&((C(route.id)||SC(route.id))||{}).worldId;const AL={kf:"девочк|девчонк|малышк|девчушк",km:"мальчик|мальчишк|мальчонк|парнишк|малец|мальц",af:"девушк|женщин|северянк",am:"мужчин|старик"};const byCat={};
     ment.forEach(n=>{const c=S.chars.find(x=>x.name===n&&(!wid0||x.worldId===wid0));if(!c||c.dead)return;const k=(isChild(c)?"k":"a")+(ttsGender(n)==="f"?"f":"m");(byCat[k]=byCat[k]||[]).push(n);});
     Object.entries(byCat).forEach(([k,l])=>{if(l.length===1&&AL[k]){nameRxs.push([l[0],new RegExp("(?:^|[^а-яёa-z0-9])("+AL[k]+")","g")]);(ALN[k]||[]).forEach(wd=>{nomMap[wd]=l[0];});}});}catch(e){}
+  // v380: говорящего не определили, а в описании прямо перед репликой назван кто-то третий (не собеседник и не герой) —
+  // не красим цветом собеседника, а оставляем нейтральной: лучше «не знаю», чем уверенно не тот человек
+  const UNK="var(--ink)";
+  // кого называет описание перед репликой: сам собеседник, кто-то третий, сколько их
+  const ctxWho=t=>{const r={self:false,third:[]};if(!main||!t)return r;try{const low=String(t).toLowerCase();const hn0=(FMT&&FMT.hero)||null;const hit=new Set();
+      nameRxs.forEach(([n,rx])=>{if(!n)return;rx.lastIndex=0;if(!rx.test(low))return;if(n===main)r.self=true;else if(n!==hn0)hit.add(n);});
+      r.third=[...hit];}catch(e){}return r;};
+  // ровно один третий назван, а собеседника в этом описании нет — почти наверняка говорит он («В углу шепчет девочка. «Птаха…»»)
+  const soleThird=t=>{const r=ctxWho(t);return (!r.self&&r.third.length===1)?r.third[0]:null;};
+  const thirdIn=t=>ctxWho(t).third.length>0;
+  const fallbackCol=(col,ctx)=>{const s=soleThird(ctx);if(s)return nameColor(s);return thirdIn(ctx)?UNK:col;};
   const lastName=t=>namePos(t,true);
   const firstName=t=>namePos(t,false);
   // кто говорит: берём ближайшее предложение перед репликой, где есть имя (подлежащее обычно первое), а не самое первое имя за всё время после прошлой реплики
   // подлежащее: имя в начале предложения («Лив поворачивает голову»); предложения без своего подлежащего («Смотрит на Уилла») продолжают прежнее; «X молчит/не отвечает» — говорит не X
-  const subjOf=sn=>{const t=sn.replace(/^[\s*«»"“„—–\-]+/,"").replace(/^(и|а|но|тогда|потом|тут|вдруг)\s+/i,"");const ws=t.split(/[\s,.!?…:;—–]+/).filter(Boolean);for(const L of [2,1]){if(ws.length<L)continue;const k=ws.slice(0,L).join(" ").toLowerCase();if(nomMap[k])return nomMap[k];}return null;};
+  const subjOf=sn=>{const t=sn.replace(/^[\s*«»"“„—–\-]+/,"").replace(/^(и|а|но|тогда|потом|тут|вдруг)\s+/i,"");const ws=t.split(/[\s,.!?…:;—–]+/).filter(Boolean);for(const L of [2,1]){if(ws.length<L)continue;const k=ws.slice(0,L).join(" ").toLowerCase();if(nomMap[k]){// v380: «Лив и Фрейя сидят у огня» — подлежащих двое, кто говорит, неизвестно
+      const nx=(ws[L]||"").toLowerCase(),n2=nomMap[(ws[L+1]||"").toLowerCase()];if(nx==="и"&&n2&&n2!==nomMap[k])return null;
+      return nomMap[k];}}return null;};
   // в сцене без собеседника (рассказчик): если подлежащего нет — как раньше, ближайшее имя
-  const nearName=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1,k=0;i>=0&&k<3;i--,k++){const w=firstName(parts[i]);if(w)return w;}return null;};
+  const nearName=t=>{const parts=String(t).split(/(?<=[.!?…][*»”"]?)\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1,k=0;i>=0&&k<3;i--,k++){const w=firstName(parts[i]);if(w)return w;}return null;};
   const SILENT=/(не отвечает|не отвечая|молчит|промолчал|не говорит|ничего не говорит|спит|не слышит)/i;
-  const speakerIn=t=>{const parts=String(t).split(/(?<=[.!?…])\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1;i>=0;i--){const w=subjOf(parts[i]);if(w)return SILENT.test(parts[i])?null:w;}return null;};
+  const speakerIn=t=>{const parts=String(t).split(/(?<=[.!?…][*»”"]?)\s+|\n/).filter(x=>x.trim());for(let i=parts.length-1;i>=0;i--){const w=subjOf(parts[i]);if(w)return SILENT.test(parts[i])?null:w;}return null;};
   // после реплики: «…», — шепчет Лив / — говорит Фрейя тихо: имя в именительном среди первых трёх слов после тире
   const afterWho=a=>{const m=a.match(/^\s*,?\s*[—–-]\s*(.*)$/);if(!m)return null;const ws=m[1].replace(/\*/g,"").split(/[\s,.!?…:;]+/).filter(Boolean).slice(0,3);for(let L=2;L>=1;L--)for(let i=0;i+L<=ws.length;i++){const k=ws.slice(i,i+L).join(" ").toLowerCase();if(nomMap[k])return nomMap[k];}return null;};
   let sinceQ="",lastWho=null,lastCol="";
@@ -2601,7 +2614,7 @@ function fmt(e,text,opt){
     bits.forEach((q,k)=>{if(!q)return;if(/^(«|“|„|")/.test(q)){
         // чья реплика: имя сразу после («…», — сказала Бесси) или ближайшее имя перед ней в этой же строке
         const after=(bits[k+1]||"").slice(0,40);const who=afterWho(after)||speakerIn(sinceQ)||lastWho||(!main?((/^\s*,?\s*[—–-]\s*/.test(after)&&firstName(after))||nearName(sinceQ)):null);
-        if(who)lastWho=who;lastCol=who?nameColor(who):col;e.append(say(q,lastCol));sinceQ="";}
+        if(who)lastWho=who;lastCol=who?nameColor(who):fallbackCol(col,sinceQ);e.append(say(q,lastCol));sinceQ="";}
       else{e.append(txt(q));sinceQ+=q;}});};
   // реплика, которую автор прервал *действием* («Видал? — *кричит.* — Корабль.»): пока кавычка не закрыта, текст между *…* — тоже речь
   const plain=(part,col)=>{let open=false;part.split(/(\*[^*\n]+\*)/g).forEach(p=>{if(!p)return;if(/^\*[^*\n]+\*$/.test(p)){e.append(narSpan(p.slice(1,-1)));sinceQ+=p;return;}
@@ -2617,6 +2630,10 @@ function fmt(e,text,opt){
     // диалог через тире: «— Реплика, — сказала она. — Ещё реплика.»
     const d=rest.match(/^(\s*)([—–]|-(?=\s))\s*(.*)$/);
     if(d&&!/^\*/.test(d[3])){e.append(document.createTextNode(d[1]));const segs=("— "+d[3]).split(/(\s[—–]\s)/);let speech=true;let prv="";
+      // «— Смотри! — Лив тянет его за рукав.»: говорящего ищем в словах автора после тире
+      if(!labeled){let sp2=null,ctx2="";let sph=true,pv2="";segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){if(dashTg(pv2))sph=!sph;return;}if(!sg)return;pv2=sg;
+        if(!sph){ctx2+=" "+sg;if(!sp2)sp2=afterWho(" — "+sg)||subjOf(sg);}});
+       if(sp2)col=nameColor(sp2);else col=fallbackCol(col,ctx2);}
       segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){const tgl=dashTg(prv);if(!tgl&&speech)e.append(say(sg,col));else e.append(document.createTextNode(sg));if(tgl)speech=!speech;return;}if(!sg)return;prv=sg;if(speech)e.append(say(sg,col));else plain(sg,col);});return;}
     plain(rest,col);});
 }
