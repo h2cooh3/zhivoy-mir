@@ -653,7 +653,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=388;
+const APP_VER=389;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2375,7 +2375,11 @@ function go(r,replace){if(busy)staleView=true;if(!replace)stack.push(route);rout
 // Пока ИИ работает (ответ, режиссёр, драматург), уйти с экрана можно: работа доделается в фоне, а открытый экран обновится сам
 let staleView=false;
 function bgNote(){if(!staleView)toast("ИИ доделывает в фоне — экран обновится сам.");staleView=true;}
-setInterval(()=>{if(staleView&&!busy){if(document.activeElement&&document.activeElement.tagName==="TEXTAREA"&&document.activeElement.value.trim())return;staleView=false;render();}},400);
+setInterval(()=>{if(staleView&&!busy){
+  // v389: не перерисовываем, пока в поле ввода есть набранный текст — иначе он исчезает (фокус на телефоне теряется легко)
+  if(document.activeElement&&document.activeElement.tagName==="TEXTAREA"&&document.activeElement.value.trim())return;
+  const ta0=document.querySelector(".compose textarea");if(ta0&&ta0.value.trim())return;
+  staleView=false;render();}},400);
 function back(){if(busy)bgNote();route=stack.pop()||{v:"home"};popping=true;try{history.back();}catch(e){}setTimeout(()=>{popping=false;},50);render();}
 window.addEventListener("popstate",()=>{
   if(popping)return; // наш собственный history.back()
@@ -2529,7 +2533,7 @@ function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true
   const until=Date.now()+1500;s.querySelectorAll("img").forEach(im=>{if(!im.complete)im.addEventListener("load",()=>{if(Date.now()<until&&!s._touch&&!s._follow)put();},{once:true});});}
 // Пока ответ печатается: следим за концом, но как только ответ стал выше экрана — останавливаемся на его начале, чтобы читать с первой строки и ничего не прыгало
 function liveFollow(log){const lv=log.querySelector("[data-live]");if(lv&&lv.offsetHeight>log.clientHeight-60){log.scrollTop=Math.max(0,lv.offsetTop-8);log._follow=false;return;}log.scrollTop=log.scrollHeight;}
-function liveText(log,text){log._pend=text;if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";fmt(b,log._pend||"…");if(atB)liveFollow(log);});}
+function liveText(log,text,note){log._pend=text;log._note=note||"";if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";if(log._note)b.append(el("div","note",log._note));fmt(b,log._pend||"…");if(atB)liveFollow(log);});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 // делит текст на куски: [{q:true,t:"«…»"}, {q:false,t:"…"}]; «ёлочки» — с вложенностью
 function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push({q,t:x});};
@@ -2728,7 +2732,10 @@ function voiceSend(send,ta,grow,doSend,emptyTapSends){const SR=window.SpeechReco
       if(Date.now()-t0<400&&!ta.value){if(emptyTapSends)doSend();else toast("Зажми кнопку и говори, отпусти — текст появится в поле");refresh();return;}
       if(ta.value.trim()){refresh();toast("Текст в поле — проверь и нажми «отправить».");}else{if(lastErr!=="not-allowed"&&lastErr!=="network"&&lastErr!=="no-speech")toast("Ничего не записалось. Попробуй ещё раз.",true);refresh();}};
     done=finish;try{rec&&rec.stop();}catch(_){const d=done;done=null;d&&d();}setTimeout(()=>{if(done){const d=done;done=null;d();}},1500);};
-  send.addEventListener("pointerdown",e=>{if(!send.classList.contains("voice"))return;e.preventDefault();suppress=true;holding=true;cancelled=false;lastErr="";committed="";ta.value="";x0=e.clientX;t0=Date.now();send.classList.add("rec");barOn();try{navigator.vibrate&&navigator.vibrate(20);}catch(_){}
+  send.addEventListener("pointerdown",e=>{if(!send.classList.contains("voice"))return;
+    // v389: в поле уже есть текст — значит кнопка должна быть «отправить»: ничего не стираем и не начинаем запись
+    if(ta.value.trim()){refresh();return;}
+    e.preventDefault();suppress=true;holding=true;cancelled=false;lastErr="";committed="";ta.value="";x0=e.clientX;t0=Date.now();send.classList.add("rec");barOn();try{navigator.vibrate&&navigator.vibrate(20);}catch(_){}
     try{pid=e.pointerId;send.setPointerCapture(pid);}catch(_){pid=null;}start();});
   send.addEventListener("pointermove",e=>{if(!holding)return;const c=e.clientX-x0<-70;if(c!==cancelled){cancelled=c;if(bar)bar.classList.toggle("cancel",c);}});
   ["pointerup","pointercancel","lostpointercapture"].forEach(n=>send.addEventListener(n,release));
@@ -3427,6 +3434,9 @@ function renderChat(){
   const ab=el("button","btn ghost sm","Соавтор");ab.title="Обсудить с соавтором";ab.onclick=()=>go({v:"assist",world:c.worldId,char:c.id});const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"charEdit",id:c.id});const sb=el("button","btn ghost sm","Состояние");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");const ob=el("button","btn ghost sm","Экспорт");ob.title="Экспорт разговора и персонажа";ob.onclick=()=>{const x=c.chats.find(y=>y.id===c.activeChat);if(x)exportChat(c,x);else exportChar(c);};who.style.cursor="pointer";who.onclick=()=>go({v:"profile",id:c.id});const fb=el("button","btn ghost sm");const fbSet=()=>{const ch=chatOf(c);fb.textContent=isFree(ch)?"⏸":"▶";fb.title=isFree(ch)?"Время стоит: разговор не двигает мир. Нажми — пустить время":"Время идёт: разговор двигает мир (время, события). Нажми — остановить";};fbSet();fb.onclick=()=>{const ch=chatOf(c);if(!ch)return;ch.free=!ch.free;c.updated=Date.now();save();fbSet();toast(ch.free?"⏸ Время стоит: просто разговор, мир не меняется":"▶ Время идёт: разговор снова двигает мир");};fb.hidden=!storyOf(w)||!!ownOf(c);const sbh=el("button","btn ghost sm","🧪🕰");sbh.title="Проба: задать обстановку и время";sbh.onclick=()=>{const ch=sandboxOf(c);if(ch)sbSetting(ch);};sbh.hidden=!sandboxOf(c);bar.append(mini,who,fb,sbh,jb,mpb,ab,ob,eb,sb);main.append(bar);
   const log=el("div");log.id="log";main.append(log);log._posKey="c:"+c.id+":"+(c.activeChat||"");
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.id="input";ta.rows=1;ta.placeholder="Сообщение… *действия в звёздочках*";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.title="Стоп";stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;send.title="Отправить";const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);attachSpell(ta,comp);const grow=autoGrow(ta);inner.append(ta,stop,send);
+  // v389: сохраняем черновик в самом разговоре — чтобы набранное не пропадало при перерисовке экрана
+  {const ac0=chatOf(c);if(ac0&&ac0.draft){ta.value=ac0.draft;grow();}}
+  let draftT=0;ta.addEventListener("input",()=>{const ac0=chatOf(c);if(!ac0)return;ac0.draft=ta.value;clearTimeout(draftT);draftT=setTimeout(()=>save(),800);});
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){
     stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log),firstDraw=!log._drawn;log._drawn=1;log.innerHTML="";const ac=c.chats.find(x=>x.id===c.activeChat);{const vs=viewState(c),vf=viewFacts(c);sm.textContent=(ac?ac.title+" · ":"")+(vs.mood||"")+(vs.mood?" · ":"")+"видит дословно: "+(c.history.length-c.sumIdx)+" сообщ."+(vf.length?" · помнит фактов: "+vf.length:"");}
@@ -3492,7 +3502,7 @@ function renderChat(){
       {const ad=autoGuests(c,lastUser&&lastUser.content,false);if(ad.length)toast("Рядом: "+ad.join(", "));}
       if(dramaDue(c,c.history)){toast("Драматург думает…");try{const d=await dramaForChat(c);toast(dramaStr(d));}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const base={stable:charStable(c),dynamic:charDynamic(c,lastUser&&lastUser.content),msgs:c.history.slice(c.sumIdx),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,purpose:"chat",cacheMsgs:true,maxTokens:replyTokens()};
-      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});text=await antiLoop(base,text,c.history,t=>{live=t;liveText(log,t);});{const lu=[...c.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}
+      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t,"… ответ оборвался, дописываю");});text=await antiLoop(base,text,c.history,t=>{live=t;liveText(log,t,"⟳ ответ повторял прошлые — пишу заново");});{const lu=[...c.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}
       c.history.push({role:"assistant",content:text.trim()});if(c.drama)c.drama.cue="";
       {const ad=autoGuests(c,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}shownOf(w)[c.id]=true;
     }catch(e){if(live)c.history.push({role:"assistant",content:live,partial:true});lastErr=friendly(e);}
@@ -3501,7 +3511,7 @@ function renderChat(){
     if(!ownOf(c))storyAfter(w,c.history,isFree(chatOf(c)));
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;c.updated=Date.now();const l=c.history[c.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,t))l.content+="\n\n"+t;}else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";clearIme(ta,t,grow);grow();save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;c.updated=Date.now();const l=c.history[c.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,t))l.content+="\n\n"+t;}else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";{const ac0=chatOf(c);if(ac0)ac0.draft="";}clearIme(ta,t,grow);grow();save();run();}
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
@@ -3591,7 +3601,7 @@ function renderScene(){
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
       const msgs=mergeRoles(x.history.slice(x.sumIdx));const last=msgs[msgs.length-1];if(!msgs.length||last.role!=="user")msgs.push({role:"user",content:msgs.length?(x.noHero?"[Продолжай сцену. Героя здесь нет.]":"[Герой молчит и наблюдает. Продолжай сцену.]"):(x.prologue?"[Пролог уже прочитан игроком. Продолжай историю с того места, где он оборвался.]":"[Сцена начинается. Опиши место и то, что делают персонажи.]")});
       const base={stable:sceneStable(x),dynamic:sceneDynamic(x),msgs,onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:replyTokens(),purpose:"scene",cacheMsgs:true};
-      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t);});text=await antiLoop(base,text,x.history,t=>{live=t;liveText(log,t);});{const lu=[...x.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}x.history.push({role:"assistant",content:text.trim()});if(x.main){const ad=autoCast(x,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}cueTick(w,x);if(x.drama)x.drama.cue="";}
+      let text=await callModel(base);text=await finishReply(base,text,t=>{live=t;liveText(log,t,"… ответ оборвался, дописываю");});text=await antiLoop(base,text,x.history,t=>{live=t;liveText(log,t,"⟳ ответ повторял прошлые — пишу заново");});{const lu=[...x.history].reverse().find(m=>m.role==="user");if(lu)text=_dropEcho(text,lu.content)||text;}x.history.push({role:"assistant",content:text.trim()});if(x.main){const ad=autoCast(x,text,true);if(ad.length)toast("В сцене: "+ad.join(", "));}cueTick(w,x);if(x.drama)x.drama.cue="";}
     catch(e){if(live)x.history.push({role:"assistant",content:live,partial:true});lastErr=friendly(e);}
     finally{busy=false;ctl=null;x.updated=Date.now();save();drawLog();}
     if(x.history.length-x.dirIdx>=+S.api.every&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
