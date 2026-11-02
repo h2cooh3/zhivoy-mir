@@ -207,6 +207,25 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .recbar .dot{width:10px;height:10px;border-radius:50%;background:var(--danger);animation:micPulse 1.2s ease-in-out infinite;flex:none}
 .recbar small{color:var(--muted);flex:1}
 .recbar.cancel{border-style:dashed;opacity:.8}.recbar.cancel b::after{content:" — отмена"}
+
+.stov{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;justify-content:center;align-items:flex-end}
+.stbox{background:var(--panel);color:var(--ink);width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:12px 14px 0;box-sizing:border-box}
+.stbox h3{margin:0;font-size:17px}
+.sthead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.sthead h3{flex:1}
+.stchips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.stchips button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:16px;padding:5px 11px;font-size:14px}
+.stchips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.strow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.strow .nm{flex:1;min-width:0}.strow .nm small{display:block;color:var(--muted);font-size:12px}
+.strow .v{min-width:70px;text-align:center;font-variant-numeric:tabular-nums;font-size:15px}
+.strow .v small{display:block;color:var(--muted);font-size:11px}
+.strow .v.chg{color:var(--accent);font-weight:600}.strow .v.lnk{color:var(--ok);font-weight:600}
+.strow .sbtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:20px;padding:0;flex:none}
+.stbox select,.stbox textarea{width:100%;box-sizing:border-box;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:15px}
+.stbox label.fl{display:block;margin:10px 0 3px;color:var(--muted);font-size:13px}
+.stbar{position:sticky;bottom:0;background:var(--panel);display:flex;gap:8px;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);margin-top:12px}
+.stbar button{flex:1}
+.stlog{font-size:12px;color:var(--muted);margin:6px 0}
 .compose .editb{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;padding:0;font-size:18px}
 .compose .editb.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .compose.editmode textarea{border-color:var(--accent)}
@@ -653,7 +672,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=391;
+const APP_VER=392;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2718,6 +2737,93 @@ function fmt(e,text,opt){
       segs.forEach(sg=>{if(/^\s[—–]\s$/.test(sg)){const tgl=dashTg(prv);if(!tgl&&speech)e.append(say(sg,col));else e.append(document.createTextNode(sg));if(tgl)speech=!speech;return;}if(!sg)return;prv=sg;if(speech)e.append(say(sg,col));else plain(sg,col);});return;}
     plain(rest,col);});
 }
+function openStateEditor(w,x){
+ const old=document.querySelector(".stov");if(old)old.remove();
+ const ov=el("div","stov");const box=el("div","stbox");ov.append(box);document.body.append(ov);
+ const all=npcsOf(w.id);
+ const here=(x.charIds||[]).map(id=>all.find(c=>c.id===id)).filter(Boolean);
+ let cur=here[0]||all[0];
+ if(!cur){ov.remove();toast("В мире нет персонажей");return;}
+ let base=null,d=null,touched={};
+ const R=(v,a,b)=>clampN(fix1(v),a,b);
+ const load=c=>{base=JSON.parse(JSON.stringify(c.state||{}));d=JSON.parse(JSON.stringify(base));["trust","like","respect","grudge"].forEach(k=>{d[k]=+d[k]||0;base[k]=+base[k]||0;});touched={};};
+ load(cur);
+ const dirty=()=>["trust","like","respect","grudge"].some(k=>fix1(d[k])!==fix1(base[k]))||(d.loveKind||"")!==(base.loveKind||"")||(d.mood||"")!==(base.mood||"")||(d.now||"")!==(base.now||"")||(d.grudgeWhy||"")!==(base.grudgeWhy||"")||String(d.stage||0)!==String(base.stage||0);
+ const close=()=>{if(dirty()&&!confirm("Есть неприменённые изменения. Закрыть без сохранения?"))return;ov.remove();};
+ ov.onclick=e=>{if(e.target===ov)close();};
+ const cd=()=>Object.assign({},cur,{state:d});
+ const post=()=>{
+  if(!d.loveKind&&d.like>=6)d.loveKind="человек";
+  if(isChild(cur)&&d.loveKind==="партнёр")d.loveKind="человек";
+  if(Array.isArray(cur.stages)&&cur.stages.length&&!cur.stagesAuto){let k=stageOf(cd());while(k>0){const g=cur.stages[k];if(g&&g.minTrust!=null&&d.trust<g.minTrust-1.5)k--;else break;}d.stage=k;}
+ };
+ // связи: то же, что делают поступки в applyDeeds
+ const setTrust=nv=>{nv=R(nv,-10,10);const r=nv-d.trust;if(!r)return;d.trust=nv;
+  if(!touched.respect)d.respect=R(d.respect+r*.3,-10,10);
+  if(!touched.grudge){if(r>0&&d.grudge>0)d.grudge=R(d.grudge-r*.3,0,10);else if(r<=-2)d.grudge=R(d.grudge+Math.abs(r)*.25,0,10);if(d.grudge<=0)d.grudgeWhy="";}};
+ const press=(k,dd)=>{
+  touched[k]=true;
+  if(k==="trust")setTrust(d.trust+dd);
+  else if(k==="like"){const nv=R(d.like+dd,-10,10);d.like=nv;if(nv>d.trust+3){touched.trust=touched.trust||false;setTrust(nv-3);}}
+  else if(k==="respect")d.respect=R(d.respect+dd,-10,10);
+  else if(k==="grudge"){const ng=R(d.grudge+dd,0,10),r=ng-d.grudge;d.grudge=ng;if(r>0){if(!touched.like)d.like=R(d.like-r*.4,-10,10);if(!touched.trust)setTrust(d.trust-r*.3);}if(ng<=0)d.grudgeWhy="";}
+  post();draw();
+ };
+ const apply=()=>{
+  const c=cur,st=c.state=c.state||{};const day=relDay(w);
+  const keys=[["trust","доверие"],["like","симпатия"],["respect","уважение"],["grudge","обида"]];
+  const parts=[];keys.forEach(([k,n])=>{const a=fix1(base[k]),b=fix1(d[k]);if(a!==b)parts.push(n+" "+a+" → "+b);});
+  if((d.loveKind||"")!==(base.loveKind||""))parts.push("вид любви: "+(base.loveKind||"—")+" → "+(d.loveKind||"—"));
+  if(String(d.stage||0)!==String(base.stage||0)&&!c.stagesAuto)parts.push("ступень: "+(+base.stage+1||1)+" → "+((+d.stage||0)+1));
+  keys.forEach(([k])=>{st[k]=fix1(d[k]);});
+  st.loveKind=d.loveKind||st.loveKind||"";st.grudgeWhy=d.grudgeWhy||"";st.mood=d.mood||"";st.now=d.now||"";if(!c.stagesAuto&&d.stage!=null)st.stage=d.stage;
+  if(Math.abs(d.trust-base.trust)>=2||Math.abs(d.respect-base.respect)>=2)st.stale=day||1;
+  if(parts.length){const line="Правка автора: "+parts.join(", ");(st.relLog=st.relLog||[]).push({t:now(),text:line});if(st.relLog.length>14)st.relLog.shift();if(Array.isArray(c.log))c.log.push({t:now(),text:"Отношение: "+line,src:"правка автора",impact:6});}
+  c.updated=Date.now();save();load(c);draw();toast(c.name+": состояние сохранено");
+ };
+ function row(k,label,lo,hi,wordF){
+  const r=el("div","strow");const nm=el("div","nm");nm.append(label);const hint=el("small",null,wordF(d[k]));nm.append(hint);
+  const m=el("button","sbtn","−");m.onclick=()=>press(k,-1);const p=el("button","sbtn","＋");p.onclick=()=>press(k,1);
+  const ch=fix1(d[k])!==fix1(base[k]);const v=el("div","v"+(ch?(touched[k]?" chg":" lnk"):""));v.append(String(fix1(d[k])));
+  if(ch){const sm=el("small",null,"было "+fix1(base[k])+(touched[k]?"":" · потянулось"));v.append(sm);}
+  r.append(nm,m,v,p);return r;
+ }
+ function draw(){
+  const sc=box.scrollTop;box.textContent="";
+  const hd=el("div","sthead");hd.append(el("h3",null,"Состояние персонажей"));const x1=el("button","btn ghost sm","✕");x1.onclick=close;hd.append(x1);box.append(hd);
+  const pick=ch=>{if(ch.id===cur.id)return;if(dirty()&&!confirm("Есть неприменённые изменения. Перейти без сохранения?"))return;cur=ch;load(cur);draw();};
+  if(here.length){box.append(el("label","fl","На сцене"));const cs=el("div","stchips");here.forEach(ch=>{const b=el("button",ch.id===cur.id?"on":"",ch.name);b.onclick=()=>pick(ch);cs.append(b);});box.append(cs);}
+  box.append(el("label","fl","Любой персонаж"));const sel=el("select");all.forEach(ch=>{const o=el("option",null,ch.name+(here.includes(ch)?" · на сцене":""));o.value=ch.id;if(ch.id===cur.id)o.selected=true;sel.append(o);});sel.onchange=()=>{const ch=all.find(c=>c.id===sel.value);if(ch&&ch.id!==cur.id)pick(ch);else sel.value=cur.id;};box.append(sel);
+  const lad=ladderOf(d.trust,d);
+  box.append(el("div","note","Ступень доверия: "+lad.n+" из 10 «"+lad.name+"»"));
+  box.append(row("trust","Доверие",-10,10,v=>trustWord(v,d)));
+  box.append(row("like","Симпатия",-10,10,likeWord));
+  box.append(row("respect","Уважение",-10,10,respectWord));
+  box.append(row("grudge","Обида",0,10,grudgeWord));
+  box.append(el("div","note","Связи: доверие тянет уважение (×0,3) и обиду (рост доверия гасит её, сильное падение — копит); симпатия выше доверия+3 подтягивает доверие; обида давит на симпатию и доверие; ручные правки поля отключают его автосвязь."));
+  // вид любви
+  if(!isChild(cur)){box.append(el("label","fl","Вид любви"));const lk=el("select");[["","не определён"],["человек","как своего"],["партнёр","как партнёра"]].forEach(([v,t])=>{const o=el("option",null,t);o.value=v;if((d.loveKind||"")===v)o.selected=true;lk.append(o);});lk.onchange=()=>{d.loveKind=lk.value;post();draw();};box.append(lk);}
+  // ступень
+  if(Array.isArray(cur.stages)&&cur.stages.length){
+   box.append(el("label","fl",cur.stagesAuto?"Ступень близости (считается по доверию и симпатии; выбор выставит их на порог)":"Ступень пути (ручная)"));
+   const ss=el("select");const k0=stageOf(cd());const curVal=stageCurVal(cd(),k0,d.loveKind);
+   stageOpts(cur).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;if(v===curVal)o.selected=true;ss.append(o);});
+   ss.onchange=()=>{const [ki,lk]=ss.value.split("|");const k=+ki;const t0=d.trust;
+    if(cur.stagesAuto){stageApplyVals(cd(),k,d);const r=d.trust-t0;if(r&&!touched.respect)d.respect=R(d.respect+r*.3,-10,10);}
+    else{d.stage=k;if(!cur.stagesAuto){const g=cur.stages[k];if(g&&g.minTrust!=null&&d.trust<g.minTrust){setTrust(g.minTrust);}if(g&&g.minLike!=null&&d.like<g.minLike)d.like=g.minLike;}}
+    if(lk)d.loveKind=lk;post();draw();};
+   box.append(ss);box.append(stageLegend(cd()));
+  }
+  if(d.grudge>0||d.grudgeWhy){box.append(el("label","fl","Из-за чего обида"));const t=el("textarea");t.rows=2;t.value=d.grudgeWhy||"";t.oninput=()=>{d.grudgeWhy=t.value;};growTA(t);box.append(t);}
+  box.append(el("label","fl","Настроение"));const t1=el("textarea");t1.rows=2;t1.value=d.mood||"";t1.oninput=()=>{d.mood=t1.value;};growTA(t1);box.append(t1);
+  box.append(el("label","fl","Что сейчас"));const t2=el("textarea");t2.rows=2;t2.value=d.now||"";t2.oninput=()=>{d.now=t2.value;};growTA(t2);box.append(t2);
+  const lg=(cur.state&&cur.state.relLog||[]).slice(-5).reverse();
+  if(lg.length){box.append(el("label","fl","Последние причины"));lg.forEach(l=>box.append(el("div","stlog",l.text)));}
+  const bar=el("div","stbar");const ap=el("button","btn","✓ Применить");ap.disabled=!dirty();ap.onclick=apply;const rs=el("button","btn ghost","Сбросить");rs.disabled=!dirty();rs.onclick=()=>{load(cur);draw();};bar.append(ap,rs);box.append(bar);
+  box.scrollTop=sc;
+ }
+ draw();
+}
 function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");const close=()=>{bg.remove();s.remove();};bg.onclick=close;
   actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
   const c=el("button","cancel","Отмена");c.onclick=close;s.append(c);document.body.append(bg,s);}
@@ -3561,7 +3667,7 @@ function renderSceneEdit(){
 function renderScene(){
   const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),fixed:Object.assign({},heroName(w)?{[heroName(w)]:"hsl(46 85% var(--sayL))"}:{},charsOf(x.worldId).some(c=>c.name==="Фрейя")?{"Фрейя":"hsl(212 75% var(--sayL))"}:{}),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.main?x.title:x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.main?("Рядом: "+(x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")||"никого")):(x.setup||"")));const dchip=el("small","daychip",storyLabel(w));if(storyLabel(w))who.append(dchip);
-  const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId,scene:x.id});const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);const fb=el("button","btn ghost sm");const fbSet=()=>{fb.textContent=isFree(x)?"⏸":"▶";fb.title=isFree(x)?"Время стоит: сцена не двигает мир. Нажми — пустить время":"Время идёт: сцена двигает мир (время, события). Нажми — остановить";};fbSet();fb.onclick=()=>{x.free=!x.free;x.updated=Date.now();save();fbSet();toast(x.free?"⏸ Время стоит: просто разговор, мир не меняется":"▶ Время идёт: сцена снова двигает мир");};fb.hidden=!storyOf(w);const lnb=el("button","btn ghost sm","🌱");lnb.title="Линии истории: параллельные версии с отдельной памятью";lnb.onclick=()=>linesSheet(w);lnb.hidden=!x.main;bar.append(who,lnb,fb,jb,mpb,cob,eb,sb);}main.append(bar);
+  const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId,scene:x.id});const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);const fb=el("button","btn ghost sm");const fbSet=()=>{fb.textContent=isFree(x)?"⏸":"▶";fb.title=isFree(x)?"Время стоит: сцена не двигает мир. Нажми — пустить время":"Время идёт: сцена двигает мир (время, события). Нажми — остановить";};fbSet();fb.onclick=()=>{x.free=!x.free;x.updated=Date.now();save();fbSet();toast(x.free?"⏸ Время стоит: просто разговор, мир не меняется":"▶ Время идёт: сцена снова двигает мир");};fb.hidden=!storyOf(w);const lnb=el("button","btn ghost sm","🌱");lnb.title="Линии истории: параллельные версии с отдельной памятью";lnb.onclick=()=>linesSheet(w);lnb.hidden=!x.main;const stb=el("button","btn ghost sm","🎚");stb.title="Состояние персонажей: доверие, симпатия, уважение, обида — с взаимосвязями";stb.onclick=()=>openStateEditor(w,x);stb.hidden=!x.main;bar.append(who,lnb,fb,jb,stb,mpb,cob,eb,sb);}main.append(bar);
   const log=el("div");log.id="log";main.append(log);log._posKey="s:"+x.id;
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=x.noHero?"Тебя здесь нет. Подсказка рассказчику… Пусто — сцена идёт сама":"Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);let editMode=false;const ph0=ta.placeholder;const eb2=el("button","editb","✍");eb2.title="Правка сюжета: что напишешь или скажешь, уйдёт рассказчику как указание автора, а не как слова героя";eb2.onclick=()=>{editMode=!editMode;eb2.classList.toggle("on",editMode);comp.classList.toggle("editmode",editMode);ta.placeholder=editMode?"Правка сюжета: что изменить, исправить или куда повернуть историю…":ph0;if(editMode)toast("Режим правки: следующее сообщение уйдёт рассказчику как указание автора.");};inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);attachSpell(ta,comp);
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
