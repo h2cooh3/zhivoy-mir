@@ -184,7 +184,8 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .cutscene .b{white-space:pre-wrap;word-wrap:break-word;font-size:1.02em;line-height:1.62;background:transparent;border:0;padding:6px 4px 6px 2px}
 .cutscene img{max-width:100%;border-radius:10px;margin:4px 0 8px}
 .cutscene .choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.cutscene .choices .btn{text-align:left}
+.cutscene .choices .btn{text-align:left;white-space:normal;height:auto;line-height:1.3;padding-top:8px;padding-bottom:8px}
+.cutscene .choices .btn small.cost{display:block;font-weight:400;color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.35}
 .cutscene .chosen{color:var(--muted);font-size:13px;margin-top:8px}.prologue .plabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 2px}.prologue .pedit{margin-left:10px;background:none;border:0;color:var(--muted);font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0}.prologue textarea{font:inherit;line-height:1.5}
 .prologue .b{white-space:pre-wrap;word-wrap:break-word;font-size:1.02em;line-height:1.62;background:transparent;border:0;padding:6px 4px 6px 2px}
 .divider{max-width:760px;width:100%;margin:0 auto;font-size:12px;color:var(--muted);text-align:center;border-top:1px dashed var(--line);padding-top:6px}
@@ -672,7 +673,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=392;
+const APP_VER=393;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -862,7 +863,7 @@ function autoGuests(c,text,fromReply){const w=W(c.worldId);if(!w||!text)return [
   if(added.length){c.guests=g;}return added;}
 function guestsBlock(c){const gs=guestsOf(c);if(!gs.length)return "";const w=W(c.worldId);return "РЯДОМ СЕЙЧАС ТАКЖЕ (пришли по ходу сцены; ты играешь и их):\n"+gs.map(g=>"=== "+g.name+(isNew(w,g)?" [впервые — представь его]":"")+(g.short?" — "+g.short:"")+" ===\n"+coreP(g,w).slice(0,1800)+(g.examples.trim()&&!hasVoice(g)?"\nМАНЕРА РЕЧИ: "+fill(g.examples,w,g).slice(0,500):"")).join("\n\n");}
 // ============ СЮЖЕТ: часы мира, акты, события, финалы ============
-const PARTS=["утро","день","вечер","ночь"];const PART_SOFT=8,PART_MAX=16; // ходов на часть дня: после SOFT рассказчик сам ведёт время дальше, после MAX хранитель двигает его сам
+const PARTS=["утро","день","вечер","ночь"];const PART_SOFT=6,PART_MAX=12; // ходов на часть дня: после SOFT рассказчик сам ведёт время дальше, после MAX хранитель двигает его сам
 const storyOf=w=>w&&w.story&&Array.isArray(w.story.acts)&&w.story.acts.length?w.story:null;
 function resetStory(st){Object.assign(st,{partMoves:0,day:1,part:st.startPart||STORY_STARTPART[st.id]||"утро",act:1,flags:{},pending:null,done:false,ending:"",rejected:{},ticks:0,questState:{},questEnd:{},questRes:{},questStart:{},talesTold:{},echoed:{},promises:[],promN:0,ears:[],earN:0});(st.events||[]).forEach(e=>{e.fired=false;delete e.firedDay;});initMoney(st);}
 // ============ ДЕНЬГИ И СЧЁТЧИКИ: дефицит как закон мира ============
@@ -964,7 +965,7 @@ const inActs=(x,st)=>!x.acts||(st.act>=x.acts[0]&&st.act<=x.acts[x.acts.length-1
 function sideBlock(w,st,cast){const qs=st.questState||{},told=st.talesTold||{};const names=cast.map(c=>c.name);const out=[];
   const act=(st.quests||[]).filter(q=>qs[q.id]==="active");
   act.forEach(q=>{const left=q.deadline?((st.questStart||{})[q.id]||st.day)+q.deadline-st.day:null;
-    out.push("ИДЁТ ПОБОЧНАЯ ИСТОРИЯ «"+q.title+"» (суть: "+q.essence+").\n  Ход: "+(q.beats||[]).join(" → ")+"\n  Развязку выбирает герой; возможные: "+(q.choices||[]).map(c=>c.choice+" (цена: "+c.cost+")").join("; ")
+    out.push("ИДЁТ ПОБОЧНАЯ ИСТОРИЯ «"+q.title+"» (суть: "+q.essence+").\n  Ход: "+(q.beats||[]).join(" → ")+"\n  Развязку выбирает герой; возможные: "+(q.choices||[]).map(c=>c.choice+" (цена: "+c.cost+")").join("; ")+((q.choices||[]).length&&!(st.cutShown||{})["q:"+q.id]?"\n  РАЗВИЛКА КНОПКАМИ: когда дойдёшь до решения — доведи сцену до порога выбора, варианты текстом не перечисляй и закончи ответ отдельной строкой [[выбор:"+q.id+"]]; игрок выберет кнопкой.":"")
       +(left!==null?"\n  Срок: "+(left>0?"осталось "+left+" дн. — мир не ждёт; если герой тянет, обстоятельства решают без него":"ВЫШЕЛ — покажи, что стало без героя"):"")
       +((q.failIf||[]).length?"\n  Может провалиться: "+q.failIf.join("; "):"")
       +((q.outcomes||[]).length?"\n  Исходы (удалась / частично / провал — все честные, провал тоже история): "+q.outcomes.map(o=>o.result+": "+o.what).join(" | "):"")
@@ -1230,7 +1231,7 @@ let storyBusy=false;
 // ============ КАТСЦЕНЫ ============
 // Заранее написанные сцены (как пролог): ИИ их не сочиняет. Срабатывают по условию (день/часть дня/акт/флаги/события),
 // вставляются в главную историю красивым блоком, могут закончиться выбором кнопками. «mini» — сцена за кадром: герой её не видел.
-function cutOk(st,c){const q=c.when||{};const F=st.flags||{};const ev=id=>(st.events||[]).find(e=>e.id===id);
+function cutOk(st,c,noMark){const q=c.when||{};if(c.fork&&!noMark&&!forkFire(st,c))return false;const F=st.flags||{};const ev=id=>(st.events||[]).find(e=>e.id===id);
   if(q.act&&(st.act||1)<q.act)return false;
   if(q.day&&st.day<q.day)return false;
   if(q.part&&q.day&&st.day===q.day&&PARTS.indexOf(st.part)<PARTS.indexOf(q.part))return false;
@@ -1247,11 +1248,27 @@ function cutOk(st,c){const q=c.when||{};const F=st.flags||{};const ev=id=>(st.ev
 // Сцена с местом (крепость, часовня): сначала ЗОВ (c.call) — мир сам приходит к герою и зовёт, игрок выбирает кнопкой:
 // «пойти сейчас» (сцена играет сразу), «позже» (до срока; внизу кнопка «Пойти», рассказчик знает, что героя ждут), «не идти».
 // Срок вышел, а герой не пришёл, — играет c.miss (обычно «за кадром») со своими флагами: история не застревает, у неё другая цена.
+// v393 — РАЗВИЛКИ (управляемый сюжет). Рассказчик доводит сцену до момента решения и ставит в конце ответа [[выбор:id]];
+// приложение убирает метку и показывает кнопки. id — катсцена с полем fork {cue, late} или побочная история с choices.
+// Если рассказчик метку так и не поставил, развилка срабатывает сама через fork.late дней после того, как стала возможной.
+const FORK_RE=/\[\[\s*(?:выбор|fork)\s*:\s*([A-Za-z0-9_\-]+)\s*\]\]/gi;
+const forkStrip=t=>String(t||"").replace(FORK_RE,"").replace(/\[\[\s*(?:выбор|fork)[^\]]*$/i,"").replace(/[ \t]+\n/g,"\n").trimEnd();
+function forkFire(st,c){if((st.forkMarks||{})[c.id])return true;const L=c.fork&&c.fork.late;const r=(st.forkReady||{})[c.id];return L!=null&&r!=null&&st.day>=r+L;}
+function forkBlock(w){const st=storyOf(w);if(!st||st.done||st.pending)return "";const sh=st.cutShown||{},out=[];
+  (st.cutscenes||[]).forEach(c=>{if(c&&c.fork&&!sh[c.id]&&cutOk(st,c,true))out.push("• «"+c.title+"» — когда наступит этот момент: "+c.fork.cue+" → [[выбор:"+c.id+"]]");});
+  if(!out.length)return "";
+  return "РАЗВИЛКИ ИГРОКА (сюжетный выбор делает игрок кнопками, а не ты):\n"+out.join("\n")+"\nКак только сцена дошла до такого момента: доведи её до самого порога решения, НЕ решай за героя, НЕ перечисляй варианты текстом и закончи ответ отдельной последней строкой с меткой, например [[выбор:"+(out[0].match(/\[\[выбор:([^\]]+)\]\]/)||[,""])[1]+"]]. Метку увидит только приложение. Пока момент не наступил — метку не ставь.";}
+function forkTake(w,hist,free){const l=hist[hist.length-1];if(!l||l.role!=="assistant"||typeof l.content!=="string")return;let ids=[];FORK_RE.lastIndex=0;l.content.replace(FORK_RE,(m,id)=>{ids.push(id);return m;});if(!ids.length&&!/\[\[\s*(?:выбор|fork)/i.test(l.content))return;l.content=forkStrip(l.content);
+  if(free||!ids.length)return;const st=storyOf(w),x=mainStoryOf(w);if(!st||!x||x.history!==hist)return;st.forkMarks=st.forkMarks||{};st.cutShown=st.cutShown||{};
+  ids.forEach(id=>{const c=(st.cutscenes||[]).find(z=>z&&z.id===id&&z.fork);if(c){if(!st.cutShown[c.id])st.forkMarks[c.id]=st.day;return;}
+    const q=(st.quests||[]).find(z=>z&&z.id===id);if(!q||!(q.choices||[]).length||st.cutShown["q:"+q.id])return;st.cutShown["q:"+q.id]=st.day;
+    const lo=t=>{t=String(t||"").trim().replace(/[.!]+$/,"");return t.charAt(0).toLowerCase()+t.slice(1);};
+    x.history.push(cutMsg(w,{id:"q:"+q.id},"Решать тебе.","main","Выбор · "+q.title,q.choices.map(v=>({label:String(v.choice||""),cost:String(v.cost||""),act:"*"+heroName(w)+" решает: "+lo(v.choice)+".*",flags:Array.isArray(v.flags)?v.flags:[]}))));});}
 function cutMsg(w,c,text,kind,title,choices,extra){const mini=kind==="mini";return {role:"assistant",content:(mini?"[ЗА КАДРОМ — "+heroName(w)+" этого не видел и не знает; люди рядом с ним тоже]\n":"")+String(text||""),cut:Object.assign({id:c.id,title:String(title||c.title||""),kind:mini?"mini":"main",img:String(c.img||""),choices:choices||[]},extra||{})};}
 function cutApply(st,o){if(o.time){if(o.time.day&&st.day<o.time.day){st.day=o.time.day;st.partMoves=0;}if(o.time.part&&PARTS.includes(o.time.part)){st.part=o.time.part;st.partMoves=0;}}
   (o.fire||[]).forEach(id=>{const e=(st.events||[]).find(v=>v.id===id);if(e&&!e.fired){e.fired=true;e.firedDay=st.day;}});
   st.flags=st.flags||{};(o.setFlags||[]).forEach(f=>{st.flags[f]=true;});}
-function cutChoices(c){return Array.isArray(c.choices)?c.choices.map(v=>({label:String(v.label||""),act:String(v.act||""),flags:Array.isArray(v.flags)?v.flags:[]})):[];}
+function cutChoices(c){return Array.isArray(c.choices)?c.choices.map(v=>({label:String(v.label||""),act:String(v.act||""),cost:String(v.cost||""),flags:Array.isArray(v.flags)?v.flags:[]})):[];}
 function cutPlay(w,c){const st=storyOf(w),x=mainStoryOf(w);if(!st||!x)return;st.cutShown=st.cutShown||{};st.cutShown[c.id]=st.day;st.cutPlayed=st.cutPlayed||{};st.cutPlayed[c.id]=st.day;
   const cc=(st.cutCall||{})[c.id];if(cc)cc.done=true;cutApply(st,c);x.history.push(cutMsg(w,c,c.text,c.kind,c.title,cutChoices(c)));try{markShown(w,c.text||"");}catch(e){}x.updated=w.updated=Date.now();}
 // зовы, которые ждут героя: [{c, v}] (v = {day, until, later, no, done})
@@ -1264,6 +1281,7 @@ function cutsceneCheck(w){const st=storyOf(w);if(!st||st.done||st.pending||!Arra
   // срок зова вышел — играет запасной вариант (без героя)
   for(const {c,v} of cutWaiting(st)){if(st.day<=v.until)continue;v.done=true;v.missed=true;st.cutShown[c.id]=st.day;st.cutMissed=st.cutMissed||{};st.cutMissed[c.id]=st.day;const m=c.miss||{};cutApply(st,m);
     if(m.text){x.history.push(cutMsg(w,{id:c.id,img:m.img},m.text,m.kind||"mini",m.title||c.title,cutChoices(m),{miss:true}));try{markShown(w,m.text);}catch(e){}}n++;}
+  st.forkReady=st.forkReady||{};for(const c of st.cutscenes){if(c&&c.fork&&!st.cutShown[c.id]&&st.forkReady[c.id]==null&&cutOk(st,c,true))st.forkReady[c.id]=st.day;}
   for(const c of st.cutscenes){if(!c||!c.id||st.cutShown[c.id]||st.cutCall[c.id]||!cutOk(st,c))continue;
     if(c.call){const k=c.call;st.cutCall[c.id]={day:st.day,until:st.day+(k.days==null?1:+k.days||0)};cutApply(st,{fire:c.fire});
       const ch=[{label:String(k.go||"Пойти сейчас"),cg:"go"},{label:String(k.later||"Прийти позже"),cg:"later"}];if(k.no!==false)ch.push({label:String(k.no||"Не идти"),cg:"no"});
@@ -1396,7 +1414,7 @@ function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=[
 function newSandbox(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));const n=c.chats.filter(x=>x.sandbox).length+1;const x={id:uid(),title:"🧪 Проба "+n,history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now(),sandbox:true,sb:{state:cl(c.state)||{},facts:cl(c.facts)||[],log:[],inertia:cl(c.inertia),setting:""}};c.chats.push(x);c.activeChat=x.id;save();return x;}
 function sbSetting(ch,done){const pick=v=>{ch.sb.setting=v;ch.updated=Date.now();save();toast("🕰 Обстановка: "+(v||"не задана"));if(done)done();};sheet([...SB_SETS.map(v=>[v,()=>pick(v)]),["Своё…",()=>{const v=prompt("Обстановка и время (например: «ночь, мастерская, гроза за окном»):",ch.sb.setting||"");if(v!==null)pick(v.trim());}]]);}
 
-function storyAfter(w,hist,free,skip){{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}if(free)return;const isMain=(()=>{const ms=mainStoryOf(w);return !!ms&&ms.history===hist;})();if(isMain){try{if(cutsceneCheck(w))staleView=true;}catch(e){}}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
+function storyAfter(w,hist,free,skip){try{forkTake(w,hist,free);}catch(e){}{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}if(free)return;const isMain=(()=>{const ms=mainStoryOf(w);return !!ms&&ms.history===hist;})();if(isMain){try{if(cutsceneCheck(w))staleView=true;}catch(e){}}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
   storyBusy=true;storyTick(w,recent,earsPresent(w,hist),skip).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
@@ -1445,7 +1463,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=
   x.summary&&x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():""].filter(Boolean).join("\n\n");}
 function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean);return [
   // v390: пометка о первом появлении живёт здесь, а не в неизменной части — иначе после знакомства рвался кэш всего промпта
-  (()=>{const nw=cs.filter(c=>isNew(w,c));return nw.length?"ВПЕРВЫЕ В ИСТОРИИ — представь при появлении: "+nw.map(c=>c.name+lookCue(c)).join(" | "):"";})(),childBlock(w,cs),worldEvents(w),heroBlock(w,false,"bio"),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),x.main?whereBlock(x):"",deadBlock(w,null,memRecent(x.history)),awayBlock(w,null,memRecent(x.history)),feelBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu?recall(x,lu.content):"";})(),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),bodyReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w)),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&/^\s*\[Правка автора:/.test(lu.content)?EDIT_RULE:"";})(),isFree(x)?FREE_RULE:""].filter(Boolean).join("\n\n");}
+  (()=>{const nw=cs.filter(c=>isNew(w,c));return nw.length?"ВПЕРВЫЕ В ИСТОРИИ — представь при появлении: "+nw.map(c=>c.name+lookCue(c)).join(" | "):"";})(),childBlock(w,cs),worldEvents(w),heroBlock(w,false,"bio"),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),x.main?whereBlock(x):"",deadBlock(w,null,memRecent(x.history)),awayBlock(w,null,memRecent(x.history)),feelBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu?recall(x,lu.content):"";})(),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),x.main&&!isFree(x)?forkBlock(w):"",(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),bodyReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w)),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&/^\s*\[Правка автора:/.test(lu.content)?EDIT_RULE:"";})(),isFree(x)?FREE_RULE:""].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
@@ -2218,7 +2236,7 @@ const ADDONS={"Южное побережье":[
 {file:"presets/addons/south-hog-siege.json",patchId:"south-hog-siege",names:[],title:"Хёг: осада и четыре дороги",desc:"Хёг держит осаду, тает по деталям; колыбельная его рода; четыре дороги с ценой; почему барон не берёт силой и когда решится."},
 {file:"presets/addons/south-voices-freq.json",patchId:"south-voices-freq",names:[],title:"Голоса: частота черт",desc:"В карточках голоса — какие словечки и тики звучат всегда, часто, иногда, редко; сначала смысл, черты — приправа."},
 {file:"presets/addons/south-freya-growth.json",patchId:"south-freya-growth",names:["Фрейя"],title:"Фрейя растёт по ступеням",desc:"Запреты травмы («не может сказать нет», «только после») привязаны к ранним ступеням; в безопасности она говорит «нет» и Уиллу и сама начинает прикосновение."},
-{file:"presets/addons/south-start-relations.json",patchId:"south-start-relations",names:[],title:"Старт отношений: склонность к людям и числа к герою",desc:"У каждого своя склонность по категориям (дети, женщины, знать, стража, невольники, северяне, старики) — поправка при встрече с чужим. Фрейя начинает с доверия −6 к Уиллу; у Бесс уважение выше симпатии."},
+{file:"presets/addons/south-start-relations.json",patchId:"south-start-relations",names:[],title:"Старт отношений: склонность к людям и числа к герою",desc:"У каждого своя склонность по категориям (дети, женщины, знать, стража, невольники, северяне, старики) — поправка при встрече с чужим. Фрейя начинает с доверия −6 к Уиллу; у Бесс уважение выше симпатии."},{file:"presets/addons/south-forks.json",patchId:"south-forks",names:[],title:"Развилки: выбор кнопками",desc:"В ключевые моменты (куда нести девушку, оставить ли её, тайник, Книга найденных, обмен на Лив, письмо, развязка) игрок выбирает кнопками; побочные истории тоже заканчиваются кнопками."},
   {file:"presets/addons/south-freya-pouch.json",patchId:"south-freya-pouch",names:[],title:"Фрейя: мешочек, свобода, и только потом Лив",desc:"Порядок её мотивации: пока не прочла письмо — знает лишь, что вещь важная; прочитав — её первая цель выкупить этим письмом себя, свою свободу; потом искать Лив; мысль отдать письмо за Лив — только когда узнает, что Лив жива и всё ещё в рабстве."},
   {file:"presets/addons/south-torvald-trade.json",patchId:"south-torvald-trade",names:["Капитан Торвальд","Хёг"],title:"Торвальд: обмен «Фрейя за Лив»",desc:"Торвальд в убытке и требует Фрейю (и письмо) за Лив; пока барон стоит — ждёт, падает — бежит ночью. Сорвать обмен может Хёг (выкрадет Лив) или Эзра."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
@@ -2566,7 +2584,7 @@ function stickScroll(s,atB,st){if(atB){s.scrollTop=s.scrollHeight;s._follow=true
   const until=Date.now()+1500;s.querySelectorAll("img").forEach(im=>{if(!im.complete)im.addEventListener("load",()=>{if(Date.now()<until&&!s._touch&&!s._follow)put();},{once:true});});}
 // Пока ответ печатается: следим за концом, но как только ответ стал выше экрана — останавливаемся на его начале, чтобы читать с первой строки и ничего не прыгало
 function liveFollow(log){const lv=log.querySelector("[data-live]");if(lv&&lv.offsetHeight>log.clientHeight-60){log.scrollTop=Math.max(0,lv.offsetTop-8);log._follow=false;return;}log.scrollTop=log.scrollHeight;}
-function liveText(log,text,note){log._pend=text;log._note=note||"";if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";if(log._note)b.append(el("div","note",log._note));fmt(b,log._pend||"…");if(atB)liveFollow(log);});}
+function liveText(log,text,note){log._pend=text;log._note=note||"";if(log._raf)return;log._raf=requestAnimationFrame(()=>{log._raf=0;const b=log.querySelector("[data-live] .b,[data-live] .x");if(!b)return;const atB=nearBottom(log);b.textContent="";if(log._note)b.append(el("div","note",log._note));fmt(b,forkStrip(log._pend)||"…");if(atB)liveFollow(log);});}
 function stopLive(log){if(log._raf){cancelAnimationFrame(log._raf);log._raf=0;}}
 // делит текст на куски: [{q:true,t:"«…»"}, {q:false,t:"…"}]; «ёлочки» — с вложенностью
 function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push({q,t:x});};
@@ -3677,7 +3695,7 @@ function renderScene(){
   function cutEl(m,i){const c=m.cut;const box=el("div","cutscene"+(c.kind==="mini"?" mini":""));if(i>=0)box.dataset.mi=i;box.append(el("div","plabel",(c.kind==="mini"?"За кадром":"Сцена")+(c.title?" · "+c.title:"")));
     if(c.img){const im=el("img");im.src=c.img;im.alt=c.title||"";box.append(im);}
     const bb=el("div","b");fmt(bb,String(m.content||"").replace(/^\[ЗА КАДРОМ[^\]]*\]\n/,""));box.append(bb);
-    if((c.choices||[]).length){if(c.chosen==null&&!busy){const cs=el("div","choices");c.choices.forEach((v,k)=>{const b=el("button","btn",v.label);b.onclick=()=>{if(busy)return;c.chosen=k;const st=storyOf(w);if(v.cg&&st){const cs=(st.cutscenes||[]).find(z=>z&&z.id===c.id);const cc=(st.cutCall||{})[c.id];const K=(cs&&cs.call)||{};if(v.cg==="go"&&cs){x.history.push({role:"user",content:K.goAct||("*"+v.label+"*")});cutPlay(w,cs);save();drawLog();return;}if(cc){if(v.cg==="no"){cc.no=true;cc.until=Math.min(cc.until,st.day);}else cc.later=true;}x.history.push({role:"user",content:(v.cg==="no"?K.noAct:K.laterAct)||("*"+v.label+"*")});x.updated=Date.now();save();drawLog();run();return;}if(st){st.flags=st.flags||{};(v.flags||[]).forEach(f=>{st.flags[f]=true;});}x.history.push({role:"user",content:v.act||("*"+v.label+"*")});x.updated=Date.now();save();drawLog();run();};cs.append(b);});box.append(cs);}
+    if((c.choices||[]).length){if(c.chosen==null&&!busy){const cs=el("div","choices");c.choices.forEach((v,k)=>{const b=el("button","btn",v.label);if(v.cost){b.append(el("small","cost",v.cost));}b.onclick=()=>{if(busy)return;c.chosen=k;const st=storyOf(w);if(v.cg&&st){const cs=(st.cutscenes||[]).find(z=>z&&z.id===c.id);const cc=(st.cutCall||{})[c.id];const K=(cs&&cs.call)||{};if(v.cg==="go"&&cs){x.history.push({role:"user",content:K.goAct||("*"+v.label+"*")});cutPlay(w,cs);save();drawLog();return;}if(cc){if(v.cg==="no"){cc.no=true;cc.until=Math.min(cc.until,st.day);}else cc.later=true;}x.history.push({role:"user",content:(v.cg==="no"?K.noAct:K.laterAct)||("*"+v.label+"*")});x.updated=Date.now();save();drawLog();run();return;}if(st){st.flags=st.flags||{};(v.flags||[]).forEach(f=>{st.flags[f]=true;});}x.history.push({role:"user",content:v.act||("*"+v.label+"*")});x.updated=Date.now();save();drawLog();run();};cs.append(b);});box.append(cs);}
       else if(c.chosen!=null&&c.choices[c.chosen])box.append(el("div","chosen","Выбрано: "+c.choices[c.chosen].label));}
     return box;}
   function msgEl(m,i){if(m.cut)return cutEl(m,i);const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const col=el("div","col");
