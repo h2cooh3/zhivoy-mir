@@ -653,7 +653,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=383;
+const APP_VER=384;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2148,18 +2148,21 @@ const ADDONS={"Южное побережье":[
 {file:"presets/addons/south-hog-siege.json",patchId:"south-hog-siege",names:[],title:"Хёг: осада и четыре дороги",desc:"Хёг держит осаду, тает по деталям; колыбельная его рода; четыре дороги с ценой; почему барон не берёт силой и когда решится."},
 {file:"presets/addons/south-voices-freq.json",patchId:"south-voices-freq",names:[],title:"Голоса: частота черт",desc:"В карточках голоса — какие словечки и тики звучат всегда, часто, иногда, редко; сначала смысл, черты — приправа."},
 {file:"presets/addons/south-freya-growth.json",patchId:"south-freya-growth",names:["Фрейя"],title:"Фрейя растёт по ступеням",desc:"Запреты травмы («не может сказать нет», «только после») привязаны к ранним ступеням; в безопасности она говорит «нет» и Уиллу и сама начинает прикосновение."},
-{file:"presets/addons/south-torvald-trade.json",patchId:"south-torvald-trade",names:["Капитан Торвальд","Хёг"],title:"Торвальд: обмен «Фрейя за Лив»",desc:"Торвальд в убытке и требует Фрейю (и письмо) за Лив; пока барон стоит — ждёт, падает — бежит ночью. Сорвать обмен может Хёг (выкрадет Лив) или Эзра."}]};
+{file:"presets/addons/south-freya-pouch.json",patchId:"south-freya-pouch",names:[],title:"Фрейя: мешочек — не обмен, пока она не знает про Лив",desc:"В начале Фрейя не знает, жива ли Лив и где она, и не думает об обмене — она боится. Мешочек хранит как важную опасную вещь, которая может её прикрыть. Мысль об обмене возможна только после того, как она узнает, что Лив жива и в городе, и только на поздних ступенях."},
+  {file:"presets/addons/south-torvald-trade.json",patchId:"south-torvald-trade",names:["Капитан Торвальд","Хёг"],title:"Торвальд: обмен «Фрейя за Лив»",desc:"Торвальд в убытке и требует Фрейю (и письмо) за Лив; пока барон стоит — ждёт, падает — бежит ночью. Сорвать обмен может Хёг (выкрадет Лив) или Эзра."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
   if(x.patchId)return lack||(!!w.story&&!(w.story.patches||[]).includes(x.patchId));
   return lack;});}
-async function applyAllAddons(w,btn,onProg){if(btn)btn.disabled=true;let n=0,prev="";const tot=missingAddons(w).length;const lim=Math.min(200,Math.max(40,tot+5));
-  try{for(let g=0;g<lim;g++){const nx=missingAddons(w)[0];if(!nx)break;if(onProg)onProg(n+1,tot,nx.title);
-  if(nx.file===prev)throw new Error("«"+nx.title+"» не применилось (возможно, нужно сначала добавить сюжет)");prev=nx.file;
-  const r=await fetch(nx.file,{cache:"no-store"});if(!r.ok)throw new Error(nx.file+": "+r.status);await importFile(await r.blob(),w.id);n++;}}
+async function applyAllAddons(w,btn,onProg){if(btn)btn.disabled=true;let n=0,prev="";const skip=new Set();
+  const tot=missingAddons(w).length;const lim=Math.min(300,Math.max(40,tot*2+10));
+  try{for(let g=0;g<lim;g++){const nx=missingAddons(w).filter(x=>!skip.has(x.file))[0];if(!nx)break;if(onProg)onProg(n+1,tot,nx.title);
+  // одно недоступное или не вставшее дополнение не должно останавливать всю достройку
+  if(nx.file===prev){skip.add(nx.file);continue;}prev=nx.file;
+  const r=await fetch(nx.file,{cache:"no-store"});if(!r.ok){skip.add(nx.file);continue;}await importFile(await r.blob(),w.id);n++;}}
   catch(e){alert("Остановился: "+e.message+". Проверь интернет и нажми ещё раз.");}
-  if(btn)btn.disabled=false;toast(n?"Мир достроен: добавлено дополнений — "+n+", персонажей в мире — "+charsOf(w.id).length:"Мир уже в актуальной версии.");save();render();return n;}
+  if(btn)btn.disabled=false;toast(n?"Мир достроен: добавлено дополнений — "+n+", персонажей в мире — "+charsOf(w.id).length+(skip.size?". Не встало: "+skip.size:""):"Мир уже в актуальной версии.");save();render();return n;}
 // Одна кнопка: обновить приложение (сбросить кэш и перезагрузить), а после перезагрузки — поправить старые данные и добавить все недостающие дополнения
 async function updateAndBuild(w){if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;try{localStorage.setItem("zm:autobuild",w.id);}catch(e){}
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",plainS(),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S,sbSafe));}catch(e){}
