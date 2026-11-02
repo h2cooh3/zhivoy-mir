@@ -339,7 +339,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <label>Откровенность <span class="hint">Зрелое повествование — страсть, близость, жестокость, боль, грубая речь пишутся честно и без стыдливых обрывов, как в серьёзном романе или кино. Сдержанно — всё самое откровенное остаётся за кадром.</span>
       <select id="frank"><option value="adult">Зрелое повествование</option><option value="soft">Сдержанно</option></select></label>
     <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
-    <label>Драматург ведёт сцену каждые N сообщений <span class="hint">Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
+    <label>Драматург ведёт сцену каждые N ходов <span class="hint">Ход — твоя реплика и ответ. Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
       <input type="number" id="drama" min="0" step="1"></label>
     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="eco" style="width:auto"> Режим экономии <span class="hint">— короче ответы, меньше памяти в запросе, лёгкий соавтор. Примерно вдвое дешевле.</span></label>
     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="think" style="width:auto"> Размышления Kimi <span class="hint">— рассказчик и персонажи сначала думают, потом пишут: ответы разнообразнее (у Kimi с размышлениями случайность выше), но медленнее и примерно в 1,5–2 раза дороже за сообщение. Только для моделей Kimi.</span></label>
@@ -653,7 +653,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=389;
+const APP_VER=390;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -692,7 +692,7 @@ let lastStop="";
 async function callModel({stable="",dynamic="",msgs,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false}){
   const A=S.api;if(!A.key)throw new Error("Нет API-ключа — открой «Настройки».");
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
-  msgs=normalize(msgs);if(purpose==="scene"||purpose==="chat")msgs=cleanHist(msgs);reqInfo={st:String(stable||"").length,dy:String(dynamic||"").length,ms:msgs.reduce((n,m)=>n+String(typeof m.content==="string"?m.content:JSON.stringify(m.content)).length,0),n:msgs.length,think:!!(S.api.think&&!cheap)};const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||u.cached_tokens||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
+  msgs=normalize(msgs);if(purpose==="scene"||purpose==="chat")msgs=cleanHistStable(msgs);reqInfo={st:String(stable||"").length,dy:String(dynamic||"").length,ms:msgs.reduce((n,m)=>n+String(typeof m.content==="string"?m.content:JSON.stringify(m.content)).length,0),n:msgs.length,think:!!(S.api.think&&!cheap)};const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||u.cached_tokens||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
   if(A.provider==="anthropic"){
     // В system — только неизменное. Меняющийся контекст (факты, настроение, драматург) кладём в начало последнего
     // сообщения: тогда мир, карточка и вся прошлая переписка совпадают с прошлым ходом и читаются из кэша (10% цены).
@@ -1414,7 +1414,7 @@ function scenePeople(x){const w=W(x.worldId);if(!w)return "";const others=npcsOf
 function whereBlock(x){const w=W(x.worldId);if(!w)return "";const L=npcsOf(w.id).filter(o=>!x.charIds.includes(o.id)&&o.loc);return L.length?"ГДЕ СЕЙЧАС ЛЮДИ МИРА (не рядом с героем):\n"+L.map(o=>"• "+o.name+": "+o.loc).join("\n"):"";}
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean);return [worldBlock(w),x.main?"ТЫ — РАССКАЗЧИК истории, которую проживает "+heroName(w)+". Ты ведёшь весь мир: место, время, погоду, людей. Герой ходит, куда хочет; люди приходят и уходят по своим делам. Рядом с героем сейчас: "+(cs.length?cs.map(c=>c.name).join(", "):"никого")+".":"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
   x.main?scenePeople(x):"",
-  cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+(isNew(w,c)?" [впервые — представь его]"+lookCue(c):"")+" ===\nЛИЧНОСТЬ: "+coreP(c,w)+(c.examples.trim()&&!hasVoice(c)?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
+  cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+coreP(c,w)+(c.examples.trim()&&!hasVoice(c)?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   x.main?spineBlock(w):"",
   cs.map(k=>biasBlock(k,cs.filter(o=>o.id!==k.id))).filter(Boolean).join("\n\n"),
@@ -1424,7 +1424,9 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=
   "ПРАВИЛА: Пиши за всех перечисленных персонажей и за окружение, в формате: действия в *звёздочках*; каждая реплика с новой строки — Имя: «текст». "+(x.noHero?absentRule(w):heroRule(w))+" Персонажи взаимодействуют друг с другом, не только с героем; у них свои цели и конфликты. Не разрешай всё быстро, давай сцене дышать. Отвечай на языке собеседника.",
   (x.noHero?"ГЕРОЯ "+heroName(w)+" ЗДЕСЬ НЕТ. Кто он, для справки:\n":"")+heroBlock(w,false,"static"),MOVE_RULE,LIVE_RULE,
   x.summary&&x.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В СЦЕНЕ:\n"+x.summary.trim():""].filter(Boolean).join("\n\n");}
-function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean);return [childBlock(w,cs),worldEvents(w),heroBlock(w,false,"bio"),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),x.main?whereBlock(x):"",deadBlock(w,null,memRecent(x.history)),awayBlock(w,null,memRecent(x.history)),feelBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu?recall(x,lu.content):"";})(),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),bodyReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w)),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&/^\s*\[Правка автора:/.test(lu.content)?EDIT_RULE:"";})(),isFree(x)?FREE_RULE:""].filter(Boolean).join("\n\n");}
+function sceneDynamic(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean);return [
+  // v390: пометка о первом появлении живёт здесь, а не в неизменной части — иначе после знакомства рвался кэш всего промпта
+  (()=>{const nw=cs.filter(c=>isNew(w,c));return nw.length?"ВПЕРВЫЕ В ИСТОРИИ — представь при появлении: "+nw.map(c=>c.name+lookCue(c)).join(" | "):"";})(),childBlock(w,cs),worldEvents(w),heroBlock(w,false,"bio"),"ТЕКУЩЕЕ СОСТОЯНИЕ ПЕРСОНАЖЕЙ:\n"+cs.map(c=>charBrief(c,true)+"\n  Помнит: "+(c.facts||[]).slice(-25).join("; ")).join("\n"),earsBlock(w,cs),x.main?whereBlock(x):"",deadBlock(w,null,memRecent(x.history)),awayBlock(w,null,memRecent(x.history)),feelBlock(w,cs),(cs.length?"ЗНАКОМСТВО И ОТНОШЕНИЯ С ГЕРОЕМ (движок ведёт счёт; опирайся на это):\n"+cs.map(c=>"• "+c.name+": "+metLine(w,c)+(lookNext(w,c)?"\n  Из внешности ещё не показано (если к месту — одну деталь, через действие): "+lookNext(w,c):"")).join("\n"):""),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu?recall(x,lu.content):"";})(),w.date?"СЕЙЧАС В МИРЕ: "+w.date:"",dramaBlock(x.drama),storyBlock(w,cs,false,true),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return !lu?"":isWatch(lu.content)?watchNote(w):isPass(lu.content)?passNote(w):"";})(),sceneModeBlock(w,true,x),stageBlock(cs),sparkBlock(cs,x.history),repeatBlock(x.history),voiceBlock(cs,w,x.history),lenReminder(true),knowReminder(w),bodyReminder(w),(x.noHero?"НАПОМИНАНИЕ: героя "+heroName(w)+" в этой сцене нет — не вводи его и не пиши за него.":heroReminder(w)),(()=>{const lu=[...x.history].reverse().find(m=>m.role==="user");return lu&&/^\s*\[Правка автора:/.test(lu.content)?EDIT_RULE:"";})(),isFree(x)?FREE_RULE:""].filter(Boolean).join("\n\n");}
 
 // ============ ДЛИНА ОТВЕТОВ ============
 const LEN_RULE={
@@ -1518,6 +1520,14 @@ function cleanHist(msgs){const as=msgs.filter(m=>m.role==="assistant");if(as.len
   return msgs.map(m=>{if(m.role!=="assistant")return m;
     const dd=String(m.content||"").split("\n").filter(l=>{if(!/[«»]/.test(l))return true;const k=l.toLowerCase().replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/g," ").trim();if(k.length<15)return true;if(seen.has(k))return false;seen.add(k);return true;}).join("\n");
     const idx=msgs.indexOf(m);let pu="";for(let j=idx-1;j>=0;j--)if(msgs[j].role==="user"){pu=msgs[j].content;break;}const c0=_dropEcho(dd,pu);const c=tics.size?scrubText(c0,tics,true):c0;return c===m.content?m:Object.assign({},m,{content:c.trim()?c:m.content});});}
+// v390: cleanHist пересчитывает «штампы» по всем ответам окна, поэтому каждый новый ответ менял текст СТАРЫХ сообщений —
+// и автоматический кэш провайдера (скидка ~6×) рвался на первом же изменившемся сообщении. Запоминаем очищенную копию
+// каждого сообщения при первом показе: дальше она не меняется, и вся прошлая переписка читается из кэша.
+const _cleanMemo=new Map();
+function cleanHistStable(msgs){const out=cleanHist(msgs);
+  return out.map((m,i)=>{const s=msgs[i];if(!s||s.role!=="assistant"||typeof s.content!=="string")return m;
+    const hit=_cleanMemo.get(s.content);if(hit!==undefined)return hit===m.content?m:Object.assign({},m,{content:hit});
+    _cleanMemo.set(s.content,m.content);if(_cleanMemo.size>800)_cleanMemo.delete(_cleanMemo.keys().next().value);return m;});}
 function ticList(text,as){const tics=ticSet(as,2);if(!tics.size)return [];return String(text||"").split("\n").flatMap(l=>/[«»]/.test(l)?[l]:_sentsOf(l)).map(x=>x.trim()).filter(x=>x.length>12&&_isTic(x,tics));}
 function ticRatio(text,as){const tics=ticSet(as,2);if(!tics.size)return 0;const ss=String(text||"").split("\n").flatMap(l=>/[«»]/.test(l)?[l]:_sentsOf(l)).filter(x=>x.trim().length>12);return ss.length?ss.filter(x=>_isTic(x,tics)).length/ss.length:0;}
 const CTR_PATS=[/[,—-]\s*а\s+(я|ты|он|она|мы|вы|они|мне|тебе|ему|ей)\s+нет(?![а-яё])/i,/(^|[.!?…»\s])[Нн]е\s+(я|ты|он|она|мы|они|это)\s[^.!?\n]{0,40}[.!]\s+(Я|Ты|Он|Она|Мы|Они|Это)\s/,/не\s+просто\s[^,.!?\n]{1,40},\s*а\s/i,/(^|[\s«"—])[Нн]е\s[а-яё]+(\s[а-яё]+){0,3},\s+а\s+(?!то\b|потом\b|также\b)[а-яё]+/];
@@ -1544,8 +1554,12 @@ const layoutRule=()=>LAYOUT_RULE[S.api.layout]||LAYOUT_RULE.split;
 const lenRule=()=>LEN_RULE[S.api.len]||LEN_RULE.short, sceneLenRule=()=>SCENE_LEN[S.api.len]||SCENE_LEN.short;
 
 // ============ ДРАМАТУРГ ============
-function dramaEvery(){const v=parseInt(S.api.drama);return isNaN(v)?2:v;}
-function dramaDue(obj,hist){if(!dramaEvery())return false;if(!obj.drama)return true;return hist.length-(obj.dramaIdx||0)>=dramaEvery();}
+function dramaEvery(){const v=parseInt(S.api.drama);return isNaN(v)?3:v;}
+// v390: раньше считались СООБЩЕНИЯ, а ход — это два сообщения: при «2» драматург шёл на каждом ходе (так и было: 84% ходов).
+// Теперь — ходы игрока. Первый раз сразу, дальше раз в N ходов; неудачная попытка тоже засчитывается, чтобы не повторять каждый ход.
+function dramaDue(obj,hist){const n=dramaEvery();if(!n)return false;
+  const turns=hist.slice(obj.dramaIdx||0).filter(m=>m&&m.role==="user").length;
+  if((obj.drama||obj.dramaIdx)&&turns<n)return false;obj.dramaIdx=hist.length;return true;}
 async function dramaturg({w,cast,others,history,summary,drama,kind,anchor}){
   const last=history.slice(-8);const prev=drama||{};const hist=(prev.hist||[]).slice(-4);const threads=(prev.threads||[]).slice(-6);
   const brief=c=>"• "+c.name+(c.short?" — "+c.short:"")+(c.state.now?"\n  Сейчас: "+c.state.now:"")+(c.state.mood?"\n  Настроение: "+c.state.mood:"")+(c.state.goals&&c.state.goals.length?"\n  Цели: "+c.state.goals.join("; "):"")+(c.state.relUser?"\n  К герою: "+c.state.relUser+" (доверие "+(c.state.trust??0)+")":"")+(c.state.secrets?"\n  Скрывает: "+c.state.secrets:"");
