@@ -653,7 +653,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=387;
+const APP_VER=388;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1686,7 +1686,9 @@ ${transcript(since,w,c.name)}
 Развитие в любую сторону, не обязательно к лучшему. Не выдумывай того, чего не было во фрагменте. Если изменений нет — верни пустые массивы и прежнее состояние.`;
   const r=await askJSON(prompt,2500);
   // разговор со своей памятью или проба: меняется только копия этого персонажа; биография героя, хроника мира, другие люди и гости из основной игры не трогаются
-  if(own){r.events=[];r.others=[];r.hero=[];r.guests=[];r.deeds=[];}
+  // v388: deeds меняют состояние ТОЛЬКО этого персонажа (applyDeeds пишет в c.state) — в своей памяти разговора они и должны работать,
+  // иначе отношения в таком разговоре вообще не меняются. Наружу (биография героя, хроника, другие люди, гости) по-прежнему ничего не уходит.
+  if(own){r.events=[];r.others=[];r.hero=[];r.guests=[];}
   applyCharUpdate(c,r,w,"сцена с "+heroName(w));addHeroFacts(w,r.hero,c.name,[c,...guestsOf(c)]);
   (r.guests||[]).forEach(u=>{const g=byName(w.id,u.name);if(g&&g.id!==c.id&&(c.guests||[]).includes(g.id))applyCharUpdate(g,{impact:u.impact,facts:u.facts,state:u.state,log:u.log,deeds:u.deeds},w,"разговор "+c.name+" с "+heroName(w));});
   c.dirIdx=c.history.length;c.updated=Date.now();save();try{await condenseFacts(c);}catch(e){}return r;
