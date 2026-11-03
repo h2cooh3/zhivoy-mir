@@ -676,7 +676,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=410;
+const APP_VER=411;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2338,7 +2338,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-shore-trigger.json",patchId:"south-shore-trigger",names:[],title:"Триггер со спины",desc:"Уилл замирает и вспоминает телегу в ночь пожара."},
   {file:"presets/addons/south-shore-trigger-2.json",patchId:"south-shore-trigger-2",names:[],title:"Триггер со спины, проще",desc:"Её спина напомнила Уиллу ту ночь; возвращает волна или крик Гарета."},
   {file:"presets/addons/south-shore-trigger-3.json",patchId:"south-shore-trigger-3",names:[],title:"Триггер: «тот вечер»",desc:"Её вид напомнил Уиллу тот вечер — без спойлеров."},
-  {file:"presets/addons/south-shore-trigger-4.json",patchId:"south-shore-trigger-4",names:[],title:"Триггер: одно из трёх",desc:"Напомнила тот вечер, другую девушку или чьи-то слова — одной фразой."}]};
+  {file:"presets/addons/south-shore-trigger-4.json",patchId:"south-shore-trigger-4",names:[],title:"Триггер: одно из трёх",desc:"Напомнила тот вечер, другую девушку или чьи-то слова — одной фразой."},
+  {file:"presets/addons/south-bred-2.json",patchId:"south-bred-2",names:[],title:"Бред Фрейи: «она жива? где она?»",desc:"Только когда Уилл уже принёс её в дом и уложил."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
