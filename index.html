@@ -673,7 +673,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=395;
+const APP_VER=396;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2534,7 +2534,7 @@ function renderProfile(){
   const st=c.state;const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
   blk("Сейчас",st.now);blk("Настроение",st.mood);blk("К тебе",(st.relUser||"")+(st.relUser?"\n":"")+"Доверие: "+trustWord(st.trust,st));blk("История ваших отношений",st.arc);blk("Цели",(st.goals||[]).join("; "));
   if(kv.childNodes.length){p.append(el("h2",null,"Состояние"));p.append(kv);}
-  if(w&&w.heroId===c.id)p.append(el("div","banner","Это твой герой: ты играешь за "+c.name+". Сменить можно в мире — «Ты играешь за»."));
+  if(w&&w.heroId===c.id)p.append(el("div","banner","Это твой герой: ты играешь за "+c.name+". Сменить можно в мире — «Ты играешь за»."));if(w&&storyOf(w)&&isPlayable(c)){const pb=el("button","btn primary");pb.style.cssText="width:100%;margin:8px 0;padding:12px;font-size:16px";pb.textContent=w.heroId===c.id?"▶ «История "+genName(c.name)+"»":"🎭 Играть за "+c.name;pb.title="Начать историю, где ты — "+c.name;pb.onclick=()=>{if(w.heroId===c.id)openMainStory(w);else playAs(w,c);};p.append(pb);}
   // внешность — для генерации картинок
   if(c.look||c.lookEn){p.append(el("h2",null,"Внешность"));const copyT=async(t,btn)=>{try{await navigator.clipboard.writeText(t);toast("Скопировано — вставь в генератор картинок.");}catch(e){showCopy("Скопируй",t,"",true);}};
     if(c.look){p.append(el("div","block",c.look));}const r=el("div","row");
