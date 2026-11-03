@@ -676,7 +676,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=402;
+const APP_VER=403;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -957,7 +957,8 @@ function openMainStoryGo(w){let x=mainStoryOf(w);if(x){go({v:"scene",id:x.id});r
   S.scenes.push(x);save();go({v:"scene",id:x.id});}
 function storyLabel(w){const st=storyOf(w);if(!st)return "";if(st.done)return "История рассказана · «"+((st.endings||[]).find(e=>e.key===st.ending)||{}).title+"»";ensureMoney(st);return "День "+st.day+" · "+st.part+(st.search&&(+st.heat||0)>=2&&!(st.search.stopFlags||[]).some(f=>(st.flags||{})[f])?" · 👁 "+heatWord(+st.heat):"")+((+st.tired||0)>=5?" · 😴 "+tiredWord(st.tired):"")+(st.money?" · 💰 "+fmtMoney(st.purse)+(st.debt>0?" (долг "+fmtMoney(st.debt)+")":""):"");}
 const DUE_LAPSE=2;
-function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&st.day<=e.day[1]+DUE_LAPSE&&(!e.if||(st.flags||{})[e.if]));}
+function evOk(e,F){F=F||{};return (!e.if||F[e.if])&&!(e.ifAll||[]).some(f=>!F[f])&&!(e.ifNot||[]).some(f=>F[f]);}
+function storyDue(st){return (st.events||[]).filter(e=>!e.fired&&st.day>=e.day[0]&&st.day<=e.day[1]+DUE_LAPSE&&evOk(e,st.flags));}
 function spineBlock(w){const st=storyOf(w);if(!st||st.done)return "";return [motifBlock(st,w),rulesBlock(st),st.spine?"ПОЗВОНОЧНИК ГЕРОЕВ (игрок — соавтор: Уилла раскрывает он сам; ты не решаешь за героя и не называешь его чувства — даёшь материал и отражаешь через людей и мелочи):\n"+st.spine:""].filter(Boolean).join("\n\n");}
 const lookShort=o=>{const t=String(o.look||"").replace(/\s+/g," ").trim();if(!t)return "";const f=t.split(/(?<=[.!?])\s/)[0].slice(0,160);return "; с виду: "+f;};
 function storyBlock(w,cast,light,noSpine){const st=storyOf(w);if(!st)return "";cast=(cast||[]).filter(Boolean);
@@ -1198,7 +1199,7 @@ function heatBlock(w){const st=storyOf(w);if(!st||!st.search||st.heat==null||st.
   return "РОЗЫСК («"+(st.search.who||"")+"»): "+heatWord(h)+" ("+h+" из 10). "+(h<2?"Пока тихо: признаков розыска не показывай.":"Покажи не больше одного признака за ответ и не в каждом ответе — мелочью мира, без объяснений. "+(st.search.signs||""))+(h>=8?" КОЛЬЦО СЖИМАЕТСЯ: если в «пора случиться» есть событие розыска (облава, Брам у двери, вызов к барону) — дай ему случиться в игре сейчас. За кадром её не забирают.":"");}
 function toneDayBlock(w,cs){const st=storyOf(w);if(!st||!st.tones)return "";const L=(cs||[]).filter(c=>c&&st.tones[c.id]).map(c=>c.name+" — "+st.tones[c.id]);return L.length?"СВОЙ ДЕНЬ У ЛЮДЕЙ (фон настроения, не главное; показывай мелочью, если к месту): "+L.join("; "):"";}
 function skipLimit(w){const st=storyOf(w);const D=st.day,F=st.flags||{};let best={day:999,why:""};const put=(d,why)=>{if(d<best.day)best={day:d,why};};
-  (st.events||[]).forEach(e=>{if(e.fired||!e.anchor)return;if(e.if&&!F[e.if])return;if(e.day[0]>D)put(e.day[0],"событие");else if(e.day[1]>=D)put(D,"важное событие сейчас");});
+  (st.events||[]).forEach(e=>{if(e.fired||!e.anchor)return;if(!evOk(e,F))return;if(e.day[0]>D)put(e.day[0],"событие");else if(e.day[1]>=D)put(D,"важное событие сейчас");});
   (st.cutscenes||[]).forEach(c=>{if(!c||(st.cutShown||{})[c.id])return;const q=c.when||{};if((q.flags||[]).some(f=>!F[f]))return;if((q.notFlags||[]).some(f=>F[f]))return;if(q.day&&q.day>D)put(q.day,"сцена «"+c.title+"»");});
   if(st.act<st.acts.length){const nd=((st.acts[st.act]||{}).days||[])[0];if(nd>D)put(nd,"новая глава «"+st.acts[st.act].title+"»");}
   Object.entries(st.questState||{}).forEach(([id,v])=>{if(v!=="active")return;const q=(st.quests||[]).find(z=>z.id===id);if(!q)return;if(q.deadline)put(((st.questStart||{})[id]||D)+q.deadline,"срок истории «"+q.title+"»");});
@@ -1206,7 +1207,7 @@ function skipLimit(w){const st=storyOf(w);const D=st.day,F=st.flags||{};let best
   if((+st.heat||0)>=8)put(D,"розыск: кольцо сжимается");
   const x=mainStoryOf(w);const l=x&&x.history[x.history.length-1];if(l&&l.cut&&(l.cut.choices||[]).length&&l.cut.chosen==null)put(D,"выбор не сделан");
   return best;}
-function skipBackground(w,to){const st=storyOf(w),F=st.flags||{},out=[];(st.events||[]).forEach(e=>{if(e.fired||e.anchor)return;if(e.if&&!F[e.if])return;if(e.day[1]<to&&e.day[1]>=st.day){e.fired=true;e.firedDay=e.day[0];out.push(e.text.slice(0,400));}});return out;}
+function skipBackground(w,to){const st=storyOf(w),F=st.flags||{},out=[];(st.events||[]).forEach(e=>{if(e.fired||e.anchor||e.noSkip)return;if(!evOk(e,F))return;if(e.day[1]<to&&e.day[1]>=st.day){e.fired=true;e.firedDay=e.day[0];out.push(e.text.slice(0,400));}});return out;}
 function dayWord(n){return n%10===1&&n%100!==11?"день":(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?"дня":"дней";}
 // пропуск тихих дней: всегда упирается в канун следующего важного; за кадром Фрейю не забирают
 function skipDays(w,x,n){const st=storyOf(w);if(!st||st.done)return 0;const lim=skipLimit(w);n=Math.min(n,lim.day-st.day);if(n<=0){toast("Пропускать нельзя: "+(lim.why||"впереди важное"));return 0;}
@@ -1240,7 +1241,7 @@ ${worldBlock(w).slice(0,2500)}
 ${stageTickInfo(w)}ФЛАГИ (поставлены: ${Object.keys(st.flags||{}).filter(k=>st.flags[k]).join(", ")||"нет"}):
 ${Object.entries(st.flagDefs||{}).map(([k,v])=>"- "+k+": "+v).join("\n")}
 СОБЫТИЯ (id: текст; дни; условие; уже было?):
-${(st.events||[]).map(e=>"- "+e.id+": "+e.text.slice(0,140)+" [дни "+e.day.join("–")+(e.if?"; если "+e.if:"")+"]"+(e.fired?" — БЫЛО":"")).join("\n")}
+${(st.events||[]).map(e=>"- "+e.id+": "+e.text.slice(0,140)+" [дни "+e.day.join("–")+(e.if?"; если "+e.if:"")+((e.ifAll||[]).length?"; если все: "+e.ifAll.join(", "):"")+((e.ifNot||[]).length?"; если НЕТ: "+e.ifNot.join(", "):"")+"]"+(e.fired?" — БЫЛО":"")).join("\n")}
 ФИНАЛЫ:
 ${(st.endings||[]).map(e=>"- "+e.key+" «"+e.title+"» (не раньше дня "+(e.minDay||1)+"): "+e.when).join("\n")}
 ЛЮДИ И ГДЕ ОНИ БЫЛИ: ${npcsOf(w.id).map(c=>c.name+(c.loc?" — "+c.loc:"")).join("; ")}
@@ -2330,7 +2331,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-prologue-2.json",patchId:"south-prologue-2",names:[],title:"Пролог: Уилл находит девушку",desc:"Пролог доходит до находки и узнавания со спины; сразу после — выбор, куда нести, репликой Уилла."},
   {file:"presets/addons/south-prologue-3.json",patchId:"south-prologue-3",names:[],title:"Пролог: Гарет показывает на камень",desc:"Пролог кончается указкой Гарета; находку и триггер со спины играет рассказчик; шёпот «она цела?» — когда девушку уложили."},
   {file:"presets/addons/south-time.json",patchId:"south-time",names:[],title:"Время, пропуски и Торвальд",desc:"История растянута на ~2,5 месяца; розыск Фрейи тикает; пропуск тихих дней; Торвальд уходит через 3–4 недели; работа стоит времени."},
-  {file:"presets/addons/south-garet-voice.json",patchId:"south-garet-voice",names:[],title:"Голос Гарета",desc:"Говорит медленно, с паузами, но целыми фразами."}]};
+  {file:"presets/addons/south-garet-voice.json",patchId:"south-garet-voice",names:[],title:"Голос Гарета",desc:"Говорит медленно, с паузами, но целыми фразами."},
+  {file:"presets/addons/south-hog-arc.json",patchId:"south-hog-arc",names:[],title:"Хёг: слежка, кокон, Хёгни",desc:"Тихая слежка, кабан и неделя в доме Уилла, имя Хёгни, две ветки, финал-жертва."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
