@@ -676,7 +676,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=401;
+const APP_VER=402;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2329,7 +2329,8 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz-ezra-clean.json",patchId:"south-liz-ezra-clean",names:["Лиз","Мастер Эзра"],title:"Лиз и Эзра: без повторов",desc:"Убраны абзацы, дословно повторявшие голос."},
   {file:"presets/addons/south-prologue-2.json",patchId:"south-prologue-2",names:[],title:"Пролог: Уилл находит девушку",desc:"Пролог доходит до находки и узнавания со спины; сразу после — выбор, куда нести, репликой Уилла."},
   {file:"presets/addons/south-prologue-3.json",patchId:"south-prologue-3",names:[],title:"Пролог: Гарет показывает на камень",desc:"Пролог кончается указкой Гарета; находку и триггер со спины играет рассказчик; шёпот «она цела?» — когда девушку уложили."},
-  {file:"presets/addons/south-time.json",patchId:"south-time",names:[],title:"Время, пропуски и Торвальд",desc:"История растянута на ~2,5 месяца; розыск Фрейи тикает; пропуск тихих дней; Торвальд уходит через 3–4 недели; работа стоит времени."}]};
+  {file:"presets/addons/south-time.json",patchId:"south-time",names:[],title:"Время, пропуски и Торвальд",desc:"История растянута на ~2,5 месяца; розыск Фрейи тикает; пропуск тихих дней; Торвальд уходит через 3–4 недели; работа стоит времени."},
+  {file:"presets/addons/south-garet-voice.json",patchId:"south-garet-voice",names:[],title:"Голос Гарета",desc:"Говорит медленно, с паузами, но целыми фразами."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
