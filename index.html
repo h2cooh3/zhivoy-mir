@@ -673,7 +673,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=397;
+const APP_VER=398;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2264,7 +2264,8 @@ const ADDONS={"Южное побережье":[
 {file:"presets/addons/south-start-relations.json",patchId:"south-start-relations",names:[],title:"Старт отношений: склонность к людям и числа к герою",desc:"У каждого своя склонность по категориям (дети, женщины, знать, стража, невольники, северяне, старики) — поправка при встрече с чужим. Фрейя начинает с доверия −6 к Уиллу; у Бесс уважение выше симпатии."},{file:"presets/addons/south-forks.json",patchId:"south-forks",names:[],title:"Развилки: выбор кнопками",desc:"В ключевые моменты (куда нести девушку, оставить ли её, тайник, Книга найденных, обмен на Лив, письмо, развязка) игрок выбирает кнопками; побочные истории тоже заканчиваются кнопками."},
   {file:"presets/addons/south-freya-pouch.json",patchId:"south-freya-pouch",names:[],title:"Фрейя: мешочек, свобода, и только потом Лив",desc:"Порядок её мотивации: пока не прочла письмо — знает лишь, что вещь важная; прочитав — её первая цель выкупить этим письмом себя, свою свободу; потом искать Лив; мысль отдать письмо за Лив — только когда узнает, что Лив жива и всё ещё в рабстве."},
   {file:"presets/addons/south-torvald-trade.json",patchId:"south-torvald-trade",names:["Капитан Торвальд","Хёг"],title:"Торвальд: обмен «Фрейя за Лив»",desc:"Торвальд в убытке и требует Фрейю (и письмо) за Лив; пока барон стоит — ждёт, падает — бежит ночью. Сорвать обмен может Хёг (выкрадет Лив) или Эзра."},
-  {file:"presets/addons/south-freya-clean.json",patchId:"south-freya-clean",names:["Фрейя"],title:"Фрейя: карточка без повторов",desc:"Личность и голос Фрейи без повторов и противоречий; делать приятное — её страсть (кроме постели)."}]};
+  {file:"presets/addons/south-freya-clean.json",patchId:"south-freya-clean",names:["Фрейя"],title:"Фрейя: карточка без повторов",desc:"Личность и голос Фрейи без повторов и противоречий; делать приятное — её страсть (кроме постели)."},
+  {file:"presets/addons/south-liz-ezra-clean.json",patchId:"south-liz-ezra-clean",names:["Лиз","Мастер Эзра"],title:"Лиз и Эзра: без повторов",desc:"Убраны абзацы, дословно повторявшие голос."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
