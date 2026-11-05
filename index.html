@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=419;
+const APP_VER=420;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2706,8 +2706,7 @@ function renderAllChars(){
   $("hTitle").textContent="Персонажи";const p=el("div","page");
   const tools=el("div","row between");const q=el("input");q.type="search";q.placeholder="Поиск";q.style.flex="1";
   const nb=el("button","btn primary","+ Персонаж");nb.onclick=()=>{if(!S.worlds.length){alert("Сначала создай мир на главной.");return;}let wid=S.lastWorld&&W(S.lastWorld)?S.lastWorld:S.worlds[0].id;if(S.worlds.length>1){const ans=prompt("В каком мире? Введи номер:\n"+S.worlds.map((w,i)=>(i+1)+" — "+w.name).join("\n"),String(S.worlds.findIndex(w=>w.id===wid)+1));const i=parseInt(ans)-1;if(!(i>=0&&i<S.worlds.length))return;wid=S.worlds[i].id;}const c=blankChar();c.worldId=wid;go({v:"charEdit",id:c.id,draft:c});};
-  const bcb=el("button","btn","💬 Пустой чат");bcb.title="Собеседник без карточки";bcb.onclick=()=>blankChatAsk(S.worlds.length>1?null:(S.worlds[0]||{}).id);
-  tools.append(q,nb,bcb);p.append(tools);
+  tools.append(q,nb);p.append(tools);
   const box=el("div");p.append(box);
   const draw=()=>{box.innerHTML="";const f=q.value.trim().toLowerCase();
     S.worlds.forEach(w=>{const cs=charsOf(w.id).filter(c=>!f||(c.name+" "+c.short+" "+c.tags.join(" ")).toLowerCase().includes(f)).sort((a,b)=>(b.updated||0)-(a.updated||0));if(!cs.length)return;const csP=byPlot(w,cs);
@@ -3212,7 +3211,7 @@ function tabChars(w,body){
   {const ub=el("button","btn sm","⟳ Обновить приложение и достроить мир");ub.title="Скачать последнюю версию приложения, поправить старые данные и добавить все недостающие дополнения — одной кнопкой";ub.style.margin="0 0 10px";ub.onclick=()=>updateAndBuild(w);body.append(ub);}
   {const miss=missingAddons(w);if(miss.length){const bn=el("div","block");bn.style.borderLeft="3px solid var(--accent)";bn.style.margin="0 0 10px";const ab=el("button","btn sm primary","⬆ Достроить мир до актуальной версии");ab.onclick=()=>applyAllAddons(w,ab);
     bn.append(el("b",null,"В мире не хватает дополнений ("+miss.length+")"),el("div","note","Недостающие персонажи, сюжет, истории и деньги добавятся одним нажатием, по порядку. Твои разговоры и память не затрагиваются."),ab);body.append(bn);}}
-  const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);{const bc=el("button","card add");bc.append(el("span",null,"💬"),el("div",null,"Пустой чат"));bc.title="Собеседник без карточки: все инструменты чата, кто он — решите в разговоре или через соавтора";bc.onclick=()=>blankChatAsk(w.id);g.append(bc);}
+  const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
   byPlot(w,charsOf(w.id).filter(c=>!c.dead&&!c.away)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
   {const ds=byPlot(w,deadOf(w.id));if(ds.length){body.append(el("h3",null,"✝ Умершие"),el("p","note","Их нет в живых: в сценах они не появляются, о них только вспоминают."));const g2=el("div","grid");ds.forEach(c=>g2.append(charCard(c,false)));body.append(g2);}}
