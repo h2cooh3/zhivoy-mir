@@ -598,14 +598,14 @@ function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мир�
       const mk=(l,f)=>{const b2=el("button","btn sm ghost",l);b2.onclick=()=>{f();w.updated=Date.now();save();draw();};return b2;};
       row.append(t,mk("−",()=>{st.tired=clampN((+st.tired||0)-1,0,10);}),mk("＋",()=>{st.tired=clampN((+st.tired||0)+1,0,10);}),mk("😴 выспался",()=>{st.tired=0;st.sleepless=0;}));box.append(row);}
     // отношения
-    {const npcs=npcsOf(w.id).filter(c=>(+c.state.like||0)!==0||(+c.state.grudge||0)>0||(+c.state.trust||0)!==0||(w.know&&w.know[c.id]));
+    {const npcs=npcsOf(w.id).filter(c=>(+c.state.like||0)!==0||(+c.state.grudge||0)>0||(+c.state.warm||0)>0||(+c.state.trust||0)!==0||(w.know&&w.know[c.id]));
       if(npcs.length){const dd=el("details");dd.open=relOpen;dd.ontoggle=()=>{relOpen=dd.open;};dd.append(el("summary",null,"Отношения к "+heroName(w)+" ("+npcs.length+")"));box.append(el("h3",null,""),dd);
         npcs.forEach(c=>{const s2=c.state;const it=el("div","ji");it.append(el("b",null,c.name));
           const mk=(label,key,min,max,step,word)=>{const row=el("div","row");row.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";const t=el("span","note",label+": "+(+s2[key]||0)+" · "+word(s2[key]));t.style.flex="1 1 160px";const m=el("button","btn sm ghost","−");const pl=el("button","btn sm ghost","＋");
-            const ch=d=>{s2[key]=clampN((+s2[key]||0)+d,min,max);if(key==="grudge"&&s2.grudge<=0)s2.grudgeWhy="";c.updated=Date.now();w.updated=Date.now();save();draw();};m.onclick=()=>ch(-step);pl.onclick=()=>ch(step);row.append(t,m,pl);it.append(row);};
-          mk("Симпатия","like",-10,10,1,likeWord);mk("Доверие","trust",-10,10,1,trustWord);mk("Обида","grudge",0,10,1,grudgeWord);mk("Уважение","respect",-10,10,1,respectWord);
+            const ch=d=>{s2[key]=clampN((+s2[key]||0)+d,min,max);if(key==="grudge"&&s2.grudge<=0)s2.grudgeWhy="";if(key==="warm"&&s2.warm<=0)s2.warmWhy="";c.updated=Date.now();w.updated=Date.now();save();draw();};m.onclick=()=>ch(-step);pl.onclick=()=>ch(step);row.append(t,m,pl);it.append(row);};
+          mk("Симпатия","like",-10,10,1,likeWord);mk("Доверие","trust",-10,10,1,trustWord);mk("Обида","grudge",0,10,1,grudgeWord);mk("Тепло","warm",0,10,1,warmWord);mk("Уважение","respect",-10,10,1,respectWord);
           if(Array.isArray(s2.relLog)&&s2.relLog.length)it.append(el("div","note","Последнее: "+s2.relLog.slice(-3).map(x=>x.text).join(" · ")));
-          if((+s2.grudge||0)>0&&s2.grudgeWhy)it.append(el("div","note","Из-за: "+s2.grudgeWhy));dd.append(it);});}}
+          if((+s2.grudge||0)>0&&s2.grudgeWhy)it.append(el("div","note","Из-за: "+s2.grudgeWhy));if((+s2.warm||0)>0&&s2.warmWhy)it.append(el("div","note","Тепло от: "+s2.warmWhy));dd.append(it);});}}
     // сделано
     const dp=promList(st).filter(p=>p.state!=="active"),dq=(st.quests||[]).filter(q=>qs[q.id]==="done");
     if(dp.length||dq.length){const dd=el("details");dd.append(el("summary",null,"Сделано и прошлое ("+(dp.length+dq.length)+")"));box.append(el("h3",null,""),dd);
@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=416;
+const APP_VER=417;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -940,7 +940,7 @@ function heroStartRel(c,h){const st=c.state=c.state||{};const rel=String(relGet(
   else if(known&&/враг|ненавид|презир|боится|опасн|не терпит/i.test(rel)){t=-4;l=-3;r=1;}
   else if(known){t=2+b*.5;l=2+b*.5;r=3;}
   else{t=clampN(b*.4,-3,3);l=clampN(b*.4,-3,3);r=0;}
-  st.trust=fix1(clampN(t,-10,10));st.like=fix1(clampN(l,-10,10));st.respect=fix1(r);st.grudge=0;st.grudgeWhy="";st.loveKind=lk;st.relUser=known?rel:"Не знает этого человека — видит впервые.";delete st.stale;st.relLog=[];}
+  st.trust=fix1(clampN(t,-10,10));st.like=fix1(clampN(l,-10,10));st.respect=fix1(r);st.grudge=0;st.grudgeWhy="";st.warm=0;st.warmWhy="";st.loveKind=lk;st.relUser=known?rel:"Не знает этого человека — видит впервые.";delete st.stale;st.relLog=[];}
 function applyHero(w,h){if(!w||!h)return;w.defHero=w.defHero||heroName(w);const back=h.name===w.defHero;w.heroId=h.id;
   if(!back)charsOf(w.id).forEach(c=>{if(c.id!==h.id&&!c.dead&&!c.away){heroStartRel(c,h);c.base={state:JSON.parse(JSON.stringify(c.state)),facts:JSON.parse(JSON.stringify(c.facts||[]))};}});
   try{fixDefaultStages();}catch(e){}
@@ -1048,19 +1048,25 @@ function earsPresent(w,hist){const ms=mainStoryOf(w);if(ms&&ms.history===hist)re
   const c=charsOf(w.id).find(z=>z.history===hist);if(c)return [c,...guestsOf(c)];return [];}
 const LIKE_W=["ненавидит","терпеть не может","неприязнь","недолюбливает","прохладно","нейтрально","нравится","приятен","симпатизирует","тянется к нему","влюблён или предан"];
 const likeWord=n=>LIKE_W[Math.max(0,Math.min(10,Math.round(((+n||0)+10)/2)))];
+const warmWord=n=>{n=+n||0;return n<=0?"тёплых воспоминаний нет":n<=2?"помнит хорошее":n<=5?"тепло помнит, что он сделал":n<=8?"бережёт это в памяти, оттаивает при виде него":"это стало для него опорой";};
 const grudgeWord=n=>{n=+n||0;return n<=0?"нет обиды":n<=2?"лёгкая обида":n<=5?"обижен, держится холоднее":n<=8?"сильно обижен, колет и молчит":"глубоко оскорблён, не простит словами";};
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,v));
 // ============ ОТНОШЕНИЯ (v350): доверие, симпатия/любовь, уважение, обида ============
 // Модель-режиссёр выбирает ТИП поступка и ВЕС 1–5, арифметику делает код. Модель-собеседник получает готовый итог словами, без чисел.
 const DEEDS={
- kind:["доброта без выгоды: накормил, согрел, позаботился",{t:.5,l:.5,r:.1}],
- help:["помощь делом",{t:.5,l:.3,r:.3}],
- word:["сдержал слово или обещание",{t:.6,r:.4}],
- open:["честно открылся, сказал правду, доверил тайну",{t:.5,l:.2,r:.2}],
- choice:["посчитался с его «нет», дал выбор, не стал давить",{t:.5,l:.2,r:.1}],
- gift:["подарок, внимание, тёплое слово, комплимент",{t:.1,l:.5}],
- brave:["защитил, рискнул своим ради него",{t:.6,l:.3,r:.6}],
- skill:["показал ум, мастерство, твёрдость характера",{r:.5}],
+ kind:["доброта без выгоды: накормил, согрел, позаботился",{t:.5,l:.5,r:.1,w:.5}],
+ help:["помощь делом",{t:.5,l:.3,r:.3,w:.4}],
+ word:["сдержал слово или обещание",{t:.6,r:.4,w:.2}],
+ open:["честно открылся, сказал правду, доверил тайну",{t:.5,l:.2,r:.2,w:.3}],
+ choice:["посчитался с его «нет», дал выбор, не стал давить",{t:.5,l:.2,r:.1,w:.4}],
+ listen:["выслушал и сделал по его совету, принял его мнение всерьёз",{t:.3,l:.2,r:.3,w:.2}],
+ gift:["подарок, внимание, тёплое слово, комплимент",{t:.1,l:.5,w:.5}],
+ brave:["защитил, рискнул своим ради него",{t:.6,l:.3,r:.6,w:.8}],
+ skill:["показал ум, мастерство, твёрдость характера",{r:.5,w:.1}],
+ bold:["решительность: взял дело или решение на себя, сказал прямо, не мямлил, не побоялся (не к телу человека)",{r:.5,l:.2,t:.1,w:.2}],
+ advance:["напор к самому человеку: подошёл ближе, чем позволили, коснулся, обнял, поднял на руки, настойчиво ухаживал — без грубости (грубое и против воли — force)",{}],
+ decide:["решил за человека, не спросив (о его судьбе, вещах, деле)",{t:-.2,r:-.1,g:.3}],
+ ignore:["не заметил, пренебрёг, забыл о нём или о его труде",{l:-.2,t:-.1,g:.3}],
  rude:["грубость, обидная шутка",{t:-.3,l:-.4,r:-.1,g:.4}],
  broke:["нарушил слово",{t:-.8,r:-.5,g:.5}],
  lie:["обман, подлость исподтишка",{t:-.9,r:-.6,g:.5}],
@@ -1069,7 +1075,7 @@ const DEEDS={
  force:["принуждение, угроза, насилие, унижение (серьёзное нарушение границы, не мелкая бестактность)",{t:-1.2,r:-.6,l:-.8,g:1}],
  weak:["трусость, слабость, пустые слова",{r:-.5}],
  enemy:["честная вражда, открытый спор врага (без подлости)",{t:-.5}],
- sorry:["искупление, извинение делом",{g:-.8,t:.2}]
+ sorry:["искупление, извинение делом",{g:-.8,t:.2,w:.2}]
 };
 const DEED_HELP=Object.entries(DEEDS).map(([k,v])=>k+" — "+v[0]).join("; ");
 const DEEDS_RULE='Поступки героя (deeds): для КАЖДОГО значимого поступка выбери "type" из списка и "weight" 1–5 (1 — мелочь, 3 — заметный поступок, 5 — меняет жизнь человека; если неясно — выбирай МЕНЬШИЙ вес). Типы: '+DEED_HELP+'. "seen": false, если персонаж сам не видел, а лишь узнал. Числа доверия, симпатии, уважения и обиды НЕ пиши — их считает движок. Нет повода — пустой список.';
@@ -1082,11 +1088,14 @@ function applyDeeds(w,c,list,src,silent){
  list.forEach(o=>{
   const D=o&&DEEDS[String(o.type)];if(!D)return;
   const wt=clampN(Math.round(+o.weight||1),1,5);
-  const T0=+st.trust||0,L0=+st.like||0,R0=+st.respect||0,G0=+st.grudge||0;
+  const T0=+st.trust||0,L0=+st.like||0,R0=+st.respect||0,G0=+st.grudge||0,W0=+st.warm||0;
+  // v417 — СКРЫТЫЙ ОТКЛИК: напор к самому человеку внутри плюс или настоящее «нет» — по порогам персонажа (c.attract) и его доверию/симпатии
+  let E=(c.react&&c.react[o.type])||D[1],adv=null;
+  if(o.type==="advance"){const A=isChild(c)?"never":(c.attract===undefined?{t:3,l:4}:c.attract);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
   const close=Math.max(0,(L0+T0)/2)/10;
   const sens=(c.sens&&+c.sens[o.type])||1;
   const k=wt*.7*sens*(o.seen===false?.5:1)*clampN(5/(+c.inertia||5),.6,1.2);
-  let dt=(D[1].t||0)*k,dl=(D[1].l||0)*k,dr=(D[1].r||0)*k,dg=(D[1].g||0)*k;
+  let dt=(E.t||0)*k,dl=(E.l||0)*k,dr=(E.r||0)*k,dg=(E.g||0)*k,dw=(E.w||0)*k;
   if(dt<0)dt*=1+close*.6;if(dr<0)dr*=1+close*.6;if(dl<0)dl*=1+close*.6;if(dg>0)dg*=1+close*.4;
   if(dt<0)dt*=1.4;else if(dt>0&&T0<0)dt*=.6;
   if(dr>0&&R0<0)dr*=.6;if(dl>0&&L0<0)dl*=.6;
@@ -1099,13 +1108,17 @@ function applyDeeds(w,c,list,src,silent){
   let L1=L0+dl;if(dl>0)L1=Math.min(L1,Math.max(L0,T1+3));L1=clampN(fix1(L1),-10,10);
   const R1=clampN(fix1(R0+dr),-10,10);
   const G1=clampN(fix1((+st.grudge||0)+dg),0,10);
-  st.trust=T1;st.like=L1;st.respect=R1;st.grudge=G1;if(T1<T0||G1>G0)st.badDay=day;
+  if(dg>0)dw-=dg*.5;
+  const W1=clampN(fix1(W0+Math.max(dw,-4)),0,10);
+  st.trust=T1;st.like=L1;st.respect=R1;st.grudge=G1;st.warm=W1;if(T1<T0||G1>G0)st.badDay=day;
   if(dg>0&&o.why)st.grudgeWhy=String(o.why).slice(0,120);
   if(G1<=0)st.grudgeWhy="";
+  if(dw>0&&W1>W0&&o.why)st.warmWhy=String(o.why).slice(0,120);
+  if(W1<=0)st.warmWhy="";
   if(!st.loveKind&&L1>=6)st.loveKind="человек";
-  const ch=[["доверие",T1-T0],["симпатия",L1-L0],["уважение",R1-R0],["обида",G1-G0]].filter(x=>Math.abs(x[1])>=.05).map(x=>x[0]+" "+(x[1]>0?"+":"")+fix1(x[1])).join(", ");
+  const ch=[["доверие",T1-T0],["симпатия",L1-L0],["уважение",R1-R0],["обида",G1-G0],["тепло",W1-W0]].filter(x=>Math.abs(x[1])>=.05).map(x=>x[0]+" "+(x[1]>0?"+":"")+fix1(x[1])).join(", ");
   if(Math.abs(dt)>=2||Math.abs(dr)>=2)st.stale=day||1;
-  const line="«"+D[0].split(":")[0]+"» (вес "+wt+")"+(o.why?" — "+o.why:"")+": "+(ch||"без сдвига");
+  const line="«"+D[0].split(":")[0]+"» (вес "+wt+")"+(o.why?" — "+o.why:"")+(adv===true?" [внутри приятно]":adv===false?" [настоящее «нет»]":"")+": "+(ch||"без сдвига");
   (st.relLog=st.relLog||[]).push({t:now(),text:line});if(st.relLog.length>14)st.relLog.shift();
   if(Array.isArray(c.log))c.log.push({t:now(),text:"Отношение: "+line,src:src||"поступок",impact:Math.min(10,wt*2)});
  });
@@ -1141,7 +1154,9 @@ function riskLine(t){t=Math.round(+t||0);
 function respectWord(r){r=Math.round(+r||0);return r<=-6?"презирает":r<=-3?"не уважает, смотрит свысока":r<=-1?"уважения нет":r<=2?"уважает в меру, пока не знает его силы":r<=5?"уважает":r<=8?"глубоко уважает, считается с его мнением":"преклоняется, слово героя для него вес";}
 function loveWord(c){const s=c.state||{},l=+s.like||0,k=s.loveKind;if(l<6)return likeWord(l);return k==="партнёр"?"влюблён, тянется как к партнёру":k==="человек"?"любит как близкого человека (не романтически)":"любит";}
 function toneLine(c,hn){const s=c.state||{},t=Math.round(+s.trust||0),l=+s.like||0,r=+s.respect||0,g=+s.grudge||0;
- const p=["ДОВЕРИЕ (к герою, "+hn+"), ступень "+ladderOf(t,s).n+" из 10 «"+ladderOf(t,s).name+"»: "+trustLvl(t)+"; "+riskLine(t)+".","Чувства: "+loveWord(c)+". Уважение: "+respectWord(r)+". "+grudgeWord(g)+((+g>0&&s.grudgeWhy)?" — из-за: "+s.grudgeWhy:"")+"."];
+ const wm=+s.warm||0;
+ const p=["ДОВЕРИЕ (к герою, "+hn+"), ступень "+ladderOf(t,s).n+" из 10 «"+ladderOf(t,s).name+"»: "+trustLvl(t)+"; "+riskLine(t)+".","Чувства: "+loveWord(c)+". Уважение: "+respectWord(r)+". "+grudgeWord(g)+((+g>0&&s.grudgeWhy)?" — из-за: "+s.grudgeWhy:"")+"."+(wm>0?" Тёплое: "+warmWord(wm)+(s.warmWhy?" — помнит: "+s.warmWhy:"")+".":"")];
+ {const la=s.lastAdvance;const dd=relDay(W(c.worldId));if(la&&dd-la.d<=1)p.push("НАПОР ГЕРОЯ"+(la.why?" ("+la.why+")":"")+": "+(la.ok?"внутри ей/ему приятно. Снаружи может ворчать, отшучиваться, сказать «нет» — это игривое «нет»: не уходит, задерживает взгляд, прячет улыбку, сама(сам) возвращается к разговору. Слов о приязни не говорить — только тело и поступки.":"это настоящее «нет»: отступает, холодеет, отвечает коротко, держит руки занятыми, уходит или зовёт своих, назавтра избегает. Не превращать в игру и не смягчать.")+"");}
  let tone="";
  if(g>=6)tone="холоден и колюч, пока не загладят делом";
  else if(t<=-3)tone="враждебен или насторожен, держится подальше";
@@ -1161,7 +1176,7 @@ function feelApply(w,st,r,skip){const L=Array.isArray(r.feel)?r.feel:[];L.forEac
   if((+s2.grudge||0)<=0)s2.grudgeWhy="";});}
 function feelBlock(w,cs){const hn=heroName(w);const L=(cs||[]).filter(c=>c&&c.id!==w.heroId).map(c=>"• "+c.name+": "+toneLine(c,hn));
   if(!L.length)return "";
-  return "ОТНОШЕНИЕ К ГЕРОЮ — ИТОГ РАСЧЁТА (движок ведёт доверие, чувства, уважение и обиду; это живые чувства, веди себя по ним; если «настроение» или «что сейчас» с итогом расходятся — прав итог; карточка задаёт манеру речи и страхи, а не меру доверия):\n"+L.join("\n")+"\nДОВЕРИЕ ПРОЯВЛЯЕТСЯ В ПОСТУПКАХ: при высоком доверии человек говорит о личном, просит помощи, соглашается без допроса, тёплые слова принимает; при низком — проверяет, молчит о главном, отказывается рисковать. Страх и привычка из карточки могут смягчать проявление, но не отменять итог. КОМПЛИМЕНТЫ героя персонаж замечает и отвечает по итогу: близкому — теплом или шуткой, чужому — настороженностью. Комплимент не стирает обиду и не покупает доверие за реплику. ОБИДА: помнит причину, держится холоднее, колет словом, пока герой не загладит делом.\n";}
+  return "ОТНОШЕНИЕ К ГЕРОЮ — ИТОГ РАСЧЁТА (движок ведёт доверие, чувства, уважение и обиду; это живые чувства, веди себя по ним; если «настроение» или «что сейчас» с итогом расходятся — прав итог; карточка задаёт манеру речи и страхи, а не меру доверия):\n"+L.join("\n")+"\nСНАРУЖИ И ВНУТРИ: слова могут говорить одно, а тело и поступки — правду, и игрок должен это видеть. Есть два «нет»: игривое (ворчит, но не уходит, задерживает взгляд, сама возвращается) и настоящее (твёрдое, повторяется, подкреплено делом — уходит, избегает, холодеет надолго). Какое звучит — решает итог выше и СКРЫТЫЙ ОТКЛИК в карточке человека; чувства не называй, показывай деталями. ТЁПЛОЕ — то, что человек бережёт в памяти; оно смягчает обиду, но не отменяет её.\nДОВЕРИЕ ПРОЯВЛЯЕТСЯ В ПОСТУПКАХ: при высоком доверии человек говорит о личном, просит помощи, соглашается без допроса, тёплые слова принимает; при низком — проверяет, молчит о главном, отказывается рисковать. Страх и привычка из карточки могут смягчать проявление, но не отменять итог. КОМПЛИМЕНТЫ героя персонаж замечает и отвечает по итогу: близкому — теплом или шуткой, чужому — настороженностью. Комплимент не стирает обиду и не покупает доверие за реплику. ОБИДА: помнит причину, держится холоднее, колет словом, пока герой не загладит делом.\n";}
 const TIRED_W=["бодр","бодр","свеж","немного устал","заметно устал","устал","сильно устал","вымотан","на пределе","на грани, валится с ног","на грани, валится с ног"];
 const tiredWord=n=>TIRED_W[Math.max(0,Math.min(10,Math.round(+n||0)))];
 function bodyApply(st,r,d,p0){const b=r&&r.body;const t0=+st.tired||0;let t=t0;
@@ -1196,6 +1211,7 @@ function roofOf(w,c){const st=storyOf(w);if(!st||!Array.isArray(st.roof)||!c)ret
 function lifeDay(w,ended){const st=storyOf(w);if(!st)return;const day=st.day;st.tones={};
   npcsOf(w.id).forEach(c=>{const s=c.state;if(!s)return;const iner=+c.inertia||5;
     const g0=+s.grudge||0;if(g0>0){s.grudge=fix1(Math.max(0,g0-0.3*clampN(5/iner,0.5,1.5)));if(s.grudge<=0)s.grudgeWhy="";}
+    const w0=+s.warm||0;if(w0>0){s.warm=fix1(Math.max(0,w0-0.15));if(s.warm<=0)s.warmWhy="";}
     const k=(w.know||{})[c.id];const roof=roofOf(w,c);
     if(!roof&&!isChild(c)&&(+s.trust||0)>=5&&(+s.like||0)>=5&&k&&k.lastDay!=null&&day-k.lastDay>=5){s.like=fix1(Math.max(-10,(+s.like||0)-0.15));if((+s.grudge||0)<3){s.grudge=fix1(Math.min(3,(+s.grudge||0)+0.1));if(!s.grudgeWhy)s.grudgeWhy=heroName(w)+" давно не заходил";}}
     if(roof&&s.badDay!==ended&&(+s.trust||0)<10){s.trust=fix1(Math.min(10,(+s.trust||0)+0.2));}
@@ -1221,7 +1237,7 @@ function skipLimit(w){const st=storyOf(w);const D=st.day,F=st.flags||{};let best
 function skipBackground(w,to){const st=storyOf(w),F=st.flags||{},out=[];(st.events||[]).forEach(e=>{if(e.fired||e.anchor||e.noSkip)return;if(!evOk(e,F))return;if(e.day[1]<to&&e.day[1]>=st.day){e.fired=true;e.firedDay=e.day[0];out.push(e.text.slice(0,400));}});return out;}
 function dayWord(n){return n%10===1&&n%100!==11?"день":(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?"дня":"дней";}
 // пропуск тихих дней: всегда упирается в канун следующего важного; за кадром Фрейю не забирают
-function skipDays(w,x,n){const st=storyOf(w);if(!st||st.done)return 0;const lim=skipLimit(w);n=Math.min(n,lim.day-st.day);if(n<=0){toast("Пропускать нельзя: "+(lim.why||"впереди важное"));return 0;}
+function skipDays(w,x,n){const st=storyOf(w);if(!st||st.done)return 0;const lim=skipLimit(w);n=Math.min(n,lim.day-st.day);if(n<=0){toast("Пропускать нельзя: "+(lim.why||"впереди важное"));return 0;}try{if(typeof wsTake==="function")wsTake(w,x);}catch(e){}
   const from=st.day;let to=from+n;{const keep=st.day,hh=st.heat;let cut=to;for(let d=from+1;d<=to;d++){st.day=d;heatDay(w);if((+st.heat||0)>=8){cut=d;break;}}st.day=keep;st.heat=hh;to=cut;n=to-from;}
   const bg=skipBackground(w,to);const ppl=npcsOf(w.id);
   const before={};ppl.forEach(c=>{before[c.id]={t:+c.state.trust||0,l:+c.state.like||0,g:+c.state.grudge||0,k:Array.isArray(c.stages)&&c.stages.length&&!c.stagesAuto?stageOf(c):null};});
@@ -1405,7 +1421,7 @@ function baseFor(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v))
   if(b&&b.state)return {state:cl(b.state),facts:Array.isArray(b.facts)?cl(b.facts):[]};
   // снимка нет: обнулять всё нельзя — характер остаётся, гасим только то, что нажито с героем
   const st=cl((c&&c.state)||{})||{};
-  st.relUser="";st.arc="";st.now="";st.trust=0;st.like=0;st.respect=0;st.loveKind="";st.grudge=0;st.grudgeWhy="";delete st.stale;
+  st.relUser="";st.arc="";st.now="";st.trust=0;st.like=0;st.respect=0;st.loveKind="";st.grudge=0;st.grudgeWhy="";st.warm=0;st.warmWhy="";delete st.stale;
   return {state:st,facts:[],soft:true};}
 function ownFork(c,ch,keepNow){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));
   const b=keepNow?{state:cl(c.state)||{},facts:cl(c.facts)||[]}:baseFor(c);
@@ -1486,15 +1502,15 @@ function showPrompt(title,parts){const d=$("rep");$("repTitle").textContent=titl
   const q=el("input");q.type="text";q.placeholder="Поиск по тексту (например: Марта, дверь)";const res=el("div","note");const pre=el("pre");pre.style.whiteSpace="pre-wrap";pre.style.fontSize="12px";pre.style.maxHeight="60vh";pre.style.overflow="auto";pre.textContent=full;
   q.oninput=()=>{const v=q.value.trim().toLowerCase();if(!v){res.textContent="";pre.textContent=full;return;}const L=full.split("\n").filter(l=>l.toLowerCase().includes(v));res.textContent=L.length?"Найдено строк: "+L.length:"Не найдено нигде в том, что видит ИИ.";pre.textContent=L.join("\n\n")||"—";};
   body.append(q,res,pre,el("div","note","Всего знаков: "+full.length));try{d.showModal();}catch(e){d.setAttribute("open","");}}
-function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=["like","trust","respect","loveKind","grudge","grudgeWhy","mood","now","stage","relUser","arc","secrets","goals","relations"];const st={};KEYS.forEach(k=>{if(real[k]!==undefined)st[k]=(real[k]&&typeof real[k]==="object")?JSON.parse(JSON.stringify(real[k])):real[k];});const ex={facts:(ch.sb.facts||[]).slice(),inertia:ch.sb.inertia!=null?ch.sb.inertia:(c.inertia||5)};const applyAll=()=>{KEYS.forEach(k=>{if(st[k]!==undefined)real[k]=st[k];});ch.sb.facts=ex.facts.slice();ch.sb.inertia=ex.inertia;};const box=el("div");box.style.margin="6px 0";
+function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=["like","trust","respect","loveKind","grudge","grudgeWhy","warm","warmWhy","mood","now","stage","relUser","arc","secrets","goals","relations"];const st={};KEYS.forEach(k=>{if(real[k]!==undefined)st[k]=(real[k]&&typeof real[k]==="object")?JSON.parse(JSON.stringify(real[k])):real[k];});const ex={facts:(ch.sb.facts||[]).slice(),inertia:ch.sb.inertia!=null?ch.sb.inertia:(c.inertia||5)};const applyAll=()=>{KEYS.forEach(k=>{if(st[k]!==undefined)real[k]=st[k];});ch.sb.facts=ex.facts.slice();ch.sb.inertia=ex.inertia;};const box=el("div");box.style.margin="6px 0";
   const ab=el("button","btn sm primary","✓ Применить");const cb=el("button","btn sm ghost","Отменить");const dirty=el("span","note","");
   const shows=[];let sgSync=()=>{};const touch=()=>{ab.disabled=false;cb.disabled=false;dirty.textContent="есть изменения — нажми «Применить»";};
   const row=(label,key,lo,hi,step)=>{const r=el("div","row");r.style.alignItems="center";r.style.gap="6px";r.style.margin="3px 0";const v=el("b");v.style.minWidth="38px";v.style.textAlign="center";const show=()=>{v.textContent=String(Math.round((+st[key]||0)*10)/10);};shows.push(show);show();
     const mk=(t,d)=>{const b=el("button","btn sm ghost",t);b.onclick=()=>{st[key]=Math.max(lo,Math.min(hi,Math.round(((+st[key]||0)+d)*10)/10));show();touch();sgSync();};return b;};
     const l=el("span",null,label);l.style.flex="1";r.append(l,mk("−",-step),v,mk("＋",step));return r;};
-  box.append(row("Симпатия к герою (−10…10)","like",-10,10,1),row("Доверие (−10…10)","trust",-10,10,1),row("Уважение (−10…10)","respect",-10,10,1),row("Обида (0…10)","grudge",0,10,1));const sgBox=el("div");sgBox.style.margin="6px 0 10px";box.append(sgBox);
+  box.append(row("Симпатия к герою (−10…10)","like",-10,10,1),row("Доверие (−10…10)","trust",-10,10,1),row("Уважение (−10…10)","respect",-10,10,1),row("Обида (0…10)","grudge",0,10,1),row("Тёплое воспоминание (0…10)","warm",0,10,1));const sgBox=el("div");sgBox.style.margin="6px 0 10px";box.append(sgBox);
   const txt=(label,key,ph)=>{const lb=el("label");lb.append(document.createTextNode(label));const i=el("textarea");i.rows=2;i.value=st[key]||"";i.placeholder=ph||"";growTA(i);i.oninput=()=>{st[key]=i.value;touch();};lb.append(i);return lb;};
-  box.append(txt("Из-за чего обида","grudgeWhy",""),txt("Настроение","mood","например: насторожен, тёплый"),txt("Что сейчас (где, чем занят)","now",""));
+  box.append(txt("Из-за чего обида","grudgeWhy",""),txt("Чем порадовал (тёплое воспоминание)","warmWhy","например: молча накрыл её своим плащом"),txt("Настроение","mood","например: насторожен, тёплый"),txt("Что сейчас (где, чем занят)","now",""));
   {const kl=el("label");kl.append(document.createTextNode("Вид любви"));const kS=el("select","lk");[["","не определён"],["человек","как к близкому человеку"],["партнёр","как к партнёру"]].filter(a=>!(a[0]==="партнёр"&&isChild(c))).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;kS.append(o);});kS.value=st.loveKind||"";kS.onchange=()=>{st.loveKind=kS.value;touch();sgSync();};kl.append(kS);box.append(kl);
    const il=el("label");il.append(document.createTextNode("Инертность (1 — легко меняется, 10 — кремень)"));const ii=el("input");ii.type="number";ii.min=1;ii.max=10;ii.value=ex.inertia;ii.oninput=()=>{ex.inertia=Math.max(1,Math.min(10,parseInt(ii.value)||5));touch();};il.append(ii);box.append(il);
    box.append(txt("Отношение к герою (словами)","relUser",""),txt("История отношений с героем","arc",""),txt("Что скрывает","secrets",""));
@@ -2037,7 +2053,7 @@ async function genWorld(w){
 
 // ============ СИНХРОНИЗАЦИЯ (GitHub Gist) ============
 const GH="https://api.github.com";
-const syncSkip=(k,v)=>k==="editUndo"?undefined:sbSafe(k,v);
+const syncSkip=(k,v)=>k==="editUndo"||k==="wsnaps"?undefined:sbSafe(k,v);
 const syncPayload=rev=>JSON.stringify({app:"zhivoymir",kind:"sync",ver:APP_VER,rev:rev||"",stamp:S.stamp,apiCfg:apiCfg(),persona:S.persona,theme:S.theme,usage:S.usage,ai:S.ai,aiArchive:S.aiArchive||[],aiMem:S.aiMem||"",aiUpdated:S.aiUpdated||0,gone:S.gone||{},worlds:S.worlds,chars:S.chars,scenes:S.scenes},syncSkip);
 let syncEtag="",syncBytes=0;
 async function gh(path,method,body,etag){const hd={"Authorization":"Bearer "+S.sync.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"};if(etag)hd["If-None-Match"]=etag;const r=await fetch(GH+path,{cache:"no-store",method:method||"GET",headers:hd,body:body?JSON.stringify(body):undefined});
@@ -2382,7 +2398,10 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-bred-3.json",patchId:"south-bred-3",names:[],title:"Бред Фрейи: «Девочка, она цела?»",desc:"«…Девочка, она цела? Где она?» — когда уже уложили в доме."},
   {file:"presets/addons/south-shore-trigger-5.json",patchId:"south-shore-trigger-5",names:[],title:"Триггер со спины: отдельным абзацем",desc:"Уилл замирает; одно полное предложение «…напомнило Уиллу…»."},
   {file:"presets/addons/south-garet-shore.json",patchId:"south-garet-shore",names:[],title:"Гарет остаётся на берегу",desc:"Во время спасения Гарет держит канат с берега, к камню не подходит."},
-  {file:"presets/addons/south-distances.json",patchId:"south-distances",names:[],title:"Расстояния по карте",desc:"Мельница — на востоке, около часа пешком от Уилла; у Уилла колесо мастерской, не мельница."}]};
+  {file:"presets/addons/south-distances.json",patchId:"south-distances",names:[],title:"Расстояния по карте",desc:"Мельница — на востоке, около часа пешком от Уилла; у Уилла колесо мастерской, не мельница."},
+  {file:"presets/addons/south-liz-kenric-6.json",patchId:"south-liz-kenric-6",names:[],title:"Лиз и Кенрик: брак, шрам, письмо",desc:"Шрам Кенрика — с мельницы, её стежки; письмо Кенрика; Лиз умная и осторожная; без вины за нож."},
+  {file:"presets/addons/south-attract.json",patchId:"south-attract",names:[],title:"Скрытый отклик",desc:"Что греет героинь внутри и их настоящее «нет»: Фрейя, Лиз, Бесс."},
+  {file:"presets/addons/south-holes-3.json",patchId:"south-holes-3",names:[],title:"Дыры сюжета: Гарет, Хёг, барон, Эзра, Тобиас",desc:"Лестница барона по неделям, копия письма и печать, Фрейя выбирает сама, новые финалы Тобиаса."}]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
@@ -2545,7 +2564,7 @@ async function importFile(file,targetWorldId,opt){opt=opt||{};
     if(d.relAdd&&typeof d.relAdd==="object")Object.entries(d.relAdd).forEach(([who,rels])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!rels)return;c.state.relations=c.state.relations||{};Object.entries(rels).forEach(([k,v])=>{if(!c.state.relations[k]){c.state.relations[k]=String(v);add++;}});c.updated=Date.now();});
     if(d.charPatch&&typeof d.charPatch==="object")Object.entries(d.charPatch).forEach(([who,pt])=>{const c=charsOf(tw.id).find(x=>x.name===who);if(!c||!pt)return;["look","lookEn","pub","seen","voice","examples","greeting"].forEach(k=>{if(typeof pt[k]==="string"&&pt[k].trim())c[k]=pt[k].trim();});if(Array.isArray(pt.tagsSet))c.tags=pt.tagsSet.slice();if(Array.isArray(pt.endings))c.endings=pt.endings;if(Array.isArray(pt.endingsAdd)){c.endings=Array.isArray(c.endings)?c.endings:[];pt.endingsAdd.forEach(e=>{if(e&&e.key&&!c.endings.some(x=>x.key===e.key))c.endings.push(e);});}if(Array.isArray(pt.stages))c.stages=pt.stages;if(Array.isArray(pt.stageHide))c.stageHide=pt.stageHide;if(typeof pt.stageBack==="string")c.stageBack=pt.stageBack;if(Array.isArray(pt.factsSet))c.facts=pt.factsSet.slice();if(Array.isArray(pt.memKeys))c.memKeys=pt.memKeys.map(String);if(Array.isArray(pt.knownBy))c.knownBy=pt.knownBy.map(String);["deadHow","deadKnown","deadWhen","awayWhere"].forEach(k=>{if(typeof pt[k]==="string"&&pt[k].trim())c[k]=pt[k].trim();});if(pt.stateAtStart&&typeof pt.stateAtStart==="object"&&tw.story&&tw.story.day<=1&&!S.scenes.some(z=>z.worldId===tw.id&&z.history.length>8)){Object.entries(pt.stateAtStart).forEach(([k,v])=>{if(typeof v==="string")c.state[k]=v;});}if(pt.biasSet&&typeof pt.biasSet==="object"){c.state=c.state||{};c.state.bias=Object.assign({},c.state.bias||{},pt.biasSet);}
       if(pt.stateNums&&typeof pt.stateNums==="object"&&tw.story&&(+tw.story.day||1)<=1&&!S.scenes.some(z=>z.worldId===tw.id&&z.history.length>8)){c.state=c.state||{};Object.entries(pt.stateNums).forEach(([k,v])=>{if(typeof v==="number")c.state[k]=v;});}
-      if(typeof pt.short==="string"&&pt.short.trim())c.short=pt.short.trim();if(typeof pt.voiceSet==="string"&&pt.voiceSet.trim())c.voice=pt.voiceSet.trim();if(pt.capDay!=null&&!isNaN(+pt.capDay))c.capDay=+pt.capDay;if(typeof pt.voiceAdd==="string"&&pt.voiceAdd.trim()){const va=pt.voiceAdd.trim(),key=va.slice(0,40);let v=String(c.voice||"");if(v.includes(key)){const i=v.indexOf(key);let j=v.indexOf("\n",i);if(j<0)j=v.length;v=v.slice(0,i)+va+v.slice(j);}else v=(v.trim()+"\n"+va).trim();c.voice=v;}(Array.isArray(pt.coreReplace)?pt.coreReplace:[]).forEach(([a,b])=>{if(!a||!(c.core||"").includes(a))return;if(b&&b.includes(a)&&(c.core||"").includes(b))return;c.core=c.core.split(a).join(b||"");});[].concat(pt.coreSections||[],pt.coreSection?[pt.coreSection]:[]).forEach(cs=>{if(!cs||typeof cs.text!=="string")return;let core=c.core||"";let done=false;(cs.markers||[]).forEach(mk=>{if(done)return;const i=core.indexOf(mk);if(i<0)return;let j=core.indexOf("\n\n",i);if(j<0)j=core.length;core=core.slice(0,i)+cs.text.trim()+core.slice(j);done=true;});if(!done&&cs.text.trim())core=(core.trim()+"\n\n"+cs.text.trim()).trim();c.core=core.replace(/\n{3,}/g,"\n\n");});
+      if(typeof pt.short==="string"&&pt.short.trim())c.short=pt.short.trim();if(typeof pt.voiceSet==="string"&&pt.voiceSet.trim())c.voice=pt.voiceSet.trim();if(pt.capDay!=null&&!isNaN(+pt.capDay))c.capDay=+pt.capDay;if(pt.sensSet&&typeof pt.sensSet==="object")c.sens=Object.assign({},c.sens||{},pt.sensSet);if(pt.react&&typeof pt.react==="object")c.react=Object.assign({},c.react||{},pt.react);if(pt.attract!==undefined)c.attract=pt.attract;if(typeof pt.voiceAdd==="string"&&pt.voiceAdd.trim()){const va=pt.voiceAdd.trim(),key=va.slice(0,40);let v=String(c.voice||"");if(v.includes(key)){const i=v.indexOf(key);let j=v.indexOf("\n",i);if(j<0)j=v.length;v=v.slice(0,i)+va+v.slice(j);}else v=(v.trim()+"\n"+va).trim();c.voice=v;}(Array.isArray(pt.coreReplace)?pt.coreReplace:[]).forEach(([a,b])=>{if(!a||!(c.core||"").includes(a))return;if(b&&b.includes(a)&&(c.core||"").includes(b))return;c.core=c.core.split(a).join(b||"");});[].concat(pt.coreSections||[],pt.coreSection?[pt.coreSection]:[]).forEach(cs=>{if(!cs||typeof cs.text!=="string")return;let core=c.core||"";let done=false;(cs.markers||[]).forEach(mk=>{if(done)return;const i=core.indexOf(mk);if(i<0)return;let j=core.indexOf("\n\n",i);if(j<0)j=core.length;core=core.slice(0,i)+cs.text.trim()+core.slice(j);done=true;});if(!done&&cs.text.trim())core=(core.trim()+"\n\n"+cs.text.trim()).trim();c.core=core.replace(/\n{3,}/g,"\n\n");});
     if(typeof pt.coreSet==="string"&&pt.coreSet.trim())c.core=pt.coreSet.trim();if(typeof pt.coreAdd==="string"&&pt.coreAdd.trim()&&!(c.core||"").includes(pt.coreAdd.trim().slice(0,60)))c.core=((c.core||"").trim()+"\n\n"+pt.coreAdd.trim()).trim();c.state=c.state||{};if(Array.isArray(pt.goalsSet))c.state.goals=pt.goalsSet.slice();if(typeof pt.secretsSet==="string")c.state.secrets=pt.secretsSet;if(Array.isArray(pt.goalsAdd)){c.state.goals=c.state.goals||[];pt.goalsAdd.forEach(g=>{if(!c.state.goals.includes(g))c.state.goals.push(g);});}if(pt.relSet&&typeof pt.relSet==="object"){c.state.relations=c.state.relations||{};Object.assign(c.state.relations,pt.relSet);}if(typeof pt.secretsAdd==="string"&&pt.secretsAdd.trim()&&!(c.state.secrets||"").includes(pt.secretsAdd.trim().slice(0,40)))c.state.secrets=((c.state.secrets||"").trim()+" "+pt.secretsAdd.trim()).trim();c.updated=Date.now();add++;});
     if(d.story&&typeof d.story==="object"&&Array.isArray(d.story.acts)){if(!tw.story||tw.story.id!==d.story.id||confirm("В мире уже есть сюжет «"+(tw.story.title||"")+"». Заменить его новым (с первого дня)?")){tw.story=JSON.parse(JSON.stringify(d.story));resetStory(tw.story);add++;}}
     if(d.storyPatch&&typeof d.storyPatch==="object"){if(!tw.story){alert("Сначала добавь сюжет «"+(d.storyPatch.forTitle||"")+"» — это дополнение к нему.");}else{if(Array.isArray(d.storyPatch.endings)){const cur=tw.story.endings||[];d.storyPatch.endings.forEach(e=>{if(!e||!e.key)return;const ex=cur.find(x=>x.key===e.key);if(ex){if(d.storyPatch.replace)Object.assign(ex,e);}else cur.push(e);});tw.story.endings=cur;}
@@ -2910,9 +2929,9 @@ function openStateEditor(w,x){
  if(!cur){ov.remove();toast("В мире нет персонажей");return;}
  let base=null,d=null,touched={};
  const R=(v,a,b)=>clampN(fix1(v),a,b);
- const load=c=>{base=JSON.parse(JSON.stringify(c.state||{}));d=JSON.parse(JSON.stringify(base));["trust","like","respect","grudge"].forEach(k=>{d[k]=+d[k]||0;base[k]=+base[k]||0;});touched={};};
+ const load=c=>{base=JSON.parse(JSON.stringify(c.state||{}));d=JSON.parse(JSON.stringify(base));["trust","like","respect","grudge","warm"].forEach(k=>{d[k]=+d[k]||0;base[k]=+base[k]||0;});touched={};};
  load(cur);
- const dirty=()=>["trust","like","respect","grudge"].some(k=>fix1(d[k])!==fix1(base[k]))||(d.loveKind||"")!==(base.loveKind||"")||(d.mood||"")!==(base.mood||"")||(d.now||"")!==(base.now||"")||(d.grudgeWhy||"")!==(base.grudgeWhy||"")||String(d.stage||0)!==String(base.stage||0);
+ const dirty=()=>["trust","like","respect","grudge","warm"].some(k=>fix1(d[k])!==fix1(base[k]))||(d.warmWhy||"")!==(base.warmWhy||"")||(d.loveKind||"")!==(base.loveKind||"")||(d.mood||"")!==(base.mood||"")||(d.now||"")!==(base.now||"")||(d.grudgeWhy||"")!==(base.grudgeWhy||"")||String(d.stage||0)!==String(base.stage||0);
  const close=()=>{if(dirty()&&!confirm("Есть неприменённые изменения. Закрыть без сохранения?"))return;ov.remove();};
  ov.onclick=e=>{if(e.target===ov)close();};
  const cd=()=>Object.assign({},cur,{state:d});
@@ -2930,17 +2949,18 @@ function openStateEditor(w,x){
   if(k==="trust")setTrust(d.trust+dd);
   else if(k==="like"){const nv=R(d.like+dd,-10,10);d.like=nv;if(nv>d.trust+3){touched.trust=touched.trust||false;setTrust(nv-3);}}
   else if(k==="respect")d.respect=R(d.respect+dd,-10,10);
+  else if(k==="warm"){d.warm=R(d.warm+dd,0,10);if(d.warm<=0)d.warmWhy="";}
   else if(k==="grudge"){const ng=R(d.grudge+dd,0,10),r=ng-d.grudge;d.grudge=ng;if(r>0){if(!touched.like)d.like=R(d.like-r*.4,-10,10);if(!touched.trust)setTrust(d.trust-r*.3);}if(ng<=0)d.grudgeWhy="";}
   post();draw();
  };
  const apply=()=>{
   const c=cur,st=c.state=c.state||{};const day=relDay(w);
-  const keys=[["trust","доверие"],["like","симпатия"],["respect","уважение"],["grudge","обида"]];
+  const keys=[["trust","доверие"],["like","симпатия"],["respect","уважение"],["grudge","обида"],["warm","тепло"]];
   const parts=[];keys.forEach(([k,n])=>{const a=fix1(base[k]),b=fix1(d[k]);if(a!==b)parts.push(n+" "+a+" → "+b);});
   if((d.loveKind||"")!==(base.loveKind||""))parts.push("вид любви: "+(base.loveKind||"—")+" → "+(d.loveKind||"—"));
   if(String(d.stage||0)!==String(base.stage||0)&&!c.stagesAuto)parts.push("ступень: "+(+base.stage+1||1)+" → "+((+d.stage||0)+1));
   keys.forEach(([k])=>{st[k]=fix1(d[k]);});
-  st.loveKind=d.loveKind||st.loveKind||"";st.grudgeWhy=d.grudgeWhy||"";st.mood=d.mood||"";st.now=d.now||"";if(!c.stagesAuto&&d.stage!=null)st.stage=d.stage;
+  st.loveKind=d.loveKind||st.loveKind||"";st.grudgeWhy=d.grudgeWhy||"";st.warmWhy=d.warmWhy||"";st.mood=d.mood||"";st.now=d.now||"";if(!c.stagesAuto&&d.stage!=null)st.stage=d.stage;
   if(Math.abs(d.trust-base.trust)>=2||Math.abs(d.respect-base.respect)>=2)st.stale=day||1;
   if(parts.length){const line="Правка автора: "+parts.join(", ");(st.relLog=st.relLog||[]).push({t:now(),text:line});if(st.relLog.length>14)st.relLog.shift();if(Array.isArray(c.log))c.log.push({t:now(),text:"Отношение: "+line,src:"правка автора",impact:6});}
   c.updated=Date.now();save();load(c);draw();toast(c.name+": состояние сохранено");
@@ -2964,6 +2984,7 @@ function openStateEditor(w,x){
   box.append(row("like","Симпатия",-10,10,likeWord));
   box.append(row("respect","Уважение",-10,10,respectWord));
   box.append(row("grudge","Обида",0,10,grudgeWord));
+  box.append(row("warm","Тёплое воспоминание",0,10,warmWord));
   box.append(el("div","note","Связи: доверие тянет уважение (×0,3) и обиду (рост доверия гасит её, сильное падение — копит); симпатия выше доверия+3 подтягивает доверие; обида давит на симпатию и доверие; ручные правки поля отключают его автосвязь."));
   // вид любви
   if(!isChild(cur)){box.append(el("label","fl","Вид любви"));const lk=el("select");[["","не определён"],["человек","как своего"],["партнёр","как партнёра"]].forEach(([v,t])=>{const o=el("option",null,t);o.value=v;if((d.loveKind||"")===v)o.selected=true;lk.append(o);});lk.onchange=()=>{d.loveKind=lk.value;post();draw();};box.append(lk);}
@@ -2979,6 +3000,7 @@ function openStateEditor(w,x){
    box.append(ss);box.append(stageLegend(cd()));
   }
   if(d.grudge>0||d.grudgeWhy){box.append(el("label","fl","Из-за чего обида"));const t=el("textarea");t.rows=2;t.value=d.grudgeWhy||"";t.oninput=()=>{d.grudgeWhy=t.value;};growTA(t);box.append(t);}
+  {box.append(el("label","fl","Чем порадовал (тёплое воспоминание)"));const t=el("textarea");t.rows=2;t.value=d.warmWhy||"";t.placeholder="например: молча накрыл её своим плащом";t.oninput=()=>{d.warmWhy=t.value;const a=ov.querySelector(".stbar .btn");if(a)a.disabled=!dirty();};growTA(t);box.append(t);}
   box.append(el("label","fl","Настроение"));const t1=el("textarea");t1.rows=2;t1.value=d.mood||"";t1.oninput=()=>{d.mood=t1.value;};growTA(t1);box.append(t1);
   box.append(el("label","fl","Что сейчас"));const t2=el("textarea");t2.rows=2;t2.value=d.now||"";t2.oninput=()=>{d.now=t2.value;};growTA(t2);box.append(t2);
   const lg=(cur.state&&cur.state.relLog||[]).slice(-5).reverse();
@@ -3242,6 +3264,36 @@ function rewindChat(c,n){const h=c.history;n=Math.max(0,Math.min(n,h.length));le
     if(sbc){if(sn.sb){sbc.sb.state=sn.state;sbc.sb.facts=sn.facts;sbc.sb.log=sn.log||[];sbc.sb.inertia=sn.inertia;res="restored";}else res="cut";}
     else if(!other){c.state=sn.state;c.facts=sn.facts;c.log=sn.log;if(sn.inertia)c.inertia=sn.inertia;res="restored";}else res="other";break;}
   h.length=n;if(c.sumIdx>n)c.sumIdx=n;if(c.dirIdx>n)c.dirIdx=n;c.updated=Date.now();return res;}
+// v417 — ОТКАТ МИРА В СЦЕНЕ. Перед каждым ответом рассказчика запоминаем мир (сюжет, время, деньги, флаги, события,
+// память и отношения людей, хронику сцены, драматурга). Ключ — номер первого сообщения, которое ещё НЕ отразилось на мире.
+// Переписал/стёр с места — мир возвращается к тому моменту: ИИ и режиссёр забывают отменённую ветку.
+// Слепки живут только на этом устройстве (в синхронизацию не идут: syncSkip).
+const STORY_DEF_KEYS=new Set(["id","title","acts","events","endings","flagDefs","quests","tales","patches","opening","openCast","startPart","motifs","spine","money","counterDefs","rules","cutscenes","search","roof"]);
+const MAX_WSNAPS=12;
+function worldSnap(w,x){const st=w.story||{};const so={};Object.keys(st).forEach(k=>{if(!STORY_DEF_KEYS.has(k))so[k]=st[k];});
+  const ev={};(st.events||[]).forEach(e=>{if(e&&e.id&&e.fired)ev[e.id]=e.firedDay||0;});
+  const cs=charsOf(w.id).map(c=>{const r=c._sbReal||c;return {id:c.id,state:r.state,facts:r.facts,deeds:c.deeds,dead:c.dead,deadWhen:c.deadWhen,away:c.away,guests:c.guests};});
+  return JSON.stringify({t:Date.now(),story:so,ev,date:w.date,know:w.know,cs,x:{summary:x.summary,sumIdx:x.sumIdx,dirIdx:x.dirIdx,dramaIdx:x.dramaIdx,drama:x.drama,charIds:x.charIds,skipNote:x.skipNote}});}
+function worldRestore(w,x,snap){let s;try{s=JSON.parse(snap);}catch(e){return false;}
+  const st=w.story;if(st&&s.story){Object.keys(st).forEach(k=>{if(!STORY_DEF_KEYS.has(k))delete st[k];});Object.assign(st,s.story);
+    (st.events||[]).forEach(e=>{if(!e||!e.id)return;if(s.ev&&s.ev[e.id]!==undefined){e.fired=true;e.firedDay=s.ev[e.id];}else{delete e.fired;delete e.firedDay;}});}
+  w.date=s.date;w.know=s.know||{};
+  if(Array.isArray(w.events))w.events=w.events.filter(e=>!(e&&e.t>s.t));
+  (s.cs||[]).forEach(o=>{const c=C(o.id);if(!c)return;c.state=o.state||c.state;c.facts=o.facts||[];
+    if(Array.isArray(c.log))c.log=c.log.filter(e=>!(e&&e.t>s.t));
+    if(o.deeds!==undefined)c.deeds=o.deeds;else if(Array.isArray(c.deeds))c.deeds=c.deeds.filter(e=>!(e&&e.t>s.t));
+    if(o.dead)c.dead=o.dead;else delete c.dead;if(o.deadWhen!==undefined)c.deadWhen=o.deadWhen;
+    if(o.away)c.away=o.away;else delete c.away;if(o.guests!==undefined)c.guests=o.guests;c.updated=Date.now();});
+  if(s.x)Object.keys(s.x).forEach(k=>{if(s.x[k]===undefined)delete x[k];else x[k]=s.x[k];});
+  x.updated=Date.now();w.updated=Date.now();return true;}
+function wsKey(x){const l=x.history[x.history.length-1];return l&&l.role==="user"?x.history.length-1:x.history.length;}
+function wsTake(w,x){if(!w||!x)return;try{x.wsnaps=x.wsnaps||{};const k=wsKey(x);if(x.wsnaps[k])return;x.wsnaps[k]=worldSnap(w,x);
+  const ks=Object.keys(x.wsnaps).map(Number).sort((a,b)=>b-a);ks.slice(MAX_WSNAPS).forEach(k2=>delete x.wsnaps[k2]);}catch(e){}}
+// вернуть мир к ключу target (точный слепок или ближайший более ранний); слепки после — стереть
+function wsBack(w,x,target){const ks=Object.keys(x.wsnaps||{}).map(Number).filter(k=>k<=target).sort((a,b)=>b-a);let res="none";
+  if(ks.length&&worldRestore(w,x,x.wsnaps[ks[0]]))res=ks[0]===target?"restored":"older";
+  Object.keys(x.wsnaps||{}).map(Number).forEach(k=>{if(k>(res==="none"?target:ks[0]))delete x.wsnaps[k];});return res;}
+const wsNote=r=>r==="restored"?"Мир вернулся к тому моменту: время, сюжет, память и отношения — как были.":r==="older"?"Мир возвращён к ближайшему сохранённому моменту (чуть раньше).":"Сообщения убраны. Для такого старого места мир не сохранён — память и сюжет остались текущими.";
 const rewindNote=r=>r==="restored"?"Персонаж вернулся в состояние того момента.":r==="other"?"Сообщения убраны. Состояние персонажа не откатывал: после этого были другие его разговоры.":"Сообщения убраны (для такого старого места состояние персонажа не сохранено — память и доверие остались текущими).";
 // ============ ЭКСПОРТ: мир / персонаж / разговор ============
 const fnSafe=t=>(t||"файл").replace(/[\\/:*?"<>|]+/g,"").trim().slice(0,60)||"файл";
@@ -3620,7 +3672,9 @@ function renderCharEdit(){
   const tl=el("label");tl.append(document.createTextNode("Доверие к герою, от −10 до 10"),el("span","hint",trustWord(c.state.trust,c.state)));const tI=el("input");tI.type="number";tI.min=-10;tI.max=10;tI.step=0.5;tI.value=c.state.trust??0;tI.oninput=()=>{c.state.trust=Math.max(-10,Math.min(10,parseFloat(tI.value)||0));tl.querySelector(".hint").textContent=trustWord(c.state.trust,c.state);};tl.append(tI);p.append(tl);
   {const ll=el("label");ll.append(document.createTextNode("Симпатия к герою, от −10 до 10"),el("span","hint",likeWord(c.state.like)));const lI=el("input");lI.type="number";lI.min=-10;lI.max=10;lI.step=0.5;lI.value=c.state.like??0;lI.oninput=()=>{c.state.like=clampN(parseFloat(lI.value)||0,-10,10);ll.querySelector(".hint").textContent=likeWord(c.state.like);};ll.append(lI);p.append(ll);
    const gl=el("label");gl.append(document.createTextNode("Обида на героя, от 0 до 10"),el("span","hint",grudgeWord(c.state.grudge)));const gI=el("input");gI.type="number";gI.min=0;gI.max=10;gI.step=1;gI.value=c.state.grudge??0;gI.oninput=()=>{c.state.grudge=clampN(Math.round(parseFloat(gI.value)||0),0,10);gl.querySelector(".hint").textContent=grudgeWord(c.state.grudge);};gl.append(gI);p.append(gl);
-   const wl=el("label");wl.append(document.createTextNode("Из-за чего обида (если есть)"));const wI=el("input");wI.type="text";wI.value=c.state.grudgeWhy||"";wI.oninput=()=>{c.state.grudgeWhy=wI.value;};wl.append(wI);p.append(wl);}
+   const wl=el("label");wl.append(document.createTextNode("Из-за чего обида (если есть)"));const wI=el("input");wI.type="text";wI.value=c.state.grudgeWhy||"";wI.oninput=()=>{c.state.grudgeWhy=wI.value;};wl.append(wI);p.append(wl);
+   const hl=el("label");hl.append(document.createTextNode("Тёплое воспоминание о герое, от 0 до 10"),el("span","hint",warmWord(c.state.warm)));const hI=el("input");hI.type="number";hI.min=0;hI.max=10;hI.step=1;hI.value=c.state.warm??0;hI.oninput=()=>{c.state.warm=clampN(Math.round(parseFloat(hI.value)||0),0,10);hl.querySelector(".hint").textContent=warmWord(c.state.warm);};hl.append(hI);p.append(hl);
+   const hw=el("label");hw.append(document.createTextNode("Чем порадовал (если есть)"));const hwI=el("input");hwI.type="text";hwI.value=c.state.warmWhy||"";hwI.oninput=()=>{c.state.warmWhy=hwI.value;};hw.append(hwI);p.append(hw);}
   {const rl=el("label");rl.append(document.createTextNode("Уважение к герою, от −10 до 10"),el("span","hint",respectWord(c.state.respect)));const rI=el("input");rI.type="number";rI.min=-10;rI.max=10;rI.step=0.5;rI.value=c.state.respect??0;rI.oninput=()=>{c.state.respect=clampN(parseFloat(rI.value)||0,-10,10);rl.querySelector(".hint").textContent=respectWord(c.state.respect);};rl.append(rI);p.append(rl);
    const kl=el("label");kl.append(document.createTextNode("Вид любви (когда симпатия сильная)"));const kS=el("select");[["","не определён"],["человек","как к близкому человеку"],["партнёр","как к партнёру"]].filter(a=>!(a[0]==="партнёр"&&isChild(c))).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;kS.append(o);});kS.value=c.state.loveKind||"";kS.onchange=()=>{c.state.loveKind=kS.value;};kl.append(kS);p.append(kl);}p.append(stHold);
   sf("Настроение","mood",true);sf("Каков он сейчас / что изменилось","now",true);sf("История отношений с героем (копится сама)","arc",true);sf("Цели (через точку с запятой)","goals");sf("Отношение к герою","relUser",true);sf("Что скрывает","secrets");
@@ -3751,7 +3805,7 @@ function renderChat(){
     rz.onclick=()=>{if(!confirm("Начать знакомство заново? Отношения и память этого разговора станут как в начале истории: персонаж не будет знать героя. Переписка останется."))return;ownFork(c,sbc);save();drawAside();render();toast("🆕 Знакомство с нуля");};const sh=el("button","btn sm ghost","Сделать память общей");sh.hidden=isSb;sh.onclick=()=>{if(!confirm("Память этого разговора будет выброшена, и персонаж здесь будет помнить всё из всех разговоров. Продолжить?"))return;delete sbc.sb;delete sbc.own;sbc.shared=true;save();render();toast("Память разговора теперь общая");};const rr=el("div","row");rr.append(sbb,rs,rz,sh);b.append(rr);aside.append(b);aside.append(plotEditor(c,sbc,()=>drawAside()));}}const hd=el("div","row between");hd.append(el("h3",null,"Состояние и память"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     const kv=el("div","kv");const blk=(t,v)=>{if(!v)return;kv.append(el("b",null,t));kv.append(el("div","block",v));};
     const vs=viewState(c);
-    blk("Настроение",vs.mood);blk("Сейчас",vs.now);blk("Цели",(vs.goals||[]).join("; "));blk("К тебе",(vs.relUser||"")+"\nДоверие: "+trustWord(vs.trust,vs)+"\nСимпатия: "+likeWord(vs.like)+"\nУважение: "+respectWord(vs.respect)+(vs.grudge>0?"\nОбида: "+grudgeWord(vs.grudge)+(vs.grudgeWhy?" ("+vs.grudgeWhy+")":""):""));blk("История ваших отношений",vs.arc);
+    blk("Настроение",vs.mood);blk("Сейчас",vs.now);blk("Цели",(vs.goals||[]).join("; "));blk("К тебе",(vs.relUser||"")+"\nДоверие: "+trustWord(vs.trust,vs)+"\nСимпатия: "+likeWord(vs.like)+"\nУважение: "+respectWord(vs.respect)+(vs.grudge>0?"\nОбида: "+grudgeWord(vs.grudge)+(vs.grudgeWhy?" ("+vs.grudgeWhy+")":""):"")+(vs.warm>0?"\nТепло: "+warmWord(vs.warm)+(vs.warmWhy?" ("+vs.warmWhy+")":""):""));blk("История ваших отношений",vs.arc);
     const rel=Object.entries(vs.relations||{}).map(([id,t])=>{const o=C(id);return o?o.name+": "+t:null;}).filter(Boolean).join("\n");blk("К другим",rel);
     const sp=el("details","sp");sp.append(el("summary",null,"Что скрывает (спойлер)"));sp.append(el("div",null,vs.secrets||"—"));aside.append(kv,sp);
     const r1=el("div","row");const dir=el("button","btn sm","Подвести итог сцены");dir.onclick=withBusy(dir,async()=>{sbIn(c);let r;try{r=await directChar(c,true);}finally{sbOut(c);save();}if(!r){toast("Слишком мало новых сообщений.");return;}drawAside();drawLog();toast("Сила события "+(r.impact||"?")+"/10"+((r.log||[]).length?". Изменился: "+(r.log||[]).join("; "):". Память обновлена, характер прежний."));});
@@ -3846,10 +3900,10 @@ function renderScene(){
     return box;}
   function msgEl(m,i){if(m.cut)return cutEl(m,i);const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);const after=x.history.length-1-i;
-      if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Память персонажей, уже обновлённая режиссёром, не откатывается."));}
+      if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Мир (время, сюжет, память и отношения людей) вернётся к тому моменту."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();toast("✓ Исправлено: ИИ и режиссёр будут опираться на этот вариант");};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
@@ -3865,7 +3919,7 @@ function renderScene(){
       const tmp=[{role:"assistant",content:merged}];await contNext(tmp,base,t=>liveText(log,t));if(tmp[1])x.history.push(tmp[1]);}
     catch(e){lastErr=friendly(e);}
     finally{busy=false;ctl=null;save();drawLog();}}
-  function cutAfter(i){x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
+  function cutAfter(i,noWorld){if(!noWorld){const m=x.history[i];const r=wsBack(w,x,m&&m.role==="user"?i:i+1);if(r!=="none")toast(wsNote(r));}x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
     if(x.main){const mv=el("button","btn sm ghost","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};
@@ -3879,7 +3933,7 @@ function renderScene(){
     x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean).forEach(c=>{const kv=el("div","kv");kv.append(el("b",null,c.name));kv.append(el("div","block",[c.state.mood,c.state.now,c.state.goals.length?"Цели: "+c.state.goals.join("; "):""].filter(Boolean).join("\n")||"—"));aside.append(kv);});
     aside.append(el("h3",null,"Краткое содержание"));const su=el("textarea");su.value=x.summary;su.rows=5;su.style.background="var(--sum)";su.oninput=()=>{x.summary=su.value;save();};aside.append(su);
     if(x.main){const sd=el("button","btn sm","⇣ Скачать чат (только историю)");sd.onclick=()=>downloadStory(w);const sl=el("button","btn sm","⇡ Загрузить чат в историю");sl.onclick=()=>pickFile(f=>importFile(f,w.id));aside.append(sd,sl);}const nc=el("button","btn sm warn","Начать сцену заново");nc.onclick=()=>{if(!confirm("Стереть переписку сцены?"))return;x.history=[];x.summary="";x.sumIdx=0;x.dirIdx=0;save();render();};aside.append(nc);}
-  async function run(){{const pl=x.history[x.history.length-1];if(pl&&pl.role==="assistant"&&pl.partial){x.history.pop();if(x.sumIdx>x.history.length)x.sumIdx=x.history.length;if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;}}busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
+  async function run(){{const pl=x.history[x.history.length-1];if(pl&&pl.role==="assistant"&&pl.partial){x.history.pop();if(x.sumIdx>x.history.length)x.sumIdx=x.history.length;if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;}}wsTake(w,x);busy=true;lastErr="";ctl=new AbortController();let live="";drawLog("");
     if(x.main){const lu=[...x.history].reverse().find(m=>m.role==="user");const ad=autoCast(x,lu&&lu.content,false);if(ad.length)toast("Рядом: "+ad.join(", "));}
     try{const liveLen=x.history.slice(x.sumIdx).reduce((n,m)=>n+m.content.length,0);if(liveLen>K().budget&&x.history.length-x.sumIdx>K().keep){await compressHistory(x,"Рассказчик",w);}
       if(dramaDue(x,x.history)){toast("Драматург думает…");try{const d=await dramaForScene(x);toast(dramaStr(d));who.firstChild.textContent=x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ");}catch(e){if(e.name==="AbortError")throw e;toast("Драматург промолчал: "+friendly(e),true);}}
