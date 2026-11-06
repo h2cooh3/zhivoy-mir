@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=421;
+const APP_VER=422;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2407,7 +2407,9 @@ const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-distances.json",patchId:"south-distances",names:[],title:"Расстояния по карте",desc:"Мельница — на востоке, около часа пешком от Уилла; у Уилла колесо мастерской, не мельница."},
   {file:"presets/addons/south-liz-kenric-6.json",patchId:"south-liz-kenric-6",names:[],title:"Лиз и Кенрик: брак, шрам, письмо",desc:"Шрам Кенрика — с мельницы, её стежки; письмо Кенрика; Лиз умная и осторожная; без вины за нож."},
   {file:"presets/addons/south-attract.json",patchId:"south-attract",names:[],title:"Скрытый отклик",desc:"Что греет героинь внутри и их настоящее «нет»: Фрейя, Лиз, Бесс."},
-  {file:"presets/addons/south-holes-3.json",patchId:"south-holes-3",names:[],title:"Дыры сюжета: Гарет, Хёг, барон, Эзра, Тобиас",desc:"Лестница барона по неделям, копия письма и печать, Фрейя выбирает сама, новые финалы Тобиаса."}]};
+  {file:"presets/addons/south-holes-3.json",patchId:"south-holes-3",names:[],title:"Дыры сюжета: Гарет, Хёг, барон, Эзра, Тобиас",desc:"Лестница барона по неделям, копия письма и печать, Фрейя выбирает сама, новые финалы Тобиаса."},
+  {file:"presets/addons/south-ansel-visit.json",patchId:"south-ansel-visit",names:[],title:"Приезд епископа: проверка Книги",desc:"Отец Ансельм три дня в Солтхэме: читает Книгу найденных и спрашивает с Агнессы за пустую строку."}
+]};
 // какие дополнения ещё не стоят в мире: не хватает персонажей, сюжета или заплатки сюжета (по порядку применения)
 function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x.names||[]).some(n=>!charsOf(w.id).some(c=>c.name===n));
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
