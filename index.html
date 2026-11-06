@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=439;
+const APP_VER=440;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1087,6 +1087,8 @@ const DEED_HELP=Object.entries(DEEDS).map(([k,v])=>k+" — "+v[0]).join("; ");
 const DEEDS_RULE='Поступки героя (deeds): для КАЖДОГО значимого поступка выбери "type" из списка и "weight" 1–5 (1 — мелочь, 3 — заметный поступок, 5 — меняет жизнь человека; если неясно — выбирай МЕНЬШИЙ вес). Типы: '+DEED_HELP+'. "seen": false, если персонаж сам не видел, а лишь узнал. Числа доверия, симпатии, уважения и обиды НЕ пиши — их считает движок. Нет повода — пустой список.';
 const fix1=n=>Math.round(n*10)/10;
 function relDay(w){return +(w&&w.story&&w.story.day)||0;}
+// v440 — порог скрытого отклика: {t,l}, "never" или запись строкой «t:2,l:4»
+const attrOf=c=>{let A=c&&c.attract;if(A===undefined||A===null)return{t:3,l:4};if(typeof A==="string"){if(/never/i.test(A))return"never";const mt=/t\s*:\s*(-?[\d.]+)/.exec(A),ml=/l\s*:\s*(-?[\d.]+)/.exec(A);return{t:mt?+mt[1]:3,l:ml?+ml[1]:4};}if(typeof A!=="object")return{t:3,l:4};return{t:+A.t||0,l:+A.l||0};};
 function applyDeeds(w,c,list,src,silent){
  const st=c&&c.state;if(!st||!Array.isArray(list))return;
  st.respect=+st.respect||0;
@@ -1097,7 +1099,7 @@ function applyDeeds(w,c,list,src,silent){
   const T0=+st.trust||0,L0=+st.like||0,R0=+st.respect||0,G0=+st.grudge||0,W0=+st.warm||0;
   // v417 — СКРЫТЫЙ ОТКЛИК: напор к самому человеку внутри плюс или настоящее «нет» — по порогам персонажа (c.attract) и его доверию/симпатии
   let E=(c.react&&c.react[o.type])||D[1],adv=null;
-  if(o.type==="advance"){const A=isChild(c)?"never":(c.attract===undefined?{t:3,l:4}:c.attract);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
+  if(o.type==="advance"){const A=isChild(c)?"never":attrOf(c);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
   const close=Math.max(0,(L0+T0)/2)/10;
   const sens=(c.sens&&+c.sens[o.type])||1;
   const k=wt*.7*sens*(o.seen===false?.5:1)*clampN(5/(+c.inertia||5),.6,1.2);
