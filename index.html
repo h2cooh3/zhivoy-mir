@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=447;
+const APP_VER=448;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -851,12 +851,16 @@ const BLANK_RULE="У ЭТОГО СОБЕСЕДНИКА НЕТ КАРТОЧКИ. 
 function openBlankChat(wid,name){const w=W(wid);if(!w)return null;const c=blankChar();c.worldId=w.id;c.name=String(name||"").trim()||"Собеседник";c.blank=true;S.chars.push(c);S.lastWorld=w.id;save();go({v:"chat",id:c.id});return c;}
 function blankChatAsk(wid){const go2=id=>{const n=prompt("Пустой чат — собеседник без карточки. Как его зовут? (можно оставить пустым — будет «Собеседник»). Кто он — решите в разговоре или попросите соавтора.","");if(n===null)return;openBlankChat(id,n);};
   if(wid){go2(wid);return;}if(!S.worlds.length){alert("Сначала создай мир на главной.");return;}if(S.worlds.length===1){go2(S.worlds[0].id);return;}pickWorld(ww=>go2(ww.id));}
+// v448 — ГАРДЕРОБ: у персонажа есть свой набор вещей (c.wear), они повторяются и сочетаются; модель не выдумывает новую одежду и не переодевает человека посреди сцены
+const WEAR_RULE="ОДЕЖДА — ИЗ ЭТОГО НАБОРА. Это весь его гардероб: вещи повторяются и сочетаются между собой, новых без причины не выдумывай (новое появляется, только если человек купил, одолжил или ему дали). Во что он одет СЕЙЧАС — выбирай по месту, времени суток, погоде и поводу, и держи это неизменным до конца сцены: переодеться он может только за кадром, между сценами, или на глазах и с причиной. В тексте называй одну-две детали, а не перечисляй набор; уже названное повторно не описывай. Одна и та же вещь в разных местах говорит разное — заметь это, когда это важно.";
+function wearBlock(c){const t=String((c&&c.wear)||"").trim();return t?"ГАРДЕРОБ — "+((c.name||"").toUpperCase())+":\n"+t+"\n"+WEAR_RULE:"";}
 function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   "ТЫ ИГРАЕШЬ ПЕРСОНАЖА: "+c.name+(c.short?" — "+c.short:""),
   "ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ (основа, не меняется):\n"+coreP(c,w),
   !String(c.core||"").trim()?BLANK_RULE:"",
   unknownBlock(c,w),
   c.examples.trim()&&!hasVoice(c)?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
+  wearBlock(c),
   guestsBlock(c),
   peopleBlock(c),
   lenRule(),
@@ -1574,6 +1578,7 @@ function whereBlock(x){const w=W(x.worldId);if(!w)return "";const L=npcsOf(w.id)
 function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=>c&&!c.dead&&!c.away).filter(Boolean);return [worldBlock(w),x.main?"ТЫ — РАССКАЗЧИК истории, которую проживает "+heroName(w)+". Ты ведёшь весь мир: место, время, погоду, людей. Герой ходит, куда хочет; люди приходят и уходят по своим делам. Рядом с героем сейчас: "+(cs.length?cs.map(c=>c.name).join(", "):"никого")+".":"ТЫ — РАССКАЗЧИК интерактивной сцены. В сцене участвуют персонажи: "+cs.map(c=>c.name).join(", ")+".",
   x.main?scenePeople(x):"",
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+coreP(c,w)+(c.examples.trim()&&!hasVoice(c)?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
+  cs.map(wearBlock).filter(Boolean).join("\n\n"),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   x.main?spineBlock(w):"",
   cs.map(k=>biasBlock(k,cs.filter(o=>o.id!==k.id))).filter(Boolean).join("\n\n"),
