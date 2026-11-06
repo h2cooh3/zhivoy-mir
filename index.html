@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=430;
+const APP_VER=431;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2250,6 +2250,10 @@ function heroNameAsk(w){try{
       c.updated=Date.now();});
     ["desc","rules","places"].forEach(k=>{if(w[k])w[k]=fix(w[k]);});
     if(w.hero){w.hero.name=n;if(w.hero.desc)w.hero.desc=fix(w.hero.desc);}
+    const st0=w.story;if(st0){["opening","openFirst","setup"].forEach(k=>{if(st0[k])st0[k]=fix(st0[k]);});
+      if(Array.isArray(st0.rules))st0.rules=st0.rules.map(fix);
+      if(Array.isArray(st0.acts))st0.acts.forEach(a=>{["title","goal","exit"].forEach(k=>{if(a[k])a[k]=fix(a[k]);});});
+      if(Array.isArray(st0.events))st0.events.forEach(e=>{["title","text","what"].forEach(k=>{if(e[k])e[k]=fix(e[k]);});});}
   }
   w.updated=Date.now();save();
 }catch(e){try{delete w.askHeroName;}catch(_){}}}
