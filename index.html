@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=423;
+const APP_VER=424;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2227,6 +2227,32 @@ function nameSwapText(s,ns){if(typeof s!=="string"||!s)return s;const keep=[];co
     s=s.replace(rx,(all,pre,tok,off,str)=>{const it=sw.find(x=>new RegExp("^(?:"+x[0]+(x[3]||"")+")$").test(tok));if(!it)return all;let to=it[1];if(it[2]){const c=nameCaseGuess(str.slice(0,off)+pre);to=NORA_CASES[c]||to;}return pre+hold(to);});}
   s=s.replace(/\u0002(\d+)\u0002/g,(_,i)=>keep[+i]);(ns.post||[]).forEach(([a,b])=>{if(a&&s.includes(a))s=s.split(a).join(b);});return s;}
 function nameSwapDeep(o,ns,skip){if(typeof o==="string")return nameSwapText(o,ns);if(Array.isArray(o))return o.map(x=>nameSwapDeep(x,ns,skip));if(o&&typeof o==="object"){const r={};Object.keys(o).forEach(k=>{const nk=skip.includes(k)?k:nameSwapText(k,ns);r[nk]=skip.includes(k)?o[k]:nameSwapDeep(o[k],ns,skip);});return r;}return o;}
+// Имя героя задаёт игрок. Мир с полем askHeroName один раз спрашивает его при создании
+// и переименовывает героя во всём мире (с падежами), после чего флаг снимается.
+function heroNameAsk(w){try{
+  if(!w||!w.askHeroName)return;
+  const h=C(w.heroId);if(!h){delete w.askHeroName;return;}
+  const cur=String(h.name||"").trim();
+  let n=prompt("Как зовут твоего героя?\n\nЭто ты. Впиши своё имя или любое другое.",cur);
+  delete w.askHeroName;
+  n=(n===null?"":String(n)).trim().slice(0,40);
+  if(n&&n!==cur){
+    // Узкая замена только внутри ЭТОГО мира: имя героя в текстах встречается считаные разы,
+    // поэтому общий nameSwapWorld (падежи, отметки swaps, история другого мира) здесь не нужен и опасен.
+    const re=new RegExp("(?<![А-Яа-яЁёA-Za-z])"+cur.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![А-Яа-яЁёA-Za-z])","g");
+    const fix=t=>typeof t==="string"?t.replace(re,n):t;
+    h.name=n;h.updated=Date.now();
+    ["core","short","seen","pub","voice","look","greeting","examples"].forEach(k=>{if(h[k])h[k]=fix(h[k]);});
+    charsOf(w.id).forEach(c=>{["core","short","seen","pub","voice","greeting","examples"].forEach(k=>{if(c[k])c[k]=fix(c[k]);});
+      if(c.state){["relUser","now","mood"].forEach(k=>{if(c.state[k])c.state[k]=fix(c.state[k]);});
+        if(Array.isArray(c.state.secrets))c.state.secrets=c.state.secrets.map(fix);
+        if(c.state.relations)Object.keys(c.state.relations).forEach(k=>{c.state.relations[k]=fix(c.state.relations[k]);});}
+      c.updated=Date.now();});
+    ["desc","rules","places"].forEach(k=>{if(w[k])w[k]=fix(w[k]);});
+    if(w.hero){w.hero.name=n;if(w.hero.desc)w.hero.desc=fix(w.hero.desc);}
+  }
+  w.updated=Date.now();save();
+}catch(e){try{delete w.askHeroName;}catch(_){}}}
 function nameSwapWorld(tw,ns,sid,force){sid=sid||"swap";const SK=["photos","avatar","img","id","worldId","heroId","activeChat","patches","swaps"];const cs=charsOf(tw.id);const done=o=>!force&&Array.isArray(o.swaps)&&o.swaps.includes(sid);const mark=o=>{o.swaps=Array.isArray(o.swaps)?o.swaps.filter(x=>x!==sid).concat(sid):[sid];};
   if(!done(tw)){Object.keys(tw).forEach(k=>{if(!SK.includes(k)&&k!=="know")tw[k]=nameSwapDeep(tw[k],ns,SK);});mark(tw);}
   cs.forEach(c=>{if(done(c))return;mark(c);Object.keys(c).forEach(k=>{if(SK.includes(k)||typeof c[k]==="function")return;try{const d=Object.getOwnPropertyDescriptor(c,k);if(d&&(d.get||d.set))return;}catch(e){}c[k]=nameSwapDeep(c[k],ns,SK);});c.updated=Date.now();try{wireChar(c);}catch(e){}});
@@ -3141,6 +3167,7 @@ function renderHome(){
           {const nw=S.worlds.find(z=>!had.has(z.id));if(nw&&missingAddons(nw).length){
             say("⏳ Добавляю обновления…");
             await applyAllAddons(nw,null,(i,t,ttl)=>say("⏳ Обновление "+i+" из "+t+": "+ttl));}}
+          {const nw=S.worlds.find(z=>!had.has(z.id));if(nw)heroNameAsk(nw);}
           if(S.worlds.length<=n0){alert("Файл мира загрузился, но мир не добавился. Нажми ещё раз; если повторится — напиши, что видишь на экране.");c.disabled=false;say(old);}}
         catch(e){alert("Не удалось загрузить мир: "+(e&&e.name==="AbortError"?"слишком долго (плохая связь). Попробуй ещё раз.":(e&&e.message)||e));c.disabled=false;say(old);}};g2.append(c);});
     p.append(g2);}
@@ -3180,6 +3207,7 @@ function makeExample(){
 // ---- МИР
 function renderWorld(){
   const w=W(route.id);if(!w){go({v:"home"},true);return;}S.lastWorld=w.id;
+  if(w.askHeroName)heroNameAsk(w);
   $("hTitle").textContent=wTitle(w);const p=el("div","page");
   const SECTIONS=[["chars","Персонажи",tabChars],["scenes","Сцены",tabScenes],["chron","Хроника",tabChron],["helper","Соавтор",tabHelperEntry],["story","Истории",tabStory],["about","О мире",tabAbout]];
   const tabs=el("div","tabs");tabs.style.position="sticky";tabs.style.top="0";tabs.style.background="var(--bg)";tabs.style.zIndex="2";
