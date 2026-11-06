@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=422;
+const APP_VER=423;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2270,7 +2270,7 @@ function fixAll(){fixRelModel();fixDefaultStages();setTimeout(defaultPortraits,3
   S.scenes.forEach(x=>Object.assign(x,Object.assign(blankScene(),x)));backfillKnow();}
 // Принимает любой файл: всё целиком / мир с персонажами / один персонаж / список персонажей / старый формат «Мои персонажи»
 // Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
-const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json"};
+const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json","Город Х":"presets/city-x.json"};
 const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
   {file:"presets/addons/south-north.json",names:["Сигурд Хват","Барон Освальд","Сэр Годрик Вэйн","Мастер Эзра"],title:"Север и крепость: 4 персонажа и лор",desc:"Имперский возвратчик Сигурд (может прийти, а может нет), барон Освальд, капитан дружины сэр Годрик, мастер Эзра. Плюс правила мира о беглых, Палате возврата, дружине и оброке."},
@@ -3129,7 +3129,8 @@ function renderHome(){
   if(!S.worlds.length){const ex=el("button","card add");ex.append(el("span",null,"✦"),el("div",null,"Создать пример мира"),el("div","note","Бишкек, три персонажа, можно сразу играть"));ex.onclick=makeExample;g.append(ex);}
   p.append(g);
   // готовые миры: грузятся одним нажатием из самого приложения
-  const PRESETS=[{file:"presets/south-clean.json",world:"Южное побережье",title:"Южное побережье",desc:"Южный берег, конец лета, ночь шторма. Плотник Уилл видит огни у Чёрных скал — там разбился невольничий корабль. 26 персонажей, сюжет «Свобода Фрейи», побочные истории, карты."}];
+  const PRESETS=[{file:"presets/south-clean.json",world:"Южное побережье",title:"Южное побережье",desc:"Южный берег, конец лета, ночь шторма. Плотник Уилл видит огни у Чёрных скал — там разбился невольничий корабль. 26 персонажей, сюжет «Свобода Фрейи», побочные истории, карты."},
+    {file:"presets/city-x.json",world:"Город Х",title:"Город Х",desc:"Наше время, параллельная реальность. Тебе 23, ты программист и живёшь один в старой квартире в центре. Сводная сестра Анна, 18, первый курс психфака, впервые за пять лет написала и попросила помощи с жильём. Сегодня она приезжает. 5 персонажей, камерная драма без сюжетного движка."}];
   const avail=PRESETS;
   if(avail.length){const h2=el("h2",null,"Готовые миры");p.append(h2);const g2=el("div","grid");
     avail.forEach(x=>{const c=el("button","wcard");c.append(el("div","nm",x.title),el("div","ds",x.desc),el("div","mt",S.worlds.some(w=>w.name===x.world)?"мир по умолчанию · нажми, чтобы добавить ещё одну чистую копию":"мир по умолчанию · нажми, чтобы добавить"));
