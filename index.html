@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=420;
+const APP_VER=421;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3020,40 +3020,38 @@ function sheet(actions){const bg=el("div","sheet-bg");const s=el("div","sheet");
   actions.forEach(([t,f,warn])=>{const b=el("button",null,t);if(warn)b.classList.add("warn");b.onclick=()=>{close();f();};s.append(b);});
   const c=el("button","cancel","Отмена");c.onclick=close;s.append(c);document.body.append(bg,s);}
 const MIC_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
-// Голосовой ввод как в Telegram: пока поле пустое, кнопка отправки — микрофон. Зажал — говоришь, отпустил — отправилось.
+// Голосовой ввод: пока поле пустое, кнопка отправки — микрофон.
 function voiceCmds(t){return t.replace(/\s*звёздочк[аиу]\s*/gi,"*").replace(/\s*открыть кавычк[иу]\s*/gi," «").replace(/\s*закрыть кавычк[иу]\s*/gi,"» ").replace(/\s*(новая строка|с новой строки)\s*/gi,"\n").replace(/[ \t]{2,}/g," ");}
 // Chrome на Android присылает куски накопительно («привет», «привет когда», «привет когда я…») — склеиваем без повторов
 function joinResults(results){let out=[];for(let i=0;i<results.length;i++){const t=results[i][0].transcript.trim();if(!t)continue;const prev=out[out.length-1];
     if(prev&&t.toLowerCase().startsWith(prev.toLowerCase()))out[out.length-1]=t;else if(prev&&prev.toLowerCase().startsWith(t.toLowerCase())){}else out.push(t);}
   return out.join(" ");}
+// v421: голосовой ввод — нажал, говоришь, нажал ещё раз — текст в поле (без удержания). ✕ на полоске — отмена.
 function voiceSend(send,ta,grow,doSend,emptyTapSends){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const refresh=()=>{const v=!!SR&&!ta.value.trim()&&!busy;if(send.classList.contains("rec"))return;send.classList.toggle("voice",v);send.innerHTML=v?MIC_SVG:SEND_SVG;send.title=v?"Зажми и говори; отпусти — текст появится в поле; сдвинь влево — отмена":"Отправить";};
+  const refresh=()=>{const v=!!SR&&!ta.value.trim()&&!busy;if(send.classList.contains("rec"))return;send.classList.toggle("voice",v);send.innerHTML=v?MIC_SVG:SEND_SVG;send.title=v?"Нажми и говори; нажми ещё раз — текст появится в поле":"Отправить";};
   ta.addEventListener("input",refresh);refresh();if(!SR)return refresh;
-  let rec=null,holding=false,committed="",done=null,suppress=false,bar=null,x0=0,t0=0,cancelled=false,pid=null,lastErr="";
+  let rec=null,on=false,committed="",done=null,bar=null,t0=0,cancelled=false,lastErr="";
   const ERR={"network":"Нет связи с сервером распознавания речи (нужен интернет).","no-speech":"Ничего не услышал. Говори ближе к микрофону.","audio-capture":"Микрофон не найден или занят другим приложением.","not-allowed":"Нет доступа к микрофону — разреши его в настройках браузера.","service-not-allowed":"Распознавание речи запрещено в этом браузере."};
   const start=()=>{rec=new SR();rec.lang="ru-RU";rec.interimResults=true;rec.continuous=true;
-    rec.onresult=ev=>{ta.value=voiceCmds(committed+joinResults(ev.results));grow&&grow();};
-    rec.onerror=e=>{lastErr=e.error;if(e.error==="aborted")return;if(e.error==="not-allowed"||e.error==="service-not-allowed")holding=false;toast(ERR[e.error]||("Ошибка распознавания: "+e.error),true);};
-    rec.onend=()=>{committed=ta.value;if(committed&&!/\s$/.test(committed))committed+=" ";if(holding){try{start();}catch(e){}}else if(done){const d=done;done=null;d();}};
-    try{rec.start();}catch(e){toast("Не удалось включить запись: "+(e&&e.message||e),true);}};
-  const barOn=()=>{const comp=send.closest(".compose");bar=el("div","recbar");bar.innerHTML='<span class="dot"></span><b>Говори</b><small>отпусти — текст в поле · сдвинь влево — отмена</small>';if(comp)comp.insertBefore(bar,comp.firstChild);};
-  const barOff=()=>{if(bar){bar.remove();bar=null;}};
-  const release=()=>{if(!holding&&!send.classList.contains("rec"))return;holding=false;send.classList.remove("rec");barOff();try{if(pid!=null)send.releasePointerCapture(pid);}catch(_){}pid=null;
+    rec.onresult=ev=>{if(cancelled)return;ta.value=voiceCmds(committed+joinResults(ev.results));grow&&grow();};
+    rec.onerror=e=>{lastErr=e.error;if(e.error==="aborted"||e.error==="no-speech")return;if(e.error==="not-allowed"||e.error==="service-not-allowed"||e.error==="audio-capture")on=false;toast(ERR[e.error]||("Ошибка распознавания: "+e.error),true);};
+    rec.onend=()=>{committed=ta.value;if(committed&&!/\s$/.test(committed))committed+=" ";if(on){try{start();}catch(e){}}else if(done){const d=done;done=null;d();}else stopUi();};
+    try{rec.start();}catch(e){on=false;stopUi();toast("Не удалось включить запись: "+(e&&e.message||e),true);}};
+  const barOn=()=>{const comp=send.closest(".compose");bar=el("div","recbar");bar.innerHTML='<span class="dot"></span><b>Говори</b><small>нажми ■ — текст в поле</small>';
+    const x=el("button","btn ghost sm","✕ отмена");x.style.marginLeft="auto";x.onclick=e=>{e.preventDefault();e.stopPropagation();cancelled=true;stop();};bar.append(x);if(comp)comp.insertBefore(bar,comp.firstChild);};
+  const stopUi=()=>{send.classList.remove("rec");if(bar){bar.remove();bar=null;}refresh();};
+  const stop=()=>{if(!on&&!send.classList.contains("rec"))return;on=false;stopUi();
     const finish=()=>{if(cancelled){cancelled=false;ta.value="";grow&&grow();toast("Запись отменена.");refresh();return;}
       ta.value=ta.value.replace(/\s+$/,"");grow&&grow();
-      if(Date.now()-t0<400&&!ta.value){if(emptyTapSends)doSend();else toast("Зажми кнопку и говори, отпусти — текст появится в поле");refresh();return;}
-      if(ta.value.trim()){refresh();toast("Текст в поле — проверь и нажми «отправить».");}else{if(lastErr!=="not-allowed"&&lastErr!=="network"&&lastErr!=="no-speech")toast("Ничего не записалось. Попробуй ещё раз.",true);refresh();}};
+      if(Date.now()-t0<700&&!ta.value&&emptyTapSends){doSend();refresh();return;}
+      if(ta.value.trim()){refresh();try{ta.focus();}catch(_){}}else{if(lastErr!=="not-allowed"&&lastErr!=="network")toast("Ничего не записалось. Попробуй ещё раз.",true);refresh();}};
     done=finish;try{rec&&rec.stop();}catch(_){const d=done;done=null;d&&d();}setTimeout(()=>{if(done){const d=done;done=null;d();}},1500);};
-  send.addEventListener("pointerdown",e=>{if(!send.classList.contains("voice"))return;
-    // v389: в поле уже есть текст — значит кнопка должна быть «отправить»: ничего не стираем и не начинаем запись
-    if(ta.value.trim()){refresh();return;}
-    e.preventDefault();suppress=true;holding=true;cancelled=false;lastErr="";committed="";ta.value="";x0=e.clientX;t0=Date.now();send.classList.add("rec");barOn();try{navigator.vibrate&&navigator.vibrate(20);}catch(_){}
-    try{pid=e.pointerId;send.setPointerCapture(pid);}catch(_){pid=null;}start();});
-  send.addEventListener("pointermove",e=>{if(!holding)return;const c=e.clientX-x0<-70;if(c!==cancelled){cancelled=c;if(bar)bar.classList.toggle("cancel",c);}});
-  ["pointerup","pointercancel","lostpointercapture"].forEach(n=>send.addEventListener(n,release));
-  window.addEventListener("blur",()=>{if(holding)release();});document.addEventListener("visibilitychange",()=>{if(document.hidden&&holding)release();});
-  send.addEventListener("click",e=>{if(suppress){suppress=false;e.stopImmediatePropagation();e.preventDefault();}},true);
+  const go=()=>{if(ta.value.trim()){refresh();return false;}on=true;cancelled=false;lastErr="";committed="";ta.value="";t0=Date.now();
+    send.classList.add("rec");send.innerHTML=STOP_SVG;send.title="Нажми — закончить запись";barOn();try{navigator.vibrate&&navigator.vibrate(20);}catch(_){}start();return true;};
+  send.addEventListener("click",e=>{if(send.classList.contains("rec")){e.stopImmediatePropagation();e.preventDefault();stop();return;}
+    if(send.classList.contains("voice")){e.stopImmediatePropagation();e.preventDefault();go();}},true);
   send.addEventListener("contextmenu",e=>e.preventDefault());
+  document.addEventListener("visibilitychange",()=>{if(document.hidden&&on)stop();});
   return refresh;}
 const SEND_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg>';
 const STOP_SVG='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
