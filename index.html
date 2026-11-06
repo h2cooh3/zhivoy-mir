@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=452;
+const APP_VER=453;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -825,7 +825,7 @@ const closeOf=c=>{try{return CLOSE_SCENE||closeMode(c&&(c._sbChat||chatOf(c)))||
 function closeBlock(w,cs,o){const m=closeMode(o)||"story";if(m==="story")return "";
  const L=(cs||[]).map(x=>(x&&x.id)?x:C(x)).filter(Boolean);if(L.some(isChild))return "";
  const A=L.filter(isAdultC);if(!A.length)return "";const nm=A.map(c=>c.name).join(", ");
- if(m==="hot")return "НАКАЛ — БЛИЗОСТЬ ОЧЕНЬ ВЕРОЯТНА (так выбрал автор для этого разговора): жанр здесь — откровенная любовная история про взрослых. Влечение между "+nm+" и "+heroName(w)+" взаимно и лежит на поверхности: замечают телом, ищут повод коснуться, остаются наедине, сами делают шаг и сами предлагают. То, что в обычном ходе истории ждало бы недель доверия, здесь случается скоро. Доверие и ступень близости больше НЕ пропуск к близости — они говорят только о том, насколько при этом спокойно, нежно или наоборот отчаянно, а не о том, случится ли это. Не тормози сцену и не отодвигай её на потом из осторожности: пошёл герой на близость — отвечают. Человек остаётся собой: характер, манера речи, стыд и страхи не исчезли — они проступают В близости, а не вместо неё. Настоящее «нет» всё ещё возможно и останавливает всё, но в этом режиме оно редкость и всегда по личной причине, не из приличия.";
+ if(m==="hot")return "НАКАЛ — БЛИЗОСТЬ ОЧЕНЬ ВЕРОЯТНА (так выбрал автор для этого разговора): жанр здесь — откровенная любовная история про взрослых. Влечение между "+nm+" и "+heroName(w)+" взаимно и лежит на поверхности: замечают телом, ищут повод коснуться, остаются наедине, сами делают шаг и сами предлагают. То, что в обычном ходе истории ждало бы недель доверия, здесь случается скоро. Доверие и ступень близости больше НЕ пропуск к близости — они говорят только о том, насколько при этом спокойно, нежно или наоборот отчаянно, а не о том, случится ли это. Не тормози сцену и не отодвигай её на потом из осторожности: пошёл герой на близость — отвечают, и каждый такой шаг двигает их близость сильно, а не на волосок. Человек остаётся собой: характер, манера речи, стыд и страхи не исчезли — они проступают В близости, а не вместо неё. Настоящее «нет» всё ещё возможно и останавливает всё, но в этом режиме оно редкость и всегда по личной причине, не из приличия.";
  return "НАКАЛ — БЛИЖЕ ОБЫЧНОГО (так выбрал автор для этого разговора): влечение между "+nm+" и "+heroName(w)+" заметно и взаимно, и его не прячут. Шаги навстречу идут сами: взгляд дольше нужного, повод коснуться, встать близко, остаться наедине, прямой вопрос. Близость возможна заметно раньше, чем позволяла бы ступень — ступень говорит, насколько человеку при этом спокойно, а не запрещает. Но это не «сразу»: сначала тянет, потом решаются. Характер и стыд остаются; «нет» по-настоящему останавливает всё.";}
 function closeRow(o,onChange){const l=el("label");l.append(document.createTextNode("Накал: насколько вероятна близость"),el("span","hint","Работает только со взрослыми (18+) и только если в сцене нет детей. Характер, манера и страхи остаются; «Ближе» и «Очень вероятна» снимают порог доверия и ступени — случается то, что иначе ждало бы недель."));
  const sel=el("select");CLOSE_MODES.forEach(([v,t])=>{const op=el("option",null,t);op.value=v;sel.append(op);});
@@ -1160,6 +1160,7 @@ function applyDeeds(w,c,list,src,silent){
   // v417 — СКРЫТЫЙ ОТКЛИК: напор к самому человеку внутри плюс или настоящее «нет» — по порогам персонажа (c.attract) и его доверию/симпатии
   let E=(c.react&&c.react[o.type])||D[1],adv=null;
   if(o.type==="advance"){const A=isChild(c)?"never":attrOf(c);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
+  let bigAdv=0;if(o.type==="advance"&&adv){const cm=closeOf(c);if(cm!=="story")bigAdv=(3.5+wt*.5)*(cm==="hot"?1:.5);}
   const close=Math.max(0,(L0+T0)/2)/10;
   const sens=(c.sens&&+c.sens[o.type])||1;
   const k=wt*RK.k*sens*(o.seen===false?.5:1)*(1+(clampN(5/(+c.inertia||5),.6,1.2)-1)*RK.iner);
@@ -1168,8 +1169,9 @@ function applyDeeds(w,c,list,src,silent){
   if(dt<0)dt*=1.4;else if(dt>0&&T0<0)dt*=.6;
   if(dr>0&&R0<0)dr*=.6;if(dl>0&&L0<0)dl*=.6;
   dr+=dt*.3;
+  if(bigAdv){dl=bigAdv;dw=bigAdv;dr=Math.max(dr,.5);}
   if(dt>0){dt=Math.min(dt,RK.per,Math.max(0,CAPD-cap.t));cap.t+=dt;}
-  if(dl>0){dl=Math.min(dl,RK.per,Math.max(0,CAPD-cap.l));cap.l+=dl;}
+  if(dl>0){if(!bigAdv)dl=Math.min(dl,RK.per,Math.max(0,CAPD-cap.l));cap.l+=dl;}
   if(dr>0){dr=Math.min(dr,RK.per,Math.max(0,CAPD-cap.r));cap.r+=dr;}
   dt=Math.max(dt,-6);dl=Math.max(dl,-6);dr=Math.max(dr,-6);
   const T1=clampN(fix1(T0+dt),-10,10);
