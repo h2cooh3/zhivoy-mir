@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=446;
+const APP_VER=447;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2459,7 +2459,10 @@ async function applyAllAddons(w,btn,onProg){if(btn)btn.disabled=true;let n=0,pre
 async function updateAndBuild(w){if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;try{localStorage.setItem("zm:autobuild",w.id);}catch(e){}
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",plainS(),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S,sbSafe));}catch(e){}
   try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
-  location.reload();}
+  // v447 — sw.js пуст, значит старую копию держит обычный кэш браузера и CDN GitHub Pages:
+  // простой location.reload() их не пробивает. Уникальный адрес — промах кэша и на устройстве, и на CDN.
+  try{await fetch(location.pathname+"?v="+Date.now(),{cache:"reload"});}catch(e){}
+  location.replace(location.pathname+"?v="+Date.now());}
 async function autoBuildCheck(){let id="";try{id=localStorage.getItem("zm:autobuild")||"";localStorage.removeItem("zm:autobuild");}catch(e){}if(!id)return;const w=W(id);if(!w)return;
   try{fixAll();}catch(e){}toast("Приложение обновлено. Достраиваю мир…");await applyAllAddons(w,null);try{go({v:"world",id:w.id});}catch(e){}}
 const addonsLeft=missingAddons;
@@ -4006,7 +4009,10 @@ function fillSettings(){try{drawSpend();}catch(e){}const A=S.api;$("ghTok").valu
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",plainS(),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S,sbSafe));}catch(e){}
   try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
-  location.reload();};
+  // v447 — sw.js пуст, значит старую копию держит обычный кэш браузера и CDN GitHub Pages:
+  // простой location.reload() их не пробивает. Уникальный адрес — промах кэша и на устройстве, и на CDN.
+  try{await fetch(location.pathname+"?v="+Date.now(),{cache:"reload"});}catch(e){}
+  location.replace(location.pathname+"?v="+Date.now());};
 $("setBtn").onclick=()=>{fillSettings();drawSnaps();storeInfo();$("dlg").showModal();};
 $("dlgClose").onclick=()=>$("dlg").close();
 // «Принять»: всё и так сохраняется сразу, но кнопка даёт ясное подтверждение
