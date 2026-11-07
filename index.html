@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=454;
+const APP_VER=455;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -706,7 +706,10 @@ let reqInfo=null;
 const sinceToast={usd:0,calls:0};
 let lastUsage=null;
 function cost(u){if(u&&u.usd!=null)return u.usd;const pi=parseFloat(S.api.pIn),pc=parseFloat(S.api.pCache),po=parseFloat(S.api.pOut);if(!(pi>=0)||!(po>=0))return null;const pcv=pc>=0?pc:pi/10;return ((u.inp||0)*pi+(u.cacheR||0)*pcv+(u.cacheW||0)*pi*1.25+(u.out||0)*po)/1e6;}
-function priceFor(model){const m=String(model||"");if(/kimi-k2\.6/.test(m))return [0.95,0.16,4];if(/kimi-k2\.5/.test(m))return [0.60,0.10,3];if(/kimi-k3/.test(m))return [3,0.30,15];if(/deepseek.*flash/i.test(m))return [0.15,0.003,0.60];if(/haiku-5-5/.test(m))return [0.10,0.01,0.50];if(/sonnet-5-5/.test(m))return [2,0.10,10];if(/opus-5-5/.test(m))return [4,0.20,20];return null;}
+// DeepSeek считает вдвое дороже в «часы пик»: 01:00-04:00 и 06:00-10:00 UTC, пн-пт (в Бишкеке 07:00-10:00 и 12:00-16:00).
+// Китайские праздники там тоже по дешёвому тарифу, но их мы не знаем — в эти дни счёт будет завышен, а не занижен.
+function dsPeak(d){d=d||new Date();const wd=d.getUTCDay();if(wd===0||wd===6)return false;const h=d.getUTCHours();return (h>=1&&h<4)||(h>=6&&h<10);}
+function priceFor(model){const m=String(model||"");if(/kimi-k2\.6/.test(m))return [0.95,0.16,4];if(/kimi-k2\.5/.test(m))return [0.60,0.10,3];if(/kimi-k3/.test(m))return [3,0.30,15];if(/deepseek/i.test(m)){const k=dsPeak()?2:1;return /pro/i.test(m)?[0.66*k,0.022*k,1.98*k]:[0.15*k,0.003*k,0.60*k];}if(/haiku-5-5/.test(m))return [0.10,0.01,0.50];if(/sonnet-5-5/.test(m))return [2,0.10,10];if(/opus-5-5/.test(m))return [4,0.20,20];return null;}
 function usageStr(u){if(!u)return "";const c=cost(u);const tin=(u.inp||0)+(u.cacheR||0)+(u.cacheW||0);const n=sinceToast.calls,tu=sinceToast.usd;sinceToast.usd=0;sinceToast.calls=0;const day=S.usage&&S.usage.day;return "ответ: "+tin+" вход ("+(u.cacheR||0)+" из кэша) + "+(u.out||0)+" выход"+(c!=null?" ≈ $"+c.toFixed(4):"")+(n>1?" · все запросы с прошлого раза ("+n+"): ≈ $"+tu.toFixed(4):"")+(day&&day.usd?" · сегодня: ≈ $"+day.usd.toFixed(2)+" за "+day.calls+" запр.":"");}
 // ============ API ============
 let busy=false,ctl=null;
@@ -4143,7 +4146,7 @@ function drawSpend(){const b=$("spendBox");if(!b)return;b.innerHTML="";const L=A
   const today=new Date().toISOString().slice(0,10),tl=L.filter(r=>new Date(r.t).toISOString().slice(0,10)===today);
   const sum=a=>a.reduce((n,r)=>n+(r.usd||0),0);const byP={};tl.forEach(r=>{const k=lbl(r.p);byP[k]=byP[k]||{n:0,usd:0,i:0,c:0};byP[k].n++;byP[k].usd+=r.usd||0;byP[k].i+=tin(r);byP[k].c+=r.c||0;});
   const turnsToday=groups.filter(x=>x.main&&new Date(x.t).toISOString().slice(0,10)===today);const cin=tl.reduce((n,r)=>n+tin(r),0),cca=tl.reduce((n,r)=>n+(r.c||0),0);
-  {const sb=el("div","block");sb.style.whiteSpace="pre-wrap";sb.textContent="Сегодня: ≈ "+usd(sum(tl))+" за "+tl.length+" запросов"+(turnsToday.length?" · ходов: "+turnsToday.length+" · в среднем за ход ≈ "+usd(sum(tl)/turnsToday.length):"")+"\nИз кэша: "+(cin?Math.round(100*cca/cin):0)+"% входа"+(S.api.think?"\n⚠ Включено «думать» — рассуждения оплачиваются как ответ":"")+"\n\nНа что ушло сегодня:\n"+Object.entries(byP).sort((a,b)=>b[1].usd-a[1].usd).map(([k,v])=>"• "+k+": "+usd(v.usd)+" ("+v.n+" запр., кэш "+(v.i?Math.round(100*v.c/v.i):0)+"%)").join("\n");b.append(sb);}
+  {const sb=el("div","block");sb.style.whiteSpace="pre-wrap";sb.textContent="Сегодня: ≈ "+usd(sum(tl))+" за "+tl.length+" запросов"+(turnsToday.length?" · ходов: "+turnsToday.length+" · в среднем за ход ≈ "+usd(sum(tl)/turnsToday.length):"")+"\nИз кэша: "+(cin?Math.round(100*cca/cin):0)+"% входа"+(/deepseek/i.test(String(S.api.model||"")+" "+String(S.api.cheap||""))?"\nТариф DeepSeek сейчас: "+(dsPeak()?"дневной — вдвое дороже (будни 12:00-16:00 и 07:00-10:00 по Бишкеку)":"ночной — половина цены"):"")+(S.api.think?"\n⚠ Включено «думать» — рассуждения оплачиваются как ответ":"")+"\n\nНа что ушло сегодня:\n"+Object.entries(byP).sort((a,b)=>b[1].usd-a[1].usd).map(([k,v])=>"• "+k+": "+usd(v.usd)+" ("+v.n+" запр., кэш "+(v.i?Math.round(100*v.c/v.i):0)+"%)").join("\n");b.append(sb);}
   b.append(el("h3",null,"Последние ходы"));
   groups.slice(-40).reverse().forEach(x=>{const it=el("details","block");it.style.margin="4px 0";const su=el("summary",null,tm(x.t)+" · "+(x.main?"ход":"фон")+" · "+x.list.length+" запр. · ≈ "+usd(sum(x.list))+" · "+x.list.map(r=>lbl(r.p)).join(", "));it.append(su);const pre=el("div");pre.style.cssText="font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;margin-top:6px";pre.textContent=x.list.map(r=>lbl(r.p)+" · "+r.m+(r.think?" (думает)":"")+"\n  вход "+tin(r)+" (кэш "+(r.c||0)+", "+(tin(r)?Math.round(100*(r.c||0)/tin(r)):0)+"%) · выход "+(r.o||0)+" · ≈ "+usd(r.usd)+(r.st!=null?"\n  правила "+r.st+" зн. · текущее "+r.dy+" зн. · переписка "+r.ms+" зн. ("+r.n+" сообщ.)":"")).join("\n");it.append(pre);b.append(it);});}
 function drawUsage(){const b=$("usageBox");b.innerHTML="";const g=S.usage;const tot=g.usd!=null&&g.calls?g.usd:cost(g);const tin=g.inp+g.cacheR+g.cacheW;
