@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=470;
+const APP_VER=472;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1206,6 +1206,17 @@ function stageCurVal(c,k,lk){const g=c.stages[k];if(g&&g.names){const ks=Object.
 function stageCap(c){const m=Object.fromEntries(stageOpts(c));const n=el("div","note");n.style.cssText="margin:4px 0 2px;line-height:1.35";n.set=function(v){v=String(v==null?"0":v);const a=v.split("|"),g=c.stages[+a[0]];if(!g){n.textContent="";return;}const tc={stagesAuto:c.stagesAuto,state:{loveKind:a[1]||(c.state||{}).loveKind}};n.textContent=(m[v]||g.name)+(g.minTrust!=null?" · доверие от "+g.minTrust+(g.minLike!=null?", симпатия от "+g.minLike:""):"")+" — "+(stgText(tc,g)||"");};return n;}
 function stageLegend(c){const d=el("details");d.append(el("summary",null,"Что значит каждая ступень"));const kid=typeof isChild==="function"&&isChild(c);stageOpts(c).forEach(([v,t])=>{const [ki,lk]=v.split("|");const g=c.stages[+ki];const tc={stagesAuto:c.stagesAuto,state:{loveKind:lk||(c.state||{}).loveKind}};const p=el("div","note");p.style.margin="4px 0";const b=el("b",null,t+(g.minTrust!=null?" (доверие от "+g.minTrust+(g.minLike!=null?", симпатия от "+g.minLike:"")+")":"")+": ");p.append(b,document.createTextNode(stgText(tc,g)||""));d.append(p);});return d;}
 function stageApplyVals(c,k,st){const g=c.stages[k],last=k===c.stages.length-1;st.trust=g.minTrust!=null?g.minTrust:0;const l=+st.like||0;st.like=g.minLike!=null?Math.max(l,g.minLike):Math.min(l,7);return st;}
+// Личный путь (Маша, Фрейя): minTrust — НИЖНИЙ порог ступени, значит у ступени есть полоса
+// [свой порог … порог следующей −0,5]. Выбор ступени руками ставит доверие внутрь этой полосы —
+// и вверх, и вниз. Иначе после первой правки числа замирают: у всех ступеней ниже порог уже перекрыт.
+function stagePathVals(c,k,t0,l0){const S2=c.stages||[],g=S2[k],nx=S2[k+1];if(!g)return {trust:+t0||0,like:+l0||0};
+  let t=+t0||0,l=+l0||0;
+  let lo=g.minTrust!=null?g.minTrust:null,hi=(nx&&nx.minTrust!=null)?fix1(nx.minTrust-0.5):null;
+  if(lo!=null&&hi!=null&&hi<lo)hi=lo;
+  if(lo!=null&&t<lo)t=lo;
+  if(hi!=null&&t>hi)t=hi;
+  if(g.minLike!=null&&l<g.minLike)l=g.minLike;
+  return {trust:clampN(fix1(t),-10,10),like:clampN(fix1(l),-10,10)};}
 function stageSync(c){if(!Array.isArray(c.stages)||!c.stages.length)return;const k=stageOf(c),g=c.stages[k];if(g&&g.minTrust!=null&&(+c.state.trust||0)<g.minTrust-1.5&&k>0){c.state.stage=k-1;try{toast(c.name+": доверие упало — ступень назад «"+stgName(c,c.stages[k-1])+"»");}catch(e){}}}
 function stageCanAdvance(c,k1){const g=c.stages[k1],st=c.state||{};return !(g&&((g.minTrust!=null&&(+st.trust||0)<g.minTrust)||(g.minLike!=null&&(+st.like||0)<g.minLike)));}
 function trustLvl(t){t=Math.round(+t||0);
@@ -1591,7 +1602,7 @@ function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=[
    const gl=el("label");gl.append(document.createTextNode("Цели (через точку с запятой)"));const gi=el("textarea");gi.rows=2;gi.value=(Array.isArray(st.goals)?st.goals:[]).join("; ");growTA(gi);gi.oninput=()=>{st.goals=gi.value.split(";").map(t=>t.trim()).filter(Boolean);touch();};gl.append(gi);box.append(gl);
    const fl=el("label");fl.append(document.createTextNode("Что помнит (факты, по одному в строке)"));const fi=el("textarea");fi.rows=3;fi.value=ex.facts.map(f=>typeof f==="string"?f:(f&&f.t)||"").join("\n");growTA(fi);fi.oninput=()=>{ex.facts=fi.value.split("\n").map(t=>t.trim()).filter(Boolean);touch();};fl.append(fi);box.append(fl);
    const others=charsOf(c.worldId).filter(o=>o.id!==c.id);if(others.length){const d=el("details");d.append(el("summary",null,"Отношения с другими персонажами"));st.relations=st.relations||{};others.forEach(o=>{const l=el("label");l.append(document.createTextNode(o.name));const i=el("input");i.type="text";i.autocomplete="off";i.value=(st.relations[o.id]!==undefined?st.relations[o.id]:st.relations[o.name])||"";i.oninput=()=>{st.relations[o.id]=i.value;delete st.relations[o.name];touch();};l.append(i);d.append(l);});box.append(d);}}
-  if(Array.isArray(c.stages)&&c.stages.length){const auto=!!c.stagesAuto;const lb=el("label");lb.append(document.createTextNode(auto?"Ступень отношения к герою — выбор выставит доверие и симпатию":"Ступень пути"));const se=el("select");se.style.fontWeight="bold";stageOpts(c).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});const cur=()=>{const lk=st.loveKind!==undefined?st.loveKind:real.loveKind;if(auto){const tmp={stages:c.stages,stagesAuto:true,state:{trust:st.trust!==undefined?st.trust:real.trust,like:st.like!==undefined?st.like:real.like,loveKind:lk}};return stageCurVal(c,stageOf(tmp),lk);}return stageCurVal(c,Math.max(0,Math.min(c.stages.length-1,parseInt(st.stage)||0)),lk);};sgSync=()=>{se.value=cur();};sgSync();se.onchange=()=>{const [ki,lk]=se.value.split("|");if(auto){const t={trust:st.trust!==undefined?st.trust:real.trust,like:st.like!==undefined?st.like:real.like};stageApplyVals(c,+ki,t);st.trust=t.trust;st.like=t.like;shows.forEach(f=>f());}else{const k=parseInt(ki)||0;st.stage=k;const g=c.stages[k];const t0=st.trust!==undefined?+st.trust||0:+real.trust||0,l0=st.like!==undefined?+st.like||0:+real.like||0,r0=st.respect!==undefined?+st.respect||0:+real.respect||0;let tv=t0,lv=l0;if(g&&g.minTrust!=null&&tv<g.minTrust)tv=g.minTrust;if(g&&g.minLike!=null&&lv<g.minLike)lv=g.minLike;if(tv!==t0||lv!==l0){st.trust=tv;st.like=lv;const r=tv-t0;if(r)st.respect=clampN(fix1(r0+r*.3),-10,10);shows.forEach(f=>f());}}if(lk){st.loveKind=lk;const ks=box.querySelector("select.lk");if(ks)ks.value=lk;}touch();};lb.append(se);const cap1=stageCap(c);cap1.set(se.value);se.addEventListener("change",()=>cap1.set(se.value));{const _s=sgSync;sgSync=()=>{_s();cap1.set(se.value);};}sgBox.append(lb,cap1,stageLegend(c));}
+  if(Array.isArray(c.stages)&&c.stages.length){const auto=!!c.stagesAuto;const lb=el("label");lb.append(document.createTextNode(auto?"Ступень отношения к герою — выбор выставит доверие и симпатию":"Ступень пути"));const se=el("select");se.style.fontWeight="bold";stageOpts(c).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});const cur=()=>{const lk=st.loveKind!==undefined?st.loveKind:real.loveKind;if(auto){const tmp={stages:c.stages,stagesAuto:true,state:{trust:st.trust!==undefined?st.trust:real.trust,like:st.like!==undefined?st.like:real.like,loveKind:lk}};return stageCurVal(c,stageOf(tmp),lk);}return stageCurVal(c,Math.max(0,Math.min(c.stages.length-1,parseInt(st.stage)||0)),lk);};sgSync=()=>{se.value=cur();};sgSync();se.onchange=()=>{const [ki,lk]=se.value.split("|");if(auto){const t={trust:st.trust!==undefined?st.trust:real.trust,like:st.like!==undefined?st.like:real.like};stageApplyVals(c,+ki,t);st.trust=t.trust;st.like=t.like;shows.forEach(f=>f());}else{const k=parseInt(ki)||0;st.stage=k;const t0=st.trust!==undefined?+st.trust||0:+real.trust||0,l0=st.like!==undefined?+st.like||0:+real.like||0,r0=st.respect!==undefined?+st.respect||0:+real.respect||0;const v=stagePathVals(c,k,t0,l0);if(v.trust!==t0||v.like!==l0){st.trust=v.trust;st.like=v.like;const r=v.trust-t0;if(r)st.respect=clampN(fix1(r0+r*.3),-10,10);shows.forEach(f=>f());}}if(lk){st.loveKind=lk;const ks=box.querySelector("select.lk");if(ks)ks.value=lk;}touch();};lb.append(se);const cap1=stageCap(c);cap1.set(se.value);se.addEventListener("change",()=>cap1.set(se.value));{const _s=sgSync;sgSync=()=>{_s();cap1.set(se.value);};}sgBox.append(lb,cap1,stageLegend(c));}
   ab.disabled=true;cb.disabled=true;
   const fb=el("button","btn sm","✓ Применить и забыть прошлую переписку");fb.title="Модель получит только новые сообщения: прошлая переписка и сжатая память не пойдут в запрос. Показатели, которые ты поставил, будут главными. Экономит токены.";
   fb.onclick=()=>{if(!confirm("Применить показатели и убрать прошлую переписку из запроса к модели? Сообщения останутся на экране (серые), но персонаж их не будет помнить."))return;applyAll();ch.sumIdx=(ch.history||[]).length;ch.summary="";ch.dirIdx=ch.sumIdx;ch.updated=Date.now();c.updated=Date.now();save();ab.disabled=true;cb.disabled=true;dirty.textContent="";toast("✓ Применено. Прошлая переписка в запрос не идёт — персонаж ведёт себя по показателям.");try{if(typeof drawLog==="function")drawLog("");}catch(e){}};
@@ -2530,6 +2541,57 @@ function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x
   if(x.storyId)return !(w.story&&w.story.id===x.storyId);
   if(x.patchId)return lack||(!!w.story&&!(w.story.patches||[]).includes(x.patchId));
   return lack;});}
+// ОБНОВИТЬ УЖЕ СОЗДАННЫЙ МИР ИЗ ПРЕСЕТА (у «Города Х» нет дополнений, а правки канона живут в пресете).
+// Переписываются только ОПРЕДЕЛЕНИЯ: карточки, правила, места, определения сюжета. Игра не трогается:
+// state, facts, чаты, память, день, часть дня, флаги, сработавшие события, деньги, обещания — остаются.
+const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","sens","memKeys","knownBy","child","tags"];
+async function updateFromPreset(w,say){
+  const file=CLEAN_PRESETS[tplOf(w)];
+  if(!file){toast("У этого мира нет готового пресета в приложении",true);return;}
+  say=say||(x=>{});
+  let d;
+  try{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),90000);
+    say("⏳ Загружаю пресет…");
+    const r=await fetch(file,{cache:"no-store",signal:ac.signal});clearTimeout(to);
+    if(!r.ok)throw new Error("файл не найден ("+r.status+")");
+    d=JSON.parse(await r.text());
+  }catch(e){toast("Не удалось загрузить пресет: "+((e&&e.message)||e),true);say("");return;}
+  const pw=(d.worlds||[])[0],pcs=(d.chars||[]);
+  if(!pw||!pcs.length){toast("Пресет не похож на мир",true);say("");return;}
+  say("Сверяю…");
+  // имя героя в мире игрока могло быть заменено при создании (askHeroName) — приводим тексты пресета к нему
+  const ph=pcs.find(c=>c.id===pw.heroId)||null,myh=C(w.heroId);
+  const from=String((ph&&ph.name)||"").trim(),to2=String((myh&&myh.name)||"").trim();
+  const re=(from&&to2&&from!==to2)?new RegExp("(?<![А-Яа-яЁёA-Za-z])"+from.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![А-Яа-яЁёA-Za-z])","g"):null;
+  const deep=v=>{if(typeof v==="string")return re?v.replace(re,to2):v;
+    if(Array.isArray(v))return v.map(deep);
+    if(v&&typeof v==="object"){const o={};Object.keys(v).forEach(k=>o[k]=deep(v[k]));return o;}return v;};
+  let added=0,chg=0,pho=0;
+  pcs.forEach(pc=>{
+    const mine=charsOf(w.id).find(c=>c.name===pc.name);
+    if(!mine){const c=deep(JSON.parse(JSON.stringify(pc)));c.id=uid();c.worldId=w.id;c.chats=[];c.log=[];c.updated=Date.now();
+      if(c.state)c.base=JSON.parse(JSON.stringify(c.state));
+      S.chars.push(c);added++;return;}
+    let hit=0;
+    PRESET_CHAR_DEF.forEach(k=>{if(pc[k]===undefined)return;const nv=deep(pc[k]);
+      if(JSON.stringify(mine[k])!==JSON.stringify(nv)){mine[k]=nv;hit++;}});
+    // портреты не перетираем: берём из пресета только если у персонажа своих нет
+    if(!((mine.photos||[]).length)&&(pc.photos||[]).length){mine.photos=pc.photos.slice();if(pc.avatar)mine.avatar=pc.avatar;pho++;hit++;}
+    if(hit){mine.updated=Date.now();chg++;}
+  });
+  ["desc","rules","places","style","label"].forEach(k=>{if(pw[k]!==undefined)w[k]=deep(pw[k]);});
+  if(pw.story){const st=w.story=w.story||{};
+    const fired={};(st.events||[]).forEach(e=>{if(e&&e.id&&e.fired)fired[e.id]={fired:true,firedDay:e.firedDay||0};});
+    Object.keys(pw.story).forEach(k=>{if(STORY_DEF_KEYS.has(k))st[k]=deep(pw.story[k]);});
+    // сработавшие события остаются сработавшими — иначе сюжет пойдёт по кругу
+    (st.events||[]).forEach(e=>{const f=e&&e.id&&fired[e.id];if(f){e.fired=true;e.firedDay=f.firedDay;}});
+  }
+  w.updated=Date.now();
+  try{fixAll();}catch(e){}
+  save();say("");
+  toast("Мир обновлён из пресета: новых персонажей "+added+", обновлено карточек "+chg+(pho?", портретов "+pho:"" ),false);
+  try{render();}catch(e){}
+}
 async function applyAllAddons(w,btn,onProg){if(btn)btn.disabled=true;let n=0,prev="";const skip=new Set();
   const tot=missingAddons(w).length;const lim=Math.min(300,Math.max(40,tot*2+10));
   try{for(let g=0;g<lim;g++){const nx=missingAddons(w).filter(x=>!skip.has(x.file))[0];if(!nx)break;if(onProg)onProg(n+1,tot,nx.title);
@@ -3118,7 +3180,7 @@ function openStateEditor(w,x){
    stageOpts(cur).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;if(v===curVal)o.selected=true;ss.append(o);});
    ss.onchange=()=>{const [ki,lk]=ss.value.split("|");const k=+ki;const t0=d.trust;
     if(cur.stagesAuto){stageApplyVals(cd(),k,d);const r=d.trust-t0;if(r&&!touched.respect)d.respect=R(d.respect+r*.3,-10,10);}
-    else{d.stage=k;if(!cur.stagesAuto){const g=cur.stages[k];if(g&&g.minTrust!=null&&d.trust<g.minTrust){setTrust(g.minTrust);}if(g&&g.minLike!=null&&d.like<g.minLike)d.like=g.minLike;}}
+    else{d.stage=k;const v=stagePathVals(cur,k,d.trust,d.like);if(v.trust!==d.trust)setTrust(v.trust);if(v.like!==d.like)d.like=v.like;}
     if(lk)d.loveKind=lk;post();draw();};
    box.append(ss);{const cap=stageCap(cd());cap.set(ss.value);ss.addEventListener("change",()=>cap.set(ss.value));box.append(cap);}box.append(stageLegend(cd()));
   }
@@ -3334,6 +3396,7 @@ function tabChars(w,body){
   {const ub=el("button","btn sm","⟳ Обновить приложение и достроить мир");ub.title="Скачать последнюю версию приложения, поправить старые данные и добавить все недостающие дополнения — одной кнопкой";ub.style.margin="0 0 10px";ub.onclick=()=>updateAndBuild(w);body.append(ub);}
   {const miss=missingAddons(w);if(miss.length){const bn=el("div","block");bn.style.borderLeft="3px solid var(--accent)";bn.style.margin="0 0 10px";const ab=el("button","btn sm primary","⬆ Достроить мир до актуальной версии");ab.onclick=()=>applyAllAddons(w,ab);
     bn.append(el("b",null,"В мире не хватает дополнений ("+miss.length+")"),el("div","note","Недостающие персонажи, сюжет, истории и деньги добавятся одним нажатием, по порядку. Твои разговоры и память не затрагиваются."),ab);body.append(bn);}}
+  if(CLEAN_PRESETS[tplOf(w)]){const pb=el("div","block");pb.style.margin="0 0 10px";const ub=el("button","btn sm","⬆ Обновить мир из пресета");const st2=el("div","note");st2.style.marginTop="4px";ub.onclick=async()=>{if(ub.disabled)return;if(!confirm("Подтянуть в ЭТОТ мир свежие карточки, правила, места и определения сюжета из «"+tplOf(w)+"»?\n\nИгра не пострадает: разговоры, память, отношения, день, флаги и сработавшие события останутся как есть. Портреты не перетираются."))return;ub.disabled=true;try{await updateFromPreset(w,x=>{st2.textContent=x||"";});}finally{ub.disabled=false;}};pb.append(el("b",null,"Обновление мира"),el("div","note","Новые персонажи и правки канона живут в пресете и в уже созданный мир сами не попадают. Эта кнопка подтягивает их сюда: переписываются только определения (личность, голос, внешность, одежда, ступени, правила, места, акты и события), игра остаётся."),ub,st2);body.append(pb);}
   const g=el("div","grid");const add=el("button","card add");add.append(el("span",null,"+"),el("div",null,"Персонаж"));add.onclick=()=>{const c=blankChar();c.worldId=w.id;go({v:"charEdit",id:c.id,draft:c});};g.append(add);
   byPlot(w,charsOf(w.id).filter(c=>!c.dead&&!c.away)).forEach(c=>g.append(charCard(c,false)));
   body.append(g);
@@ -3796,7 +3859,7 @@ function renderCharEdit(){
     dc.onchange=()=>{c.dead=dc.checked;box.hidden=!c.dead;if(c.dead&&!route.draft)markDead(Object.assign(c,{dead:false}),c.deadWhen);c.dead=dc.checked;};}
   f("Личность и предыстория","Только для ИИ (игрок это поле не видит в профиле). Главное поле. Характер через поведение, прошлое с деталями, чего хочет, чего боится, манера речи. Это основа — она не меняется, меняется состояние.","core",true,10);
   f("Примеры речи","4-5 реплик в его манере","examples",true,4);f("Голос (как говорит)","Карточка речи — свойства, а не цитаты: уровень, длина фраз, словечки и тики с частотой [всегда]/[часто]/[иногда]/[редко], как выражает чувства, чего НЕ говорит, 6-8 образцов через « — ». Образцы, которые уже звучали, ИИ на время не видит. Идёт в конец каждого запроса","voice",true,10);const vg=el("button","btn","🎙 Составить голос по личности");vg.onclick=withBusy(vg,async()=>{const r=await genVoice(c,w);if(r){c.voice=r;render();}});p.append(vg);f("Первое сообщение","С него начинается знакомство. {{user}} — имя героя","greeting",true,4);f("Внешность","Подробно — для портретов и картинок; копируется из профиля","look",true,5);f("Промпт для картинок (English)","Готовый промпт для генератора; если пусто — составит ИИ","lookEn",true,3);f("Гардероб и вещи","Весь его набор одежды по поводам (ДОМА / НА УЧЁБУ / ВЫЙТИ / ХОЛОДНО / СПАТЬ / ВСЕГДА / НИКОГДА) и вещи, которые у него есть. Новое по ходу игры (подарки, покупки) движок дописывает сюда сам, в раздел «ПОЯВИЛОСЬ ПО ХОДУ ИГРЫ».","wear",true,6);
-  const _relBase=relSnap(c.state);p.append(el("h2",null,"Состояние сейчас"),el("p","note","Это меняется само после разговоров и событий. Можно править руками: поменяешь доверие, симпатию, уважение, обиду или ступень — персонаж покажет это уже в следующем сообщении."));if(w&&c.id!==w.heroId&&npcsOf(w.id).some(o=>o.id===c.id)){const lb=el("button","btn","🎚 Править со связями");lb.onclick=()=>openStateEditor(w,{charIds:[c.id]});p.append(lb,el("div","note","Поля ниже — просто числа, одно другое не тянет. В этом окне связи работают как от поступков: доверие тянет уважение и гасит обиду, обида давит на симпатию, выбор ступени поднимает доверие до её порога. Там же видно, что потянулось само."));}const stHold=el("div");stHold.style.margin="8px 0";if(Array.isArray(c.stages)&&c.stages.length){const auto=!!c.stagesAuto;const l=el("label");l.append(document.createTextNode(auto?"Ступень отношения к герою":"Ступень пути"),el("span","hint",auto?"Считается сама по доверию и симпатии. Выбери другую — выставятся доверие и симпатия этой ступени (для теста).":"Рассказчик видит только эту ступень; следующие скрыты. Двигается сама по ходу истории."));const se=el("select");stageOpts(c).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});se.value=stageCurVal(c,stageOf(c),c.state.loveKind);se.style.fontWeight="bold";se.onchange=()=>{const [ki,lk]=se.value.split("|");const k=parseInt(ki)||0;c.state=c.state||{};const t0=+c.state.trust||0;const _a=relSnap(c.state);if(auto)stageApplyVals(c,k,c.state);else{c.state.stage=k;const g=c.stages[k];if(g&&g.minTrust!=null&&(+c.state.trust||0)<g.minTrust)c.state.trust=g.minTrust;if(g&&g.minLike!=null&&(+c.state.like||0)<g.minLike)c.state.like=g.minLike;}const r=fix1((+c.state.trust||0)-t0);if(r)c.state.respect=clampN(fix1((+c.state.respect||0)+r*.3),-10,10);if(auto||Math.abs(r)>=2)c.state.stale=1;if(lk)c.state.loveKind=lk;try{noteShift(c.state,_a,c,auto);}catch(e){}c.updated=Date.now();save();toast("Ступень: «"+stgName(c,c.stages[k],c.state.loveKind)+"» — доверие "+fix1(c.state.trust)+", симпатия "+fix1(c.state.like));render();};l.append(se);const cap3=stageCap(c);cap3.set(se.value);se.addEventListener("change",()=>cap3.set(se.value));stHold.append(l,cap3,stageLegend(c));}
+  const _relBase=relSnap(c.state);p.append(el("h2",null,"Состояние сейчас"),el("p","note","Это меняется само после разговоров и событий. Можно править руками: поменяешь доверие, симпатию, уважение, обиду или ступень — персонаж покажет это уже в следующем сообщении."));if(w&&c.id!==w.heroId&&npcsOf(w.id).some(o=>o.id===c.id)){const lb=el("button","btn","🎚 Править со связями");lb.onclick=()=>openStateEditor(w,{charIds:[c.id]});p.append(lb,el("div","note","Поля ниже — просто числа, одно другое не тянет. В этом окне связи работают как от поступков: доверие тянет уважение и гасит обиду, обида давит на симпатию, выбор ступени поднимает доверие до её порога. Там же видно, что потянулось само."));}const stHold=el("div");stHold.style.margin="8px 0";if(Array.isArray(c.stages)&&c.stages.length){const auto=!!c.stagesAuto;const l=el("label");l.append(document.createTextNode(auto?"Ступень отношения к герою":"Ступень пути"),el("span","hint",auto?"Считается сама по доверию и симпатии. Выбери другую — выставятся доверие и симпатия этой ступени (для теста).":"Рассказчик видит только эту ступень; следующие скрыты. Двигается сама по ходу истории."));const se=el("select");stageOpts(c).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});se.value=stageCurVal(c,stageOf(c),c.state.loveKind);se.style.fontWeight="bold";se.onchange=()=>{const [ki,lk]=se.value.split("|");const k=parseInt(ki)||0;c.state=c.state||{};const t0=+c.state.trust||0;const _a=relSnap(c.state);if(auto)stageApplyVals(c,k,c.state);else{c.state.stage=k;const v=stagePathVals(c,k,c.state.trust,c.state.like);c.state.trust=v.trust;c.state.like=v.like;}const r=fix1((+c.state.trust||0)-t0);if(r)c.state.respect=clampN(fix1((+c.state.respect||0)+r*.3),-10,10);if(auto||Math.abs(r)>=2)c.state.stale=1;if(lk)c.state.loveKind=lk;try{noteShift(c.state,_a,c,auto);}catch(e){}c.updated=Date.now();save();toast("Ступень: «"+stgName(c,c.stages[k],c.state.loveKind)+"» — доверие "+fix1(c.state.trust)+", симпатия "+fix1(c.state.like));render();};l.append(se);const cap3=stageCap(c);cap3.set(se.value);se.addEventListener("change",()=>cap3.set(se.value));stHold.append(l,cap3,stageLegend(c));}
   const sf=(lbl,key,ta)=>{const l=el("label");l.append(document.createTextNode(lbl));const i=ta?el("textarea"):el("input");if(!ta)i.type="text";if(ta){i.rows=2;growTA(i);}i.value=key==="goals"?c.state.goals.join("; "):(c.state[key]||"");i.oninput=()=>{if(key==="goals")c.state.goals=i.value.split(";").map(t=>t.trim()).filter(Boolean);else c.state[key]=i.value;};l.append(i);p.append(l);};
   const il=el("label");il.append(document.createTextNode("Инертность: насколько трудно его изменить"),el("span","hint","1 — легко поддаётся влиянию, 10 — кремень. Режиссёр меняет состояние, только если сила события (1–10) не ниже инертности."));const ii=el("input");ii.type="number";ii.min=1;ii.max=10;ii.value=c.inertia||5;ii.oninput=()=>{c.inertia=Math.max(1,Math.min(10,parseInt(ii.value)||5));};il.append(ii);p.append(il);
   const tl=el("label");tl.append(document.createTextNode("Доверие к герою, от −10 до 10"),el("span","hint",trustWord(c.state.trust,c.state)));const tI=el("input");tI.type="number";tI.min=-10;tI.max=10;tI.step=0.5;tI.value=c.state.trust??0;tI.oninput=()=>{c.state.trust=Math.max(-10,Math.min(10,parseFloat(tI.value)||0));tl.querySelector(".hint").textContent=trustWord(c.state.trust,c.state);};tl.append(tI);p.append(tl);
