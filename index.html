@@ -450,7 +450,7 @@ const DEF_CHEAP={anthropic:"claude-haiku-5-5",openai:""};
 
 // ============ ДАННЫЕ ============
 const S={api:{provider:"anthropic",base:"",key:"",model:DEF_MODEL.anthropic,cheap:DEF_CHEAP.anthropic,temp:0.85,maxtok:1200,budget:40000,every:12,drama:3,len:"short",layout:"split",frank:"adult",hero:"strict",eco:false,pIn:"2",pCache:"0.1",pOut:"10"},usage:{calls:0,inp:0,cacheR:0,cacheW:0,out:0,by:{}},
-  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,gone:{},worlds:[],chars:[],scenes:[]};
+  persona:{name:""},theme:"dark",lastWorld:"",lastChat:null,ai:[],sync:{token:"",gistId:"",on:false,stamp:0,pulled:0},stamp:0,gone:{},sent:[],worlds:[],chars:[],scenes:[]};
 const blankWorld=()=>({id:uid(),name:"",desc:"",rules:"",places:"",date:"",hero:{name:"",desc:""},helper:[],helperArchive:[],helperMem:"",style:"кинематографичная проза от третьего лица, настоящее время",events:[],chapters:[],updated:Date.now()});
 const blankChar=()=>wireChar({id:uid(),worldId:"",name:"",avatar:"",photos:[],short:"",pub:"",seen:"",tags:[],core:"",examples:"",voice:"",greeting:"",
   inertia:5,state:{mood:"",now:"",goals:[],relUser:"",trust:0,like:0,respect:0,loveKind:"",grudge:0,grudgeWhy:"",arc:"",relations:{},secrets:""},facts:[],log:[],chats:[],activeChat:"",updated:Date.now()});
@@ -679,7 +679,7 @@ async function load(){
       }
     }catch(e){}
   }
-  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;if(d.gone&&typeof d.gone==="object")S.gone=d.gone;if(d.snapsCleaned)S.snapsCleaned=d.snapsCleaned;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(!S.api.layout)S.api.layout="split";if(!S.api.hero)S.api.hero="strict";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);if(Array.isArray(d.usageLog))S.usageLog=d.usageLog;S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
+  if(d){if(d.theme)S.theme=d.theme;if(d.lastWorld)S.lastWorld=d.lastWorld;if(Array.isArray(d.ai))S.ai=d.ai;if(d.lastChat)S.lastChat=d.lastChat;if(d.sync)Object.assign(S.sync,d.sync);if(d.stamp)S.stamp=d.stamp;if(d.gone&&typeof d.gone==="object")S.gone=d.gone;if(Array.isArray(d.sent))S.sent=d.sent;if(d.snapsCleaned)S.snapsCleaned=d.snapsCleaned;Object.assign(S.api,d.api||{});if(S.api.drama==null)S.api.drama=2;if(!S.api.len)S.api.len="short";if(!S.api.layout)S.api.layout="split";if(!S.api.hero)S.api.hero="strict";if(S.api.model==="claude-sonnet-5")S.api.model="claude-sonnet-5-5";if(S.api.cheap==="claude-haiku-5")S.api.cheap="claude-haiku-5-5";Object.assign(S.persona,d.persona||{});if(d.usage)Object.assign(S.usage,d.usage);if(Array.isArray(d.usageLog))S.usageLog=d.usageLog;S.worlds=d.worlds||[];S.chars=d.chars||[];S.scenes=d.scenes||[];}
   dropGone();
   S.worlds.forEach(w=>Object.assign(w,Object.assign(blankWorld(),w)));
   S.chars.forEach(c=>{const b=blankChar();const hadV2=c.scaleV===2;Object.assign(c,Object.assign(b,c));c.state=Object.assign(b.state,c.state||{});wireChar(c);if(!hadV2){if(c.inertia&&c.inertia<=5&&c._oldInertia===undefined){c.inertia=c.inertia*2;}if(typeof c.state.trust==="number"&&c.state.trust>=0&&c.state.trust<=10&&c.state.trustOld!==false){c.state.trust=Math.round(c.state.trust*2-10);}c.scaleV=2;}});
@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=473;
+const APP_VER=474;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -726,7 +726,21 @@ function normalize(msgs){const out=[];msgs.forEach(m=>{if(!m||!String(m.content|
   if(!out.length||out[0].role!=="user")out.unshift({role:"user",content:"[Начало]"});return out;}
 // stable — кэшируемая часть (мир, характер), dynamic — меняющаяся (состояние, память)
 let lastStop="";
-async function callModel({stable="",dynamic="",msgs:msgs0,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false}){let msgs=(Array.isArray(msgs0)&&msgs0.length&&msgs0[0].role==="assistant")?[{role:"user",content:"[Начало]"},...msgs0]:msgs0;
+// v474: у запроса не было никакого таймаута. Если связь обрывалась на телефоне, fetch или поток висели вечно:
+// кнопка «отправить» оставалась заблокированной (busy), написанный на экране ответ в переписку не попадал — и выглядело
+// это так, будто ответ появился и исчез. Теперь молчание дольше срока обрывает запрос с понятным текстом,
+// недописанный ответ сохраняется (кнопка «Дописать»), а ход игрока остаётся на месте.
+function stallGuard(signal,first,idle){const ac=new AbortController();let t=null,why="";
+  const clr=()=>{if(t){clearTimeout(t);t=null;}};
+  const arm=(ms,msg)=>{clr();t=setTimeout(()=>{t=null;why=msg;try{ac.abort();}catch(e){}},ms);};
+  if(signal){if(signal.aborted){try{ac.abort();}catch(e){}}else signal.addEventListener("abort",()=>{clr();try{ac.abort();}catch(e){}},{once:true});}
+  arm(first,"сервер не ответил за "+Math.round(first/1000)+" с");
+  return {signal:ac.signal,beat:()=>{if(!why)arm(idle,"связь оборвалась: сервер замолчал на "+Math.round(idle/1000)+" с");},done:clr,
+    err:e=>{clr();if(why&&e&&e.name==="AbortError"&&!(signal&&signal.aborted))return new Error("Нет ответа — "+why+". Твой текст на месте: нажми «Получить ответ» ещё раз.");return e;}};}
+async function callModel(o){const st=!!(o&&o.onText);const G=stallGuard(o&&o.signal,st?90000:240000,90000);
+  try{return await callModelRaw(Object.assign({},o,{signal:G.signal,beat:G.beat,onText:st?(t=>{G.beat();o.onText(t);}):undefined}));}
+  catch(e){throw G.err(e);}finally{G.done();}}
+async function callModelRaw({stable="",dynamic="",msgs:msgs0,onText,maxTokens,cheap=false,signal,purpose="chat",cacheMsgs=false,json=false,beat}){let msgs=(Array.isArray(msgs0)&&msgs0.length&&msgs0[0].role==="assistant")?[{role:"user",content:"[Начало]"},...msgs0]:msgs0;
   const A=S.api;if(!A.key)throw new Error("Нет API-ключа — открой «Настройки».");
   const model=cheap?(A.cheap||A.model):A.model;if(!model)throw new Error("Укажи модель в настройках.");
   msgs=normalize(msgs);if(purpose==="scene"||purpose==="chat")msgs=cleanHistStable(msgs);msgs=msgs.map(m=>m&&m.edited?{role:m.role,content:m.content}:m);reqInfo={st:String(stable||"").length,dy:String(dynamic||"").length,ms:msgs.reduce((n,m)=>n+String(typeof m.content==="string"?m.content:JSON.stringify(m.content)).length,0),n:msgs.length,think:!!(S.api.think&&!cheap)};const mt=maxTokens||K().maxtok||1200;const stream=!!onText;const U={inp:0,cacheR:0,cacheW:0,out:0};const take=u=>{if(!u)return;if(u.input_tokens!=null)U.inp=u.input_tokens;if(u.cache_read_input_tokens!=null)U.cacheR=u.cache_read_input_tokens;if(u.cache_creation_input_tokens!=null)U.cacheW=u.cache_creation_input_tokens;if(u.output_tokens!=null)U.out=u.output_tokens;if(u.prompt_tokens!=null){const cr=(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens)||u.cached_tokens||0;U.inp=u.prompt_tokens-cr;U.cacheR=cr;}if(u.completion_tokens!=null)U.out=u.completion_tokens;};
@@ -739,9 +753,9 @@ async function callModel({stable="",dynamic="",msgs:msgs0,onText,maxTokens,cheap
     msgs=msgs.map((m,j)=>{if(j===lastI&&dynInMsg)return {role:m.role,content:[{type:"text",text:"[СЛУЖЕБНЫЙ КОНТЕКСТ — не слова собеседника, не отвечай на него напрямую]\n"+dynamic},{type:"text",text:"[СООБЩЕНИЕ СОБЕСЕДНИКА]\n"+m.content}]};if(cacheMsgs&&j===lastI-1)return {role:m.role,content:[{type:"text",text:m.content,cache_control:{type:"ephemeral"}}]};return m;});
     const body={model,max_tokens:mt,stream,messages:msgs};if(sys.length)body.system=sys;if(!/-5-5|-5$|fable|mythos/.test(model))body.temperature=+A.temp;
     const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{"content-type":"application/json","x-api-key":A.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
-    if(!res.ok)throw new Error(await errorText(res));
+    if(beat)beat();if(!res.ok)throw new Error(await errorText(res));
     lastStop="";if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);lastStop=j.stop_reason==="max_tokens"?"length":"";return (j.content||[]).map(b=>b.text||"").join("");}
-    let out="",fin="";for await(const ev of sse(res)){if(ev.type==="message_start"&&ev.message)take(ev.message.usage);if(ev.type==="message_delta"&&ev.usage)take(ev.usage);if(ev.type==="message_delta"&&ev.delta&&ev.delta.stop_reason){fin=ev.delta.stop_reason;if(fin==="max_tokens")lastStop="length";}if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text){out+=ev.delta.text;onText(out);}if(ev.type==="error")throw new Error(ev.error&&ev.error.message||"Ошибка потока");}
+    let out="",fin="";for await(const ev of sse(res)){if(beat)beat();if(ev.type==="message_start"&&ev.message)take(ev.message.usage);if(ev.type==="message_delta"&&ev.usage)take(ev.usage);if(ev.type==="message_delta"&&ev.delta&&ev.delta.stop_reason){fin=ev.delta.stop_reason;if(fin==="max_tokens")lastStop="length";}if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text){out+=ev.delta.text;onText(out);}if(ev.type==="error")throw new Error(ev.error&&ev.error.message||"Ошибка потока");}
     addUsage(U,purpose,model);if(!out.trim())throw new Error(emptyWhy(fin,0));return out;
   }
   const autoBase=/^kimi|^moonshot/i.test(model)?"https://api.moonshot.ai/v1":/^deepseek-/i.test(model)?"https://api.deepseek.com":/\//.test(model)?"https://openrouter.ai/api/v1":"https://api.openai.com/v1";
@@ -755,9 +769,9 @@ async function callModel({stable="",dynamic="",msgs:msgs0,onText,maxTokens,cheap
   const thinkOn=isKimi&&!!A.think&&!cheap&&!json&&(purpose==="chat"||purpose==="scene");
   const body=Object.assign({model,stream,messages:all},thinkOn?{}:{temperature:isKimi?0.6:+A.temp},isKimi?{max_completion_tokens:thinkOn?mt+6000:mt,thinking:{type:thinkOn?"enabled":"disabled"}}:{max_tokens:mt},stream?{stream_options:{include_usage:true}}:{},json?{response_format:{type:"json_object"}}:{});
   const res=await fetch(base+"/chat/completions",{method:"POST",signal,headers:{"content-type":"application/json","authorization":"Bearer "+A.key},body:JSON.stringify(body)});
-  if(!res.ok){const host=base.replace(/^https?:\/\//,"").split("/")[0];throw new Error((res.status===401?"Ключ не подошёл ("+host+"). Проверь, что ключ от этого сервиса и адрес в настройках верный. ":"["+host+"] ")+await errorText(res));}
+  if(beat)beat();if(!res.ok){const host=base.replace(/^https?:\/\//,"").split("/")[0];throw new Error((res.status===401?"Ключ не подошёл ("+host+"). Проверь, что ключ от этого сервиса и адрес в настройках верный. ":"["+host+"] ")+await errorText(res));}
   lastStop="";if(!stream){const j=await res.json();take(j.usage);addUsage(U,purpose,model);if(j.choices&&j.choices[0]&&j.choices[0].finish_reason==="length")lastStop="length";return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";}
-  let out="",fin="",think=0;for await(const ev of sse(res)){if(ev.usage)take(ev.usage);const ch=ev.choices&&ev.choices[0];if(ch&&ch.finish_reason){fin=ch.finish_reason;if(fin==="length")lastStop="length";}const dl=ch&&ch.delta;if(dl&&dl.reasoning_content)think+=dl.reasoning_content.length;const d=dl&&dl.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
+  let out="",fin="",think=0;for await(const ev of sse(res)){if(beat)beat();if(ev.usage)take(ev.usage);const ch=ev.choices&&ev.choices[0];if(ch&&ch.finish_reason){fin=ch.finish_reason;if(fin==="length")lastStop="length";}const dl=ch&&ch.delta;if(dl&&dl.reasoning_content)think+=dl.reasoning_content.length;const d=dl&&dl.content;if(d){out+=d;onText(out);}if(ev.error)throw new Error(ev.error.message||"Ошибка потока");}
   addUsage(U,purpose,model);if(!out.trim()&&!json)throw new Error(emptyWhy(fin,think));return out;
 }
 // Пустой ответ — не молчим, а объясняем, что случилось
@@ -775,6 +789,16 @@ function playBtn(m,busy,fn){if(busy||!m||m.role!=="assistant"||!looksCut(m.conte
 const sameTail=(a,b)=>{const n=x=>String(x||"").replace(/\s+/g," ").trim();return n(a).endsWith(n(b));};
 // Клавиатура Android иногда возвращает в очищенное поле только что отправленный текст — убираем его
 function clearIme(ta,t,grow){[60,250,600].forEach(ms=>setTimeout(()=>{if(ta.value.trim()===t){ta.value="";grow&&grow();ta.dispatchEvent(new Event("input"));}},ms));}
+// v474: каждый отправленный текст запоминается отдельно от миров и переписки (S.sent, 20 последних).
+// Если ответ не пришёл, связь оборвалась или сообщение «проглотилось» — текст возвращается в поле одной кнопкой,
+// и его не надо набирать заново. В синхронизацию не уходит — это черновики этого устройства.
+function rememberSent(t){try{t=String(t||"").trim();if(t.length<2||isWatch(t)||isPass(t))return;const L=S.sent=Array.isArray(S.sent)?S.sent:[];if(L[0]&&L[0].t===t){L[0].at=Date.now();return;}L.unshift({t:t.slice(0,8000),at:Date.now()});if(L.length>20)L.length=20;persistQuiet();}catch(e){}}
+function sentBar(ta,grow){const bar=el("div","watchbar");bar.hidden=true;let i=-1;
+  const refresh=()=>{const L=Array.isArray(S.sent)?S.sent:[];const show=L.length&&!ta.value.trim()&&!busy;bar.hidden=!show;if(!show){i=-1;return;}
+    if(bar._n===L.length)return;bar._n=L.length;bar.innerHTML="";bar.append(el("span",null,"⤵ Отправленное не потерялось"));
+    const b=el("button",null,"Вернуть мой текст");b.onclick=()=>{const L2=Array.isArray(S.sent)?S.sent:[];if(!L2.length)return;i=(i+1)%L2.length;ta.value=L2[i].t;grow&&grow();ta.dispatchEvent(new Event("input"));ta.focus();if(L2.length>1)toast("Текст "+(i+1)+" из "+L2.length+". Нажми ещё раз — возьму предыдущий.");};
+    bar.append(b);};
+  ta.addEventListener("input",refresh);bar._n=-1;return {el:bar,refresh};}
 // «Смотреть» — «Дальше без меня» нажимается само, ход за ходом, пока не остановишь (не больше WATCH_MAX за раз, чтобы не сжечь токены)
 const WATCH_MAX=8;
 function autoBtn(m,busy,w,fn){if(!m||m.role!=="assistant")return null;if(busy&&!w.on)return null;const b=el("button","playbtn"+(w.on?" on":""),w.on?"⏹  Остановить":"👁  Смотреть");b.title=w.on?"Остановить просмотр":"История пойдёт сама, ход за ходом, а ты просто смотришь";b.onclick=fn;return b;}
@@ -2165,7 +2189,7 @@ let pushT=null,pushing=false,pushAgain=false;
 function schedulePush(){if(!S.sync.on||!S.sync.token)return;clearTimeout(pushT);pushT=setTimeout(()=>busy?schedulePush():syncPush().then(()=>{S.sync.err="";syncFails=0;}).catch(e=>syncFail(e,"отправить")),4000);}
 async function syncPush(){if(!S.sync.on||!S.sync.token)return;if(pushing){pushAgain=true;return;}pushing=true;
   try{if(S.sync.gistId){try{if(await syncPull(false)){clearTimeout(pushT);staleView=true;}}catch(e){}}
-    const rev=uid();S.sync.dirty=false;const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};syncBytes=new Blob([content]).size;
+    const rev=uid();S.sync.dirty=false;S.sync.pushStamp=Date.now();const content=syncPayload(rev);const files={"zhivoy-mir.json":{content}};syncBytes=new Blob([content]).size;
     if(!S.sync.gistId){const g=await gh("/gists","POST",{description:"Живой мир — синхронизация (не удалять)",public:false,files});S.sync.gistId=g.id;}
     else await gh("/gists/"+S.sync.gistId,"PATCH",{files});
     S.sync.rev=rev;S.sync.pulled=S.stamp;S.sync.last=Date.now();persistQuiet();syncStatus("✓ Отправлено "+new Date().toLocaleTimeString("ru"));}
@@ -2189,7 +2213,11 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     const keepHelper=(win,lose)=>{try{if((lose.helperT||0)>(win.helperT||0)&&Array.isArray(lose.helper)){["helper","helperArchive","helperMem","helperDec","helperT"].forEach(k=>{if(lose[k]!==undefined)win[k]=lose[k];});return true;}}catch(e){}return false;};
     if(!d.ver||d.ver<APP_VER)toast("Синхронизацию записала старая версия приложения (не v"+APP_VER+"). Скорее всего, это вкладка на компьютере — обнови её, иначе она возвращает удалённое.",true);
     const gone=Object.assign({},d.gone||{});Object.entries(S.gone||{}).forEach(([k,v])=>{if(!(gone[k]>=v))gone[k]=v;});
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!isGone(o,gone));};
+    // v474: правка, сделанная на этом устройстве ПОСЛЕ последней отправки, в чужой копии физически не может быть —
+    // значит, часы другого устройства не вправе её отменить. Раньше при расхождении часов (телефон и компьютер)
+    // свежий ход и ответ исчезали на следующей же сверке: копия из gist побеждала по полю updated.
+    const pushed=+(S.sync.pushStamp||0);const freshLocal=o=>pushed&&(o.updated||0)>pushed;
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)||freshLocal(o)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!isGone(o,gone));};
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);S.gone=gone;_prevIds=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
@@ -2398,7 +2426,9 @@ function fixAll(){fixRelModel();fixDefaultStages();setTimeout(defaultPortraits,3
 // Параллельный мир: копия мира, где все персонажи и хроника — с самого начала. Исходный мир не трогаем.
 // Инструменты тестера (выставить ступень, подменить состояние, посмотреть промпт) — не для игрока:
 // включаются тем же скрытым жестом, что и личные миры (пять нажатий по строке версии внизу главной).
-const devMode=()=>!!(S.api&&S.api.personal);
+// v474: приложение в тестовом режиме — инструменты тестера (ступень, состояние, «Что видит ИИ») видны всем.
+// Когда автор скажет «убрать» — вернуть сюда: ()=>!!(S.api&&S.api.personal) (включается пятью нажатиями по строке версии).
+const devMode=()=>true;
 const CLEAN_PRESETS={"Южное побережье":"presets/south-clean.json","Город Х":"presets/city-x.json"};
 const ADDONS={"Южное побережье":[
   {file:"presets/addons/south-liz.json",names:["Лиз"],title:"Лиз — мать Пипа",desc:"Вдова-пастушка с соседнего двора. Через неё тайна Уилла может уйти в деревню: у неё уговор с Брамом."},
@@ -3735,9 +3765,10 @@ function renderAssist(){
   const touch=()=>{const t=Date.now();if(so){so.updated=t;so.helperT=t;}if(w){w.updated=t;if(!so)w.helperT=t;}else S.aiUpdated=t;};
   const errKey=so?so.id:(w?w.id:"ai");let userStop=false;
   const keepHist=()=>{try{if(so){const cur=SC(so.id)||C(so.id);if(cur&&cur!==so&&cur.helper!==hist){cur.helper=hist;cur.helperT=Date.now();}}else if(w){const cw=W(w.id);if(cw&&cw!==w&&cw.helper!==hist){cw.helper=hist;cw.helperT=Date.now();}}}catch(e){}};
-  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;touch();hist.push({role:"user",content:editMode?"[Внести сразу: "+t+"]":t});if(editMode)eb2.onclick();ta.value="";grow();save();run();};
+  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);touch();hist.push({role:"user",content:editMode?"[Внести сразу: "+t+"]":t});if(editMode)eb2.onclick();ta.value="";grow();save();run();};
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{userStop=true;ctl&&ctl.abort();};
-  {const vRefresh=voiceSend(send,ta,grow,sendMsg);const _d=draw;draw=function(...a){_d(...a);vRefresh();};}
+  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);
+  {const vRefresh=voiceSend(send,ta,grow,sendMsg);const _d=draw;draw=function(...a){_d(...a);vRefresh();sbar.refresh();};}
   draw();
 }
 function tabHelperEntry(w,body){
@@ -3770,7 +3801,7 @@ function tabHelper(w,body){
       const text=await callModel({stable:stable+helperMemBlock(w.helperMem),dynamic:[helperDecBlock(w.helperDec),HELPER_ONLY_LAST].filter(Boolean).join("\n\n"),msgs:helperMsgs(w.helper),onText:t=>{live=t;liveText(log,t);},signal:ctl.signal,maxTokens:S.api.eco?1200:2500,purpose:"helper",cacheMsgs:true});w.helper.push({role:"assistant",content:text.trim()});w.updated=Date.now();helperDecide(helperStore(w));}
     catch(e){if(live){w.helper.push({role:"assistant",content:live});w.updated=Date.now();}const m=friendly(e);if(m)toast(m,true);}
     finally{busy=false;ctl=null;send.disabled=false;stop.hidden=true;save();draw();}}
-  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;w.updated=Date.now();const l=w.helper[w.helper.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else w.helper.push({role:"user",content:t});ta.value="";save();run();};
+  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);w.updated=Date.now();const l=w.helper[w.helper.length-1];if(l&&l.role==="user")l.content+="\n\n"+t;else w.helper.push({role:"user",content:t});ta.value="";save();run();};
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>ctl&&ctl.abort();
   draw();
 }
@@ -4046,7 +4077,11 @@ function renderChat(){
     if(!ownOf(c))storyAfter(w,c.history,isFree(chatOf(c)));
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}
   }
-  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;c.updated=Date.now();const l=c.history[c.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,t))l.content+="\n\n"+t;}else{c.history.push({role:"user",content:t,snap:takeSnap(c)});pruneSnaps(c.history);}ta.value="";{const ac0=chatOf(c);if(ac0)ac0.draft="";}clearIme(ta,t,grow);grow();save();run();}
+  function sendMsg(){if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);c.updated=Date.now();const l=c.history[c.history.length-1];
+    // v474: одинаковый текст пропускаем только если это двойное нажатие (до 4 с). Раньше он молча исчезал — выглядело так, будто чат его проглотил.
+    if(l&&l.role==="user"){if(!sameTail(l.content,t)||Date.now()-(l.at||0)>4000)l.content+="\n\n"+t;l.at=Date.now();}else{c.history.push({role:"user",content:t,at:Date.now(),snap:takeSnap(c)});pruneSnaps(c.history);}
+    ta.value="";{const ac0=chatOf(c);if(ac0)ac0.draft="";}clearIme(ta,t,grow);grow();save();run();}
+  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
@@ -4063,7 +4098,7 @@ function renderChat(){
     finally{busy=false;ctl=null;save();drawLog();toast(usageStr(lastUsage));}}
   function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=c.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
-  const vRefresh=voiceSend(send,ta,grow,sendMsg);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
+  const vRefresh=voiceSend(send,ta,grow,sendMsg);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();sbar.refresh();};
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
 }
 
@@ -4085,10 +4120,16 @@ function renderScene(){
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");{const mpb=el("button","btn ghost sm","🗺");mpb.title="Карта мира";mpb.onclick=()=>openMap(w);mpb.hidden=!mapOf(w);const cob=el("button","btn ghost sm","Соавтор");cob.title="Обсудить историю с соавтором";cob.onclick=()=>go({v:"assist",world:x.worldId,scene:x.id});const jb=el("button","btn ghost sm","📖");jb.title="Журнал: обещания и истории";jb.onclick=()=>openJournal(w);jb.hidden=!storyOf(w);const fb=el("button","btn ghost sm");const fbSet=()=>{fb.textContent=isFree(x)?"⏸":"▶";fb.title=isFree(x)?"Время стоит: сцена не двигает мир. Нажми — пустить время":"Время идёт: сцена двигает мир (время, события). Нажми — остановить";};fbSet();fb.onclick=()=>{x.free=!x.free;x.updated=Date.now();save();fbSet();toast(x.free?"⏸ Время стоит: просто разговор, мир не меняется":"▶ Время идёт: сцена снова двигает мир");};fb.hidden=!storyOf(w);const lnb=el("button","btn ghost sm","🌱");lnb.title="Линии истории: параллельные версии с отдельной памятью";lnb.onclick=()=>linesSheet(w);lnb.hidden=!x.main;const stb=el("button","btn ghost sm");stb.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.6.3 4.5 2.6 4.5 5.3"/></svg>';stb.title="Состояние персонажей: доверие, симпатия, уважение, обида — с взаимосвязями";stb.onclick=()=>openStateEditor(w,x);stb.hidden=!x.main||!devMode();const skb=el("button","btn ghost sm","⏭");skb.title="Пропустить время (до утра, пару дней, неделю — но не дальше важного)";skb.onclick=()=>{if(busy)return;skipMenu(w,x,()=>{save();drawLog();run();});};skb.hidden=!x.main||!storyOf(w)||altHero(w)||isFree(x);bar.append(who,lnb,fb,jb,stb,skb,mpb,cob,eb,sb);}main.append(bar);
   const log=el("div");log.id="log";main.append(log);log._posKey="s:"+x.id;
   const comp=el("div","compose");const inner=el("div","inner");const ta=el("textarea");ta.rows=1;ta.placeholder=x.noHero?"Тебя здесь нет. Подсказка рассказчику… Пусто — сцена идёт сама":"Что делаешь или говоришь… Пусто — сцена идёт сама";const stop=el("button","stopb");stop.innerHTML=STOP_SVG;stop.hidden=true;const send=el("button","send");send.innerHTML=SEND_SVG;const grow=autoGrow(ta);let editMode=false;const ph0=ta.placeholder;const eb2=el("button","editb","✍");eb2.title="Правка сюжета: что напишешь или скажешь, уйдёт рассказчику как указание автора, а не как слова героя";eb2.onclick=()=>{editMode=!editMode;eb2.classList.toggle("on",editMode);comp.classList.toggle("editmode",editMode);ta.placeholder=editMode?"Правка сюжета: что изменить, исправить или куда повернуть историю…":ph0;if(editMode)toast("Режим правки: следующее сообщение уйдёт рассказчику как указание автора.");};inner.append(ta,stop,send);const st=el("div","status");st.id="status";comp.append(inner,st);main.append(comp);attachSpell(ta,comp);
+  // v474: черновик сцены живёт в самой сцене — набранное не пропадает при перерисовке экрана и после перезагрузки
+  if(x.draft){ta.value=x.draft;grow();}
+  {let dT=0;ta.addEventListener("input",()=>{x.draft=ta.value;clearTimeout(dT);dT=setTimeout(()=>save(),800);});}
   const aside=el("aside");wrap.append(main,aside);$("view").append(wrap);
   function drawLog(live){stopLive(log);const atB=live===""||nearBottom(log),st=anchorOf(log),firstDraw=!log._drawn;log._drawn=1;log.innerHTML="";if(x.prologue||proEdit){const pe=el("div","prologue");const ph=el("div","plabel");ph.append(document.createTextNode("Пролог"));if(!proEdit&&!busy){const eb=el("button","pedit","✎ Править");eb.onclick=()=>{proEdit=true;drawLog();};ph.append(eb);}pe.append(ph);
     if(proEdit){const t=el("textarea");t.value=x.prologue||"";t.rows=14;t.style.width="100%";t.placeholder="Текст пролога. Абзацы — через пустую строку. Действия — в *звёздочках*, речь — в «ёлочках».";const r=el("div","row");r.style.marginTop="8px";const no=el("button","btn sm","Отмена");no.onclick=()=>{proEdit=false;drawLog();};const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{x.prologue=t.value.trim();x.proEdited=true;x.updated=Date.now();proEdit=false;save();drawLog();};const dl=el("button","btn sm warn","Убрать пролог");dl.onclick=()=>{if(!confirm("Убрать пролог совсем?"))return;x.prologue="";x.proEdited=true;proEdit=false;save();drawLog();};r.append(no,ok,dl);pe.append(t,r,el("div","note","Это текст только для игрока: ИИ его не видит. Что ИИ знает о начале — в «Изменить» → завязка сцены."));setTimeout(()=>t.focus(),0);}
-    else{const pb=el("div","b");fmt(pb,x.prologue);pe.append(pb);}log.append(pe);}x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live===undefined){const pb=playBtn(x.history[x.history.length-1],busy,contScene);if(pb)log.append(pb);else{const nr=el("div","nextrow");const lm=x.history[x.history.length-1];const wb=watch.on?null:watchBtn(lm,busy,nextTurn);if(wb)nr.append(wb);const ab=autoBtn(lm,busy,watch,toggleWatch);if(ab)nr.append(ab);if(nr.children.length)log.append(nr);}}if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}{const sb=storyBanner(w,()=>{drawLog();});if(sb)log.append(sb);if(dchip)dchip.textContent=storyLabel(w);try{gSet();}catch(e){}}if(live===undefined&&!busy&&x.main){const st=storyOf(w);const L=st?cutWaiting(st).filter(o=>o.v.later&&!o.v.no):[];const lc=x.history[x.history.length-1];if(L.length&&!(lc&&lc.cut&&(lc.cut.choices||[]).length&&lc.cut.chosen==null)){const nr=el("div","nextrow callrow");L.forEach(o=>{const b=el("button","btn","🎬 "+(o.c.call.bar||o.c.call.go||"Пойти")+" · до "+o.v.until+"-го дня");b.onclick=()=>{if(busy)return;x.history.push({role:"user",content:o.c.call.goAct||("*"+(o.c.call.go||"Пойти")+"*")});cutPlay(w,o.c);save();drawLog();};nr.append(b);});log.append(nr);}}if(lastErr)log.append(el("div","err",lastErr));const sp=firstDraw&&live===undefined?loadPos(log):null;if(sp&&sp!=="b"&&!isNaN(+sp)){stickScroll(log,false,+sp);log._follow=false;}else if(sp==="b"){stickScroll(log,true,st);}else if(firstDraw&&live===undefined&&!x.history.length&&x.prologue){log.scrollTop=0;log._follow=false;}else stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
+    else{const pb=el("div","b");fmt(pb,x.prologue);pe.append(pb);}log.append(pe);}x.history.forEach((m,i)=>{if(i===x.sumIdx&&x.sumIdx>0)log.append(el("div","divider","выше — в кратком содержании"));log.append(msgEl(m,i));});if(live===undefined){const pb=playBtn(x.history[x.history.length-1],busy,contScene);if(pb)log.append(pb);else{const nr=el("div","nextrow");const lm=x.history[x.history.length-1];const wb=watch.on?null:watchBtn(lm,busy,nextTurn);if(wb)nr.append(wb);const ab=autoBtn(lm,busy,watch,toggleWatch);if(ab)nr.append(ab);if(nr.children.length)log.append(nr);}}if(live!==undefined){const lv=msgEl({role:"assistant",content:live||"…"},-1);lv.dataset.live=1;log.append(lv);}{const sb=storyBanner(w,()=>{drawLog();});if(sb)log.append(sb);if(dchip)dchip.textContent=storyLabel(w);try{gSet();}catch(e){}}if(live===undefined&&!busy&&x.main){const st=storyOf(w);const L=st?cutWaiting(st).filter(o=>o.v.later&&!o.v.no):[];const lc=x.history[x.history.length-1];if(L.length&&!(lc&&lc.cut&&(lc.cut.choices||[]).length&&lc.cut.chosen==null)){const nr=el("div","nextrow callrow");L.forEach(o=>{const b=el("button","btn","🎬 "+(o.c.call.bar||o.c.call.go||"Пойти")+" · до "+o.v.until+"-го дня");b.onclick=()=>{if(busy)return;x.history.push({role:"user",content:o.c.call.goAct||("*"+(o.c.call.go||"Пойти")+"*")});cutPlay(w,o.c);save();drawLog();};nr.append(b);});log.append(nr);}}if(lastErr)log.append(el("div","err",lastErr));
+    // v474: ответа нет (связь оборвалась, ошибка) — ход игрока на месте, и видно, чем его повторить
+    if(live===undefined&&!busy&&x.history.length&&x.history[x.history.length-1].role==="user"){const rb=el("button","btn primary sm","▸ Получить ответ рассказчика");rb.style.margin="6px auto";rb.style.display="block";rb.onclick=()=>{lastErr="";run();};log.append(rb);}
+    const sp=firstDraw&&live===undefined?loadPos(log):null;if(sp&&sp!=="b"&&!isNaN(+sp)){stickScroll(log,false,+sp);log._follow=false;}else if(sp==="b"){stickScroll(log,true,st);}else if(firstDraw&&live===undefined&&!x.history.length&&x.prologue){log.scrollTop=0;log._follow=false;}else stickScroll(log,atB,st);send.disabled=busy;stop.hidden=!busy;}
   function cutEl(m,i){const c=m.cut;const box=el("div","cutscene"+(c.kind==="mini"?" mini":""));if(i>=0)box.dataset.mi=i;box.append(el("div","plabel",(c.kind==="mini"?"За кадром":"Сцена")+(c.title?" · "+c.title:"")));
     if(c.img){const im=el("img");im.src=c.img;im.alt=c.title||"";box.append(im);}
     const bb=el("div","b");fmt(bb,String(m.content||"").replace(/^\[ЗА КАДРОМ[^\]]*\]\n/,""));box.append(bb);
@@ -4102,6 +4143,7 @@ function renderScene(){
       col.append(t,r);setTimeout(()=>t.focus(),0);}
     else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
+  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
@@ -4144,9 +4186,12 @@ function renderScene(){
     if(x.history.length-x.dirIdx>=dirEvery(null,x)&&!busy){busy=true;ctl=new AbortController();toast("Режиссёр разбирает сцену…");try{await directScene(x);toast("Персонажи обновлены.");drawAside();}catch(e){toast("Режиссёр не справился: "+friendly(e),true);}busy=false;ctl=null;drawLog();}
     storyAfter(w,x.history,isFree(x));
     if(watch.on){if(lastErr)watch.on=false;else watchKick(watch,()=>log.isConnected,()=>!!ta.value.trim(),nextTurn);drawWatch();drawLog();}REACT_SCENE=null;CLOSE_SCENE=null;}
-  function sendMsg(){if(busy)return;{const lc=x.history[x.history.length-1];if(lc&&lc.cut&&(lc.cut.choices||[]).length&&lc.cut.chosen==null){toast("Сначала выбери, что делает "+heroName(w)+" — кнопки под сценой.");return;}}const t=ta.value.trim();x.updated=Date.now();if(t){const tt=editMode?"[Правка автора: "+t+"]":x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;if(editMode){editMode=false;eb2.classList.remove("on");comp.classList.remove("editmode");ta.placeholder=ph0;}const l=x.history[x.history.length-1];if(l&&l.role==="user"){if(!sameTail(l.content,tt))l.content+="\n\n"+tt;}else x.history.push({role:"user",content:tt});}ta.value="";if(t)clearIme(ta,t,grow);grow();save();run();}
+  function sendMsg(){if(busy)return;{const lc=x.history[x.history.length-1];if(lc&&lc.cut&&(lc.cut.choices||[]).length&&lc.cut.chosen==null){toast("Сначала выбери, что делает "+heroName(w)+" — кнопки под сценой.");return;}}const t=ta.value.trim();x.updated=Date.now();if(t){rememberSent(t);const tt=editMode?"[Правка автора: "+t+"]":x.noHero&&!isWatch(t)&&!isPass(t)?"[Подсказка автора: "+t+"]":t;if(editMode){editMode=false;eb2.classList.remove("on");comp.classList.remove("editmode");ta.placeholder=ph0;}const l=x.history[x.history.length-1];
+    // v474: как в личном чате — одинаковый текст пропускаем только при двойном нажатии
+    if(l&&l.role==="user"){if(!sameTail(l.content,tt)||Date.now()-(l.at||0)>4000)l.content+="\n\n"+tt;l.at=Date.now();}else x.history.push({role:"user",content:tt,at:Date.now()});}
+    ta.value="";x.draft="";if(t)clearIme(ta,t,grow);grow();save();run();}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=x.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
-  const vRefresh=voiceSend(send,ta,grow,sendMsg,true);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();};
+  const vRefresh=voiceSend(send,ta,grow,sendMsg,true);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();sbar.refresh();};
   drawLog();drawAside();if(!x.history.length&&!x.prologue)run();
 }
 
