@@ -3536,7 +3536,8 @@
    },
    "relV": 350,
    "capDay": 0.7,
-   "attract": "never"
+   "attract": "never",
+   "strong": -3
   },
   {
    "id": "bqaagbn4",

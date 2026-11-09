@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=474;
+const APP_VER=475;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1154,26 +1154,34 @@ const DEEDS={
  gift:["подарок, внимание, тёплое слово, комплимент",{t:.1,l:.5,w:.5}],
  brave:["защитил, рискнул своим ради него",{t:.6,l:.3,r:.6,w:.8}],
  skill:["показал ум, мастерство, твёрдость характера",{r:.5,w:.1}],
- bold:["решительность: взял дело или решение на себя, сказал прямо, не мямлил, не побоялся (не к телу человека)",{r:.5,l:.2,t:.1,w:.2}],
+ bold:["решительность и твёрдость: взял дело или решение на себя, сказал прямо, не мямлил, не побоялся, настоял на своём в деле (не о судьбе и не о теле этого человека)",{r:.5,l:.2,t:.1,w:.2}],
  advance:["напор к самому человеку: подошёл ближе, чем позволили, коснулся, обнял, поднял на руки, настойчиво ухаживал — без грубости (грубое и против воли — force)",{}],
- decide:["решил за человека, не спросив (о его судьбе, вещах, деле)",{t:-.2,r:-.1,g:.3}],
+ decide:["решил ЗА ЭТОГО человека, не спросив: о его судьбе, вещах, дне — взял и сделал (сюда же «отвёл, увёл, отдал за него слово»). Читается по человеку: кому-то такая твёрдость приятна, кому-то это «решили вместо меня»",{t:-.2,r:-.1,g:.3}],
  ignore:["не заметил, пренебрёг, забыл о нём или о его труде",{l:-.2,t:-.1,g:.3}],
  rude:["грубость, обидная шутка",{t:-.3,l:-.4,r:-.1,g:.4}],
  broke:["нарушил слово",{t:-.8,r:-.5,g:.5}],
  lie:["обман, подлость исподтишка",{t:-.9,r:-.6,g:.5}],
  betray:["предательство",{t:-1.5,r:-1,l:-.6,g:1}],
- pushy:["давление, бестактность, не услышал просьбу (без угрозы)",{t:-.4,l:-.2,r:-.3,g:.3}],
+ pushy:["не услышал ПРОСЬБУ или отказ: человек сказал «не надо», «подожди», «не хочу» — а герой всё равно сделал; бестактность, давление (без угрозы). Просто уверенность и твёрдость — это НЕ сюда, это bold или decide",{t:-.4,l:-.2,r:-.3,g:.3}],
  force:["принуждение, угроза, насилие, унижение (серьёзное нарушение границы, не мелкая бестактность)",{t:-1.2,r:-.6,l:-.8,g:1}],
  weak:["трусость, слабость, пустые слова",{r:-.5}],
  enemy:["честная вражда, открытый спор врага (без подлости)",{t:-.5}],
  sorry:["искупление, извинение делом",{g:-.8,t:.2,w:.2}]
 };
 const DEED_HELP=Object.entries(DEEDS).map(([k,v])=>k+" — "+v[0]).join("; ");
-const DEEDS_RULE='Поступки героя (deeds): для КАЖДОГО значимого поступка выбери "type" из списка и "weight" 1–5 (1 — мелочь, 3 — заметный поступок, 5 — меняет жизнь человека; если неясно — выбирай МЕНЬШИЙ вес). Типы: '+DEED_HELP+'. "seen": false, если персонаж сам не видел, а лишь узнал. Числа доверия, симпатии, уважения и обиды НЕ пиши — их считает движок. Нет повода — пустой список.';
+const DEEDS_RULE='Поступки героя (deeds): для КАЖДОГО значимого поступка выбери "type" из списка и "weight" 1–5 (1 — мелочь, 3 — заметный поступок, 5 — меняет жизнь человека; если неясно — выбирай МЕНЬШИЙ вес). Типы: '+DEED_HELP+'. "seen": false, если персонаж сам не видел, а лишь узнал. УВЕРЕННОСТЬ ГЕРОЯ — НЕ ОБИДА: твёрдость, прямота, «взял и решил» — это bold или decide, и приятно это человеку или нет, считает движок по его характеру; pushy и force ставь ТОЛЬКО когда человек вслух попросил, отказал или поставил границу, а герой перешагнул. Числа доверия, симпатии, уважения и обиды НЕ пиши — их считает движок. Нет повода — пустой список.';
 const fix1=n=>Math.round(n*10)/10;
 function relDay(w){return +(w&&w.story&&w.story.day)||0;}
 // v440 — порог скрытого отклика: {t,l}, "never" или запись строкой «t:2,l:4»
 const attrOf=c=>{const _cm=closeOf(c);if(_cm==="hot"&&!(c&&/never/i.test(String(c.attract||""))))return{t:-99,l:-99};let A=c&&c.attract;if(A===undefined||A===null)return{t:3,l:4};if(typeof A==="string"){if(/never/i.test(A))return"never";const mt=/t\s*:\s*(-?[\d.]+)/.exec(A),ml=/l\s*:\s*(-?[\d.]+)/.exec(A);return{t:mt?+mt[1]:3,l:ml?+ml[1]:4};}const _k=_cm==="warm"?.5:1;if(typeof A!=="object")return{t:3*_k,l:4*_k};return{t:(+A.t||0)*_k,l:(+A.l||0)*_k};};
+// v475 — КАК ЧЕЛОВЕК ЧИТАЕТ ТВЁРДОСТЬ ГЕРОЯ (−3…+3; 0 — нейтрально).
+// Было: «он решил за неё» всегда копило обиду, скрытый отклик работал ТОЛЬКО на прикосновение (advance).
+// Отсюда и неправда: герой ведёт себя уверенно — а она копит обиду, хотя по канону внешнее возмущение на
+// решительность у неё = внутренний плюс. Прикосновению доверие по-прежнему нужно, решительности — нет:
+// ею доверие как раз зарабатывают. "never" (дети, травма Фрейи) не пробивается ничем.
+const strongOf=c=>{if(!c)return 0;if(isChild(c))return "never";const v=+c.strong;return isFinite(v)?clampN(v,-3,3):0;};
+function strongRead(c,T,L){const S=strongOf(c);if(S==="never")return false;const cm=closeOf(c);
+  return (S*2+(+L||0)*.5+(+T||0)*.2+(cm==="hot"?3:cm==="warm"?1.5:0))>=3;}
 function applyDeeds(w,c,list,src,silent){
  const st=c&&c.state;if(!st||!Array.isArray(list))return;
  st.respect=+st.respect||0;
@@ -1185,6 +1193,9 @@ function applyDeeds(w,c,list,src,silent){
   // v417 — СКРЫТЫЙ ОТКЛИК: напор к самому человеку внутри плюс или настоящее «нет» — по порогам персонажа (c.attract) и его доверию/симпатии
   let E=(c.react&&c.react[o.type])||D[1],adv=null;
   if(o.type==="advance"){const A=isChild(c)?"never":attrOf(c);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
+  // v475: «он решил и сделал» — приятно или «решили вместо меня», по характеру человека, а не всегда в обиду
+  if(o.type==="decide"&&!(c.react&&c.react.decide)){adv=strongRead(c,T0,L0);E=adv?{l:.35,w:.3,r:.2,t:.1}:D[1];st.lastPush={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
+  if(o.type==="bold"&&!(c.react&&c.react.bold)&&strongRead(c,T0,L0))E={r:.5,l:.35,t:.15,w:.2};
   let bigAdv=0;if(o.type==="advance"&&adv){const cm=closeOf(c);if(cm!=="story")bigAdv=(3.5+wt*.5)*(cm==="hot"?1:.5);}
   const close=Math.max(0,(L0+T0)/2)/10;
   const sens=(c.sens&&+c.sens[o.type])||1;
@@ -1213,7 +1224,7 @@ function applyDeeds(w,c,list,src,silent){
   if(!st.loveKind&&L1>=6)st.loveKind="человек";
   const ch=[["доверие",T1-T0],["симпатия",L1-L0],["уважение",R1-R0],["обида",G1-G0],["тепло",W1-W0]].filter(x=>Math.abs(x[1])>=.05).map(x=>x[0]+" "+(x[1]>0?"+":"")+fix1(x[1])).join(", ");
   if(Math.abs(dt)>=2||Math.abs(dr)>=2)st.stale=day||1;
-  const line="«"+D[0].split(":")[0]+"» (вес "+wt+")"+(o.why?" — "+o.why:"")+(adv===true?" [внутри приятно]":adv===false?" [настоящее «нет»]":"")+": "+(ch||"без сдвига");
+  const line="«"+D[0].split(":")[0]+"» (вес "+wt+")"+(o.why?" — "+o.why:"")+(adv===true?(o.type==="advance"?" [внутри приятно]":" [твёрдость ей приятна]"):adv===false?(o.type==="advance"?" [настоящее «нет»]":" [решили вместо неё]"):"")+": "+(ch||"без сдвига");
   (st.relLog=st.relLog||[]).push({t:now(),text:line});if(st.relLog.length>14)st.relLog.shift();
   if(Array.isArray(c.log))c.log.push({t:now(),text:"Отношение: "+line,src:src||"поступок",impact:Math.min(10,wt*2)});
  });
@@ -1264,6 +1275,10 @@ function loveWord(c){const s=c.state||{},l=+s.like||0,k=s.loveKind;if(l<6)return
 function toneLine(c,hn){const s=c.state||{},t=Math.round(+s.trust||0),l=+s.like||0,r=+s.respect||0,g=+s.grudge||0;
  const wm=+s.warm||0;
  const p=["ДОВЕРИЕ (к герою, "+hn+"), ступень "+ladderOf(t,s).n+" из 10 «"+ladderOf(t,s).name+"»: "+trustLvl(t)+"; "+riskLine(t)+".","Чувства: "+loveWord(c)+". Уважение: "+respectWord(r)+". "+grudgeWord(g)+((+g>0&&s.grudgeWhy)?" — из-за: "+s.grudgeWhy:"")+"."+(wm>0?" Тёплое: "+warmWord(wm)+(s.warmWhy?" — помнит: "+s.warmWhy:"")+".":"")];
+ {const S=strongOf(c);let fem=false;try{fem=ttsGender(c.name)==="f";}catch(e){}const ej=fem?"ей":"ему",ne=fem?"неё":"него";
+ if(S!=="never")p.push("ТВЁРДОСТЬ ГЕРОЯ (прямота, «взял и решил», настоял) читается "+(strongRead(c,t,l)?"ПРИЯТНО: снаружи может возмутиться, поспорить, сказать «а меня спросить?» — но внутри "+ej+" от этого спокойно, уступает с облегчением и запоминает тепло; обиды это не прибавляет":"как ДАВЛЕНИЕ: решили вместо "+ne+" — нужно, чтобы спросили, иначе копится обида")+". Это про решения и дело; прикосновения и напор — отдельно, по доверию.");}
+ {const lp=s.lastPush;const dd2=relDay(W(c.worldId));let fem2=false;try{fem2=ttsGender(c.name)==="f";}catch(e){}
+ if(lp&&dd2-lp.d<=1)p.push("ГЕРОЙ РЕШИЛ ЗА "+(fem2?"НЕЁ":"НЕГО")+(lp.why?" ("+lp.why+")":"")+": "+(lp.ok?"внутри приятно — поворчать можно, но идёт за ним и не держит зла":"это задело: решили вместо "+(fem2?"неё":"него")+". Скажет об этом или покажет холодом, и так просто не забудет")+".");}
  {const la=s.lastAdvance;const dd=relDay(W(c.worldId));if(la&&dd-la.d<=1)p.push("НАПОР ГЕРОЯ"+(la.why?" ("+la.why+")":"")+": "+(la.ok?"внутри ей/ему приятно. Снаружи может ворчать, отшучиваться, сказать «нет» — это игривое «нет»: не уходит, задерживает взгляд, прячет улыбку, сама(сам) возвращается к разговору. Слов о приязни не говорить — только тело и поступки.":"это настоящее «нет»: отступает, холодеет, отвечает коротко, держит руки занятыми, уходит или зовёт своих, назавтра избегает. Не превращать в игру и не смягчать.")+"");}
  let tone="";
  if(g>=6)tone="холоден и колюч, пока не загладят делом";
@@ -2577,7 +2592,7 @@ function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x
 // ОБНОВИТЬ УЖЕ СОЗДАННЫЙ МИР ИЗ ПРЕСЕТА (у «Города Х» нет дополнений, а правки канона живут в пресете).
 // Переписываются только ОПРЕДЕЛЕНИЯ: карточки, правила, места, определения сюжета. Игра не трогается:
 // state, facts, чаты, память, день, часть дня, флаги, сработавшие события, деньги, обещания — остаются.
-const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","sens","memKeys","knownBy","child","tags"];
+const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","strong","sens","memKeys","knownBy","child","tags"];
 async function updateFromPreset(w,say){
   const file=CLEAN_PRESETS[tplOf(w)];
   if(!file){toast("У этого мира нет готового пресета в приложении",true);return;}
@@ -3893,6 +3908,14 @@ function renderCharEdit(){
     dc.onchange=()=>{c.dead=dc.checked;box.hidden=!c.dead;if(c.dead&&!route.draft)markDead(Object.assign(c,{dead:false}),c.deadWhen);c.dead=dc.checked;};}
   f("Личность и предыстория","Только для ИИ (игрок это поле не видит в профиле). Главное поле. Характер через поведение, прошлое с деталями, чего хочет, чего боится, манера речи. Это основа — она не меняется, меняется состояние.","core",true,10);
   f("Примеры речи","4-5 реплик в его манере","examples",true,4);f("Голос (как говорит)","Карточка речи — свойства, а не цитаты: уровень, длина фраз, словечки и тики с частотой [всегда]/[часто]/[иногда]/[редко], как выражает чувства, чего НЕ говорит, 6-8 образцов через « — ». Образцы, которые уже звучали, ИИ на время не видит. Идёт в конец каждого запроса","voice",true,10);const vg=el("button","btn","🎙 Составить голос по личности");vg.onclick=withBusy(vg,async()=>{const r=await genVoice(c,w);if(r){c.voice=r;render();}});p.append(vg);f("Первое сообщение","С него начинается знакомство. {{user}} — имя героя","greeting",true,4);f("Внешность","Подробно — для портретов и картинок; копируется из профиля","look",true,5);f("Промпт для картинок (English)","Готовый промпт для генератора; если пусто — составит ИИ","lookEn",true,3);f("Гардероб и вещи","Весь его набор одежды по поводам (ДОМА / НА УЧЁБУ / ВЫЙТИ / ХОЛОДНО / СПАТЬ / ВСЕГДА / НИКОГДА) и вещи, которые у него есть. Новое по ходу игры (подарки, покупки) движок дописывает сюда сам, в раздел «ПОЯВИЛОСЬ ПО ХОДУ ИГРЫ».","wear",true,6);
+  // v475: как человек читает твёрдость и решения героя (c.strong)
+  {const lb=el("label");lb.append(document.createTextNode("Как он(а) читает твёрдость героя"));const se=el("select");
+   [[-3,"−3 · решили вместо меня (твёрдость задевает всегда)"],[-2,"−2 · плохо: нужно, чтобы спросили"],[-1,"−1 · скорее не нравится"],[0,"0 · нейтрально (по симпатии и доверию)"],[1,"1 · скорее нравится"],[2,"2 · нравится: снаружи возмутится, внутри приятно"],[3,"3 · очень нравится, тянется к твёрдому"]]
+    .forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});
+   se.value=String(isFinite(+c.strong)?clampN(+c.strong,-3,3):0);
+   se.onchange=()=>{c.strong=parseInt(se.value)||0;};lb.append(se);
+   const nt=el("div","note","Прямота, «взял и решил», настоял на своём. Прикосновения и напор считаются отдельно — им нужно доверие. У детей и у тех, кому близость запрещена каноном, это не работает вовсе.");
+   p.append(lb,nt);}
   const _relBase=relSnap(c.state);p.append(el("h2",null,"Состояние сейчас"),el("p","note","Это меняется само после разговоров и событий. Можно править руками: поменяешь доверие, симпатию, уважение, обиду или ступень — персонаж покажет это уже в следующем сообщении."));if(devMode()&&w&&c.id!==w.heroId&&npcsOf(w.id).some(o=>o.id===c.id)){const lb=el("button","btn","🎚 Править со связями");lb.onclick=()=>openStateEditor(w,{charIds:[c.id]});p.append(lb,el("div","note","Поля ниже — просто числа, одно другое не тянет. В этом окне связи работают как от поступков: доверие тянет уважение и гасит обиду, обида давит на симпатию, выбор ступени поднимает доверие до её порога. Там же видно, что потянулось само."));}const stHold=el("div");stHold.style.margin="8px 0";if(Array.isArray(c.stages)&&c.stages.length){const auto=!!c.stagesAuto;const l=el("label");l.append(document.createTextNode(auto?"Ступень отношения к герою":"Ступень пути"),el("span","hint",auto?"Считается сама по доверию и симпатии. Выбери другую — выставятся доверие и симпатия этой ступени (для теста).":"Рассказчик видит только эту ступень; следующие скрыты. Двигается сама по ходу истории."));const se=el("select");stageOpts(c).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;se.append(o);});se.value=stageCurVal(c,stageOf(c),c.state.loveKind);se.style.fontWeight="bold";se.onchange=()=>{const [ki,lk]=se.value.split("|");const k=parseInt(ki)||0;c.state=c.state||{};const t0=+c.state.trust||0;const _a=relSnap(c.state);if(auto)stageApplyVals(c,k,c.state);else{c.state.stage=k;const v=stagePathVals(c,k,c.state.trust,c.state.like);c.state.trust=v.trust;c.state.like=v.like;}const r=fix1((+c.state.trust||0)-t0);if(r)c.state.respect=clampN(fix1((+c.state.respect||0)+r*.3),-10,10);if(auto||Math.abs(r)>=2)c.state.stale=1;if(lk)c.state.loveKind=lk;try{noteShift(c.state,_a,c,auto);}catch(e){}c.updated=Date.now();save();toast("Ступень: «"+stgName(c,c.stages[k],c.state.loveKind)+"» — доверие "+fix1(c.state.trust)+", симпатия "+fix1(c.state.like));render();};l.append(se);const cap3=stageCap(c);cap3.set(se.value);se.addEventListener("change",()=>cap3.set(se.value));stHold.append(l,cap3,stageLegend(c));}
   const sf=(lbl,key,ta)=>{const l=el("label");l.append(document.createTextNode(lbl));const i=ta?el("textarea"):el("input");if(!ta)i.type="text";if(ta){i.rows=2;growTA(i);}i.value=key==="goals"?c.state.goals.join("; "):(c.state[key]||"");i.oninput=()=>{if(key==="goals")c.state.goals=i.value.split(";").map(t=>t.trim()).filter(Boolean);else c.state[key]=i.value;};l.append(i);p.append(l);};
   const il=el("label");il.append(document.createTextNode("Инертность: насколько трудно его изменить"),el("span","hint","1 — легко поддаётся влиянию, 10 — кремень. Режиссёр меняет состояние, только если сила события (1–10) не ниже инертности."));const ii=el("input");ii.type="number";ii.min=1;ii.max=10;ii.value=c.inertia||5;ii.oninput=()=>{c.inertia=Math.max(1,Math.min(10,parseInt(ii.value)||5));};il.append(ii);p.append(il);
