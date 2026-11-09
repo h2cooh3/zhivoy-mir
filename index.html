@@ -687,7 +687,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=475;
+const APP_VER=476;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1182,6 +1182,9 @@ const attrOf=c=>{const _cm=closeOf(c);if(_cm==="hot"&&!(c&&/never/i.test(String(
 const strongOf=c=>{if(!c)return 0;if(isChild(c))return "never";const v=+c.strong;return isFinite(v)?clampN(v,-3,3):0;};
 function strongRead(c,T,L){const S=strongOf(c);if(S==="never")return false;const cm=closeOf(c);
   return (S*2+(+L||0)*.5+(+T||0)*.2+(cm==="hot"?3:cm==="warm"?1.5:0))>=3;}
+// v476: у кого твёрдость — большой плюс, у кого еле заметный. strong задаёт и знак, и СИЛУ.
+const strongMult=c=>{const S=strongOf(c);return S==="never"?0:clampN(.4+S*.3,.3,1.3);};
+const strongWord=c=>{const S=strongOf(c);return S>=3?"это для неё(него) очень много — почти главное, что в нём есть":S==2?"нравится сильно":S==1?"нравится":S<=-1?"скорее терпит, чем нравится":"мягко: замечает и ценит, но не тает";};
 function applyDeeds(w,c,list,src,silent){
  const st=c&&c.state;if(!st||!Array.isArray(list))return;
  st.respect=+st.respect||0;
@@ -1194,8 +1197,10 @@ function applyDeeds(w,c,list,src,silent){
   let E=(c.react&&c.react[o.type])||D[1],adv=null;
   if(o.type==="advance"){const A=isChild(c)?"never":attrOf(c);adv=!!(A&&A!=="never"&&T0>=(+A.t||0)&&L0>=(+A.l||0));E=adv?{l:.4,w:.4,r:.1}:{t:-.5,l:-.2,g:.5};st.lastAdvance={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
   // v475: «он решил и сделал» — приятно или «решили вместо меня», по характеру человека, а не всегда в обиду
-  if(o.type==="decide"&&!(c.react&&c.react.decide)){adv=strongRead(c,T0,L0);E=adv?{l:.35,w:.3,r:.2,t:.1}:D[1];st.lastPush={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
-  if(o.type==="bold"&&!(c.react&&c.react.bold)&&strongRead(c,T0,L0))E={r:.5,l:.35,t:.15,w:.2};
+  if(o.type==="decide"&&!(c.react&&c.react.decide)){adv=strongRead(c,T0,L0);const m=strongMult(c);E=adv?{l:.35*m,w:.3*m,r:.2*m,t:.1*m}:D[1];st.lastPush={d:day,ok:adv,why:String(o.why||"").slice(0,80)};}
+  if(o.type==="bold"&&!(c.react&&c.react.bold)&&strongRead(c,T0,L0)){const m=strongMult(c);E={r:.5,l:.2+.15*m*2,t:.15*m,w:.2*m};}
+  if((o.type==="kind"||o.type==="help"||o.type==="brave")&&!(c.react&&c.react[o.type])){const S=strongOf(c);
+    if(S!=="never"&&S>0){const km=1+.12*S;E=Object.assign({},E);if(E.l)E.l*=km;if(E.w)E.w*=km;if(E.t)E.t*=1+.06*S;}}
   let bigAdv=0;if(o.type==="advance"&&adv){const cm=closeOf(c);if(cm!=="story")bigAdv=(3.5+wt*.5)*(cm==="hot"?1:.5);}
   const close=Math.max(0,(L0+T0)/2)/10;
   const sens=(c.sens&&+c.sens[o.type])||1;
@@ -1276,7 +1281,7 @@ function toneLine(c,hn){const s=c.state||{},t=Math.round(+s.trust||0),l=+s.like|
  const wm=+s.warm||0;
  const p=["ДОВЕРИЕ (к герою, "+hn+"), ступень "+ladderOf(t,s).n+" из 10 «"+ladderOf(t,s).name+"»: "+trustLvl(t)+"; "+riskLine(t)+".","Чувства: "+loveWord(c)+". Уважение: "+respectWord(r)+". "+grudgeWord(g)+((+g>0&&s.grudgeWhy)?" — из-за: "+s.grudgeWhy:"")+"."+(wm>0?" Тёплое: "+warmWord(wm)+(s.warmWhy?" — помнит: "+s.warmWhy:"")+".":"")];
  {const S=strongOf(c);let fem=false;try{fem=ttsGender(c.name)==="f";}catch(e){}const ej=fem?"ей":"ему",ne=fem?"неё":"него";
- if(S!=="never")p.push("ТВЁРДОСТЬ ГЕРОЯ (прямота, «взял и решил», настоял) читается "+(strongRead(c,t,l)?"ПРИЯТНО: снаружи может возмутиться, поспорить, сказать «а меня спросить?» — но внутри "+ej+" от этого спокойно, уступает с облегчением и запоминает тепло; обиды это не прибавляет":"как ДАВЛЕНИЕ: решили вместо "+ne+" — нужно, чтобы спросили, иначе копится обида")+". Это про решения и дело; прикосновения и напор — отдельно, по доверию.");}
+ if(S!=="never")p.push("ТВЁРДОСТЬ ГЕРОЯ (прямота, «взял и решил», настоял) читается "+(strongRead(c,t,l)?"ПРИЯТНО ("+strongWord(c)+(strongOf(c)>=2?"; забота о "+ne+" попадает туда же — это то, чего "+ej+" не хватало":"")+"): снаружи может возмутиться, поспорить, сказать «а меня спросить?» — но внутри "+ej+" от этого спокойно, уступает с облегчением и запоминает тепло; обиды это не прибавляет. Чем сильнее это "+ej+" нравится, тем заметнее отклик телом":"как ДАВЛЕНИЕ: решили вместо "+ne+" — нужно, чтобы спросили, иначе копится обида")+". Это про решения и дело; прикосновения и напор — отдельно, по доверию.");}
  {const lp=s.lastPush;const dd2=relDay(W(c.worldId));let fem2=false;try{fem2=ttsGender(c.name)==="f";}catch(e){}
  if(lp&&dd2-lp.d<=1)p.push("ГЕРОЙ РЕШИЛ ЗА "+(fem2?"НЕЁ":"НЕГО")+(lp.why?" ("+lp.why+")":"")+": "+(lp.ok?"внутри приятно — поворчать можно, но идёт за ним и не держит зла":"это задело: решили вместо "+(fem2?"неё":"него")+". Скажет об этом или покажет холодом, и так просто не забудет")+".");}
  {const la=s.lastAdvance;const dd=relDay(W(c.worldId));if(la&&dd-la.d<=1)p.push("НАПОР ГЕРОЯ"+(la.why?" ("+la.why+")":"")+": "+(la.ok?"внутри ей/ему приятно. Снаружи может ворчать, отшучиваться, сказать «нет» — это игривое «нет»: не уходит, задерживает взгляд, прячет улыбку, сама(сам) возвращается к разговору. Слов о приязни не говорить — только тело и поступки.":"это настоящее «нет»: отступает, холодеет, отвечает коротко, держит руки занятыми, уходит или зовёт своих, назавтра избегает. Не превращать в игру и не смягчать.")+"");}

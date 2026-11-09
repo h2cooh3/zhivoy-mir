@@ -3952,7 +3952,8 @@
    "attract": {
     "t": 5,
     "l": 6
-   }
+   },
+   "strong": 2
   },
   {
    "id": "lvhmbg9v",
@@ -4154,7 +4155,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -3
   },
   {
    "id": "voaesooo",
@@ -4354,7 +4356,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -2
   },
   {
    "id": "vuizwad7",
@@ -4550,7 +4553,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "name": "Лив",
@@ -4942,7 +4946,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "id": "sm7dvxg7",
@@ -5147,7 +5152,8 @@
    "attract": {
     "t": 2,
     "l": 2
-   }
+   },
+   "strong": 1
   },
   {
    "id": "zp2v3lw7",
@@ -5355,7 +5361,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -2
   },
   {
    "id": "5w5g89pa",
@@ -5543,7 +5550,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -1
   },
   {
    "name": "Отец Ансельм",
@@ -5740,7 +5748,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -2
   },
   {
    "id": "odqc9rum",
@@ -5938,7 +5947,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -1
   },
   {
    "id": "g3kw34ne",
@@ -6141,7 +6151,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -1
   },
   {
    "id": "bflcuwdm",
@@ -6375,7 +6386,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "id": "9uj4bk5p",
@@ -6570,7 +6582,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 0
   },
   {
    "name": "Эйра",
@@ -6733,7 +6746,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -2
   },
   {
    "id": "6cdfiv0t",
@@ -7121,7 +7135,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": -1
   },
   {
    "name": "Старый Гарет",
@@ -7282,7 +7297,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 0
   },
   {
    "id": "s0o6n9y1",
@@ -7471,7 +7487,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 0
   },
   {
    "name": "Мельник Уолтер",
@@ -7629,7 +7646,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "id": "khde411i",
@@ -7815,7 +7833,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "id": "hboaw8xg",
@@ -7997,7 +8016,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 1
   },
   {
    "name": "Чингиз",
@@ -8150,7 +8170,8 @@
     }
    ],
    "stagesAuto": true,
-   "relV": 350
+   "relV": 350,
+   "strong": 0
   },
   {
    "name": "Нелл",
