@@ -17,19 +17,19 @@
 /* тёмная тема по умолчанию */
 :root{
   --bg:#111316; --panel:#1B1E22; --panel2:#22262B; --ink:#E8E7E3; --muted:#949AA3; --line:#2F343A;
-  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; --speech:#8FC6FF; --sayL:74%;
+  --accent:#86A9E8; --accent-ink:#0F1726; --me:#243350; --danger:#E3846F; --ok:#6CC08F; --sum:#2E2A1A; --mark:#4A4320; --speech:#8FC6FF; --sayL:74%; --think:#FFFFFF;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --serif:Georgia,"Times New Roman",serif;
   box-sizing:border-box; color-scheme:dark;
 }
 :root[data-theme="light"]{
   --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%;
+  --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%; --think:#12161A;
   color-scheme:light;
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="auto"]{
     --bg:#EEF0EC; --panel:#FFFFFF; --panel2:#F5F6F3; --ink:#1B1E22; --muted:#6A7078; --line:#D8DBD4;
-    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%;
+    --accent:#1F3A5F; --accent-ink:#fff; --me:#DCE6F4; --danger:#B3402F; --ok:#2E7D4F; --sum:#FFF5D2; --mark:#F6E7A6; --speech:#1F6FB8; --sayL:36%; --think:#12161A;
     color-scheme:light;
   }
 }
@@ -146,7 +146,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .msg .col{display:flex;flex-direction:column;gap:3px;max-width:86%;min-width:0}
 .msg .b{padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word;background:var(--panel);border:1px solid var(--line)}
 .msg .b .nar{color:var(--ink)}
-.msg .b .say{color:var(--speech);font-weight:500}.msg .b .think{display:block;font-style:italic;opacity:.72;border-left:2px solid currentColor;padding-left:.6em;margin:.3em 0;font-weight:400}.msg .b .who-l{font-weight:700}.msg .b .nm{font-weight:600}.msg .b .say.echo{font-style:italic;font-weight:400;opacity:.78}
+.msg .b .say{color:var(--speech);font-weight:500}.msg .b .think{display:block;color:var(--think);font-weight:700;font-style:normal;opacity:1;border-left:2px solid var(--think);padding-left:.6em;margin:.35em 0}.msg .b .who-l{font-weight:700}.msg .b .nm{font-weight:600}.msg .b .say.echo{font-style:italic;font-weight:400;opacity:.78}
 .msg .b,.chapter,.item .x{user-select:text;-webkit-user-select:text}
 .msg.user{flex-direction:row-reverse}
 .msg.user .col{align-items:flex-end}
@@ -688,7 +688,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=489;
+const APP_VER=490;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3222,7 +3222,7 @@ function fmt(e,text,opt){
       const mt=p.match(/^\(\(\s*([^()]+?)\s*\)\)$/);
       if(!mt){plain(p,col);return;}
       if(!mindOn()){e.append(narSpan(mt[1]));return;}
-      const sp=el("span","think");addNames(sp,mt[1]);if(col)sp.style.color=col;e.append(sp);});return;}
+      const sp=el("span","think");addNames(sp,mt[1]);e.append(sp);});return;}
     const m=line.match(/^(\s*)(\*{0,2})([А-ЯЁA-Z][^:*\n]{0,26}?)\2\s*:\s+(.*)$/);
     let labeled=false;
     if(m){const who=knownName(m[3]);/* неизвестный подписант: метка остаётся, цвет нейтральный; только если дальше кавычки */const unk=!who&&/^\s*[«“„"]/.test(m[4]);if(who||unk){col=who?nameColor(who):UNK;e.append(document.createTextNode(m[1]));const lb=el("span","who-l",m[3].trim()+": ");lb.style.color=col;e.append(lb);rest=m[4];labeled=true;lastWho=who||null;}}
