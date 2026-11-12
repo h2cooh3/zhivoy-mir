@@ -163,6 +163,7 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .journal{position:fixed;inset:0;z-index:40;background:var(--bg,var(--panel));overflow:auto;padding:12px 14px calc(20px + env(safe-area-inset-bottom,0px))}.journal .jin{max-width:720px;margin:0 auto}.journal .jh{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-12px;background:inherit;padding:8px 0;z-index:1}.journal h3{margin:18px 0 6px}.journal .ji{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;background:var(--panel)}.journal .ji .row{margin-top:6px}.journal .ji.old{opacity:.75}
 .nm.link{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-thickness:1px;text-underline-offset:3px}.nm.link:active{opacity:.6}
 .nextrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px 12px}.nextrow .playbtn{margin:0}.playbtn.on{background:var(--ink);color:var(--panel)}
+.sentbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--ink);color:var(--panel);font-size:14px}.sentbar[hidden]{display:none}.sentbar button{border:0;border-radius:999px;padding:9px 16px;background:var(--panel);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}.sentbar.mini{background:none;padding:0;margin:0 0 4px;justify-content:flex-end}.sentbar.mini button{width:30px;height:30px;padding:0;border-radius:999px;background:none;border:1px solid var(--line);color:var(--ink);opacity:.38;font-size:15px;font-weight:400;line-height:28px}.sentbar.mini button:active{opacity:.9}
 .watchbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--ink);color:var(--panel);font-size:14px}.watchbar[hidden]{display:none}.watchbar button{border:0;border-radius:999px;padding:9px 16px;background:var(--panel);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
 .ttsbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:94vw}.ttsbar button{border:0;background:none;color:var(--ink);font-size:18px;min-width:38px;height:38px;border-radius:50%;cursor:pointer}.ttsbar button:active{background:var(--line)}.ttsbar .tl{font-size:13px;color:var(--muted);padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}.bookp.tts-now{background:var(--panel2);border-radius:10px}.bookp{white-space:pre-wrap;line-height:1.65;font-size:17px;padding:6px 8px;margin:0 0 14px}.book{max-width:760px;margin:0 auto;padding:16px 14px 120px;width:100%}.book h2{margin:6px 0 4px}
 .msg.tts-now .b{outline:2px solid var(--accent);outline-offset:3px;border-radius:10px}
@@ -688,7 +689,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=492;
+const APP_VER=493;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -794,12 +795,21 @@ function clearIme(ta,t,grow){[60,250,600].forEach(ms=>setTimeout(()=>{if(ta.valu
 // Если ответ не пришёл, связь оборвалась или сообщение «проглотилось» — текст возвращается в поле одной кнопкой,
 // и его не надо набирать заново. В синхронизацию не уходит — это черновики этого устройства.
 function rememberSent(t){try{t=String(t||"").trim();if(t.length<2||isWatch(t)||isPass(t))return;const L=S.sent=Array.isArray(S.sent)?S.sent:[];if(L[0]&&L[0].t===t){L[0].at=Date.now();return;}L.unshift({t:t.slice(0,8000),at:Date.now()});if(L.length>20)L.length=20;persistQuiet();}catch(e){}}
-function sentBar(ta,grow){const bar=el("div","watchbar");bar.hidden=true;let i=-1;
-  const refresh=()=>{const L=Array.isArray(S.sent)?S.sent:[];const show=L.length&&!ta.value.trim()&&!busy;bar.hidden=!show;if(!show){i=-1;return;}
-    if(bar._n===L.length)return;bar._n=L.length;bar.innerHTML="";bar.append(el("span",null,"⤵ Отправленное не потерялось"));
-    const b=el("button",null,"Вернуть мой текст");b.onclick=()=>{const L2=Array.isArray(S.sent)?S.sent:[];if(!L2.length)return;i=(i+1)%L2.length;ta.value=L2[i].t;grow&&grow();ta.dispatchEvent(new Event("input"));ta.focus();if(L2.length>1)toast("Текст "+(i+1)+" из "+L2.length+". Нажми ещё раз — возьму предыдущий.");};
-    bar.append(b);};
-  ta.addEventListener("input",refresh);bar._n=-1;return {el:bar,refresh};}
+// v493: полоска мозолила глаза — она висела всегда, когда поле пусто. Теперь по умолчанию только
+// маленькая незаметная кнопка «⤵» (тап — вернуть текст), а полная полоска вылезает ТОЛЬКО когда ход
+// остался без ответа (связь оборвалась, ответ исчез) — то есть когда текст правда мог потеряться.
+const noAns=h=>{const a=Array.isArray(h)?h:[];const l=a[a.length-1];return !!(l&&l.role==="user");};
+function sentBar(ta,grow,lostFn){const bar=el("div","sentbar");bar.hidden=true;let i=-1;
+  const back=()=>{const L=Array.isArray(S.sent)?S.sent:[];if(!L.length)return;i=(i+1)%L.length;ta.value=L[i].t;grow&&grow();ta.dispatchEvent(new Event("input"));ta.focus();
+    if(L.length>1)toast("Текст "+(i+1)+" из "+L.length+". Нажми ещё раз — возьму предыдущий.");};
+  const refresh=()=>{const L=Array.isArray(S.sent)?S.sent:[];const any=L.length&&!ta.value.trim()&&!busy;
+    let lost=false;try{lost=!!(any&&lostFn&&lostFn());}catch(e){}
+    bar.hidden=!any;if(!any){i=-1;bar._st="";return;}
+    const st=lost?"full":"mini";if(bar._st===st&&bar._n===L.length)return;bar._st=st;bar._n=L.length;bar.innerHTML="";
+    bar.className="sentbar"+(lost?"":" mini");
+    if(lost){bar.append(el("span",null,"⤵ Ответа нет — твой текст на месте"));const b=el("button",null,"Вернуть мой текст");b.onclick=back;bar.append(b);}
+    else{const b=el("button",null,"⤵");b.title="Вернуть последний отправленный текст";b.onclick=back;bar.append(b);}};
+  ta.addEventListener("input",refresh);bar._n=-1;bar._st="";return {el:bar,refresh};}
 // «Смотреть» — «Дальше без меня» нажимается само, ход за ходом, пока не остановишь (не больше WATCH_MAX за раз, чтобы не сжечь токены)
 const WATCH_MAX=8;
 function autoBtn(m,busy,w,fn){if(!m||m.role!=="assistant")return null;if(busy&&!w.on)return null;const b=el("button","playbtn"+(w.on?" on":""),w.on?"⏹  Остановить":"👁  Смотреть");b.title=w.on?"Остановить просмотр":"История пойдёт сама, ход за ходом, а ты просто смотришь";b.onclick=fn;return b;}
@@ -3883,7 +3893,7 @@ function renderAssist(){
   const keepHist=()=>{try{if(so){const cur=SC(so.id)||C(so.id);if(cur&&cur!==so&&cur.helper!==hist){cur.helper=hist;cur.helperT=Date.now();}}else if(w){const cw=W(w.id);if(cw&&cw!==w&&cw.helper!==hist){cw.helper=hist;cw.helperT=Date.now();}}}catch(e){}};
   const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);touch();hist.push({role:"user",content:editMode?"[Внести сразу: "+t+"]":t});if(editMode)eb2.onclick();ta.value="";grow();save();run();};
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{userStop=true;ctl&&ctl.abort();};
-  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);
+  const sbar=sentBar(ta,grow,()=>noAns(hist));comp.insertBefore(sbar.el,comp.firstChild);
   {const vRefresh=voiceSend(send,ta,grow,sendMsg);const _d=draw;draw=function(...a){_d(...a);vRefresh();sbar.refresh();};}
   draw();
 }
@@ -4207,7 +4217,7 @@ function renderChat(){
     // v474: одинаковый текст пропускаем только если это двойное нажатие (до 4 с). Раньше он молча исчезал — выглядело так, будто чат его проглотил.
     if(l&&l.role==="user"){if(!sameTail(l.content,t)||Date.now()-(l.at||0)>4000)l.content+="\n\n"+t;l.at=Date.now();}else{c.history.push({role:"user",content:t,at:Date.now(),snap:takeSnap(c)});pruneSnaps(c.history);}
     ta.value="";{const ac0=chatOf(c);if(ac0)ac0.draft="";}clearIme(ta,t,grow);grow();save();run();}
-  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);
+  const sbar=sentBar(ta,grow,()=>noAns(c.history));comp.insertBefore(sbar.el,comp.firstChild);
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
@@ -4278,7 +4288,7 @@ function renderScene(){
       col.append(t,r);setTimeout(()=>t.focus(),0);}
     else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
-  const sbar=sentBar(ta,grow);comp.insertBefore(sbar.el,comp.firstChild);comp.insertBefore(ebar,comp.firstChild);
+  const sbar=sentBar(ta,grow,()=>noAns(x.history));comp.insertBefore(sbar.el,comp.firstChild);comp.insertBefore(ebar,comp.firstChild);
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
   // остановить: просмотр выключается сразу; если ответ ещё пишется — обрываем его (недописанное можно «Дописать»)
   function stopWatch(hard){if(!watch.on)return;watch.on=false;clearTimeout(watch.t);if(hard&&busy&&ctl&&log.querySelector("[data-live]"))ctl.abort();drawWatch();drawLog();}
