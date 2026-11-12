@@ -498,7 +498,7 @@ function nameIn(n,t){const ks=nameKeys(n);if(!ks.length)return false;const s=Str
   return ks.some(k=>new RegExp("(?<![А-Яа-яЁёA-Za-z])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[а-яё]{0,3}(?![А-Яа-яЁёA-Za-z])").test(s));}
 // ЗНАКОМСТВО: движок ведёт, с кем герой уже общался (сколько раз, когда впервые и в последний раз) и сколько внешности уже показано
 function timeLabel(w){const st=storyOf(w);return st?("день "+st.day+", "+st.part):(w.date||"");}
-function lookChunks(c){const t=String(c.look||"").replace(/\s+/g," ").trim();if(!t)return [];const sn=t.split(/(?<=[.!?])\s+/).filter(Boolean);const out=[];let cur="";sn.forEach(x=>{cur=cur?cur+" "+x:x;if(cur.length>=60){out.push(cur);cur="";}});if(cur)out.push(cur);return out.slice(0,8);}
+function lookChunks(c){const t=String(c.look||"").replace(/\s+/g," ").trim();if(!t)return [];const sn=t.split(/(?<=[.!?])\s+/).filter(Boolean);const out=[];let cur="";sn.forEach(x=>{cur=cur?cur+" "+x:x;if(cur.length>=60){out.push(cur);cur="";}});if(cur)out.push(cur);return out.slice(0,14);}
 function knowOf(w,c){if(!w||!c)return null;return (w.know||{})[c.id]||null;}
 function knowTouch(w,c){if(!w||!c||c.id===w.heroId)return;w.know=w.know||{};let k=w.know[c.id];const t=timeLabel(w);if(!k)k=w.know[c.id]={n:0,first:t,last:t,look:0,cue:0};if(k.ts&&Date.now()-k.ts<4000)return;k.ts=Date.now();k.n++;k.last=t;{const st0=w.story;if(st0&&st0.day)k.lastDay=st0.day;}const ch=lookChunks(c).length;k.look=Math.min(ch,k.n===1?2:(k.look||0)+1);w.updated=Date.now();}
 function markShown(w,text){if(!w||!text)return;charsOf(w.id).forEach(c=>{if(c.id!==w.heroId&&!c.dead&&!c.away&&nameIn(c.name,text))knowTouch(w,c);});}
@@ -688,7 +688,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=486;
+const APP_VER=487;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
