@@ -689,7 +689,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=501;
+const APP_VER=502;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -946,6 +946,10 @@ function blankChatAsk(wid){const go2=id=>{const n=prompt("Пустой чат �
 // v448 — ГАРДЕРОБ: у персонажа есть свой набор вещей (c.wear), они повторяются и сочетаются; модель не выдумывает новую одежду и не переодевает человека посреди сцены
 const WEAR_RULE="ОДЕЖДА — ИЗ ЭТОГО НАБОРА. Это весь его гардероб: вещи повторяются и сочетаются между собой, новых без причины не выдумывай (новое появляется, только если человек купил, одолжил или ему дали). Во что он одет СЕЙЧАС — выбирай по месту, времени суток, погоде и поводу, и держи это неизменным до конца сцены: переодеться он может только за кадром, между сценами, или на глазах и с причиной. В тексте называй одну-две детали, а не перечисляй набор; уже названное повторно не описывай. Одна и та же вещь в разных местах говорит разное — заметь это, когда это важно. Если в списке есть раздел «ПОЯВИЛОСЬ ПО ХОДУ ИГРЫ» — это вещи, которые человек получил уже в этой истории: он их помнит, знает, от кого они, и носит их не как все остальные. Подарок от героя человек надевает НЕ случайно: когда ждёт его, когда хочет, чтобы заметил, или наоборот — демонстративно не надевает, если в ссоре.";
 function wearBlock(c){const t=String((c&&c.wear)||"").trim();return t?"ГАРДЕРОБ — "+((c.name||"").toUpperCase())+":\n"+t+"\n"+WEAR_RULE:"";}
+// v502 — КАКАЯ В ПОСТЕЛИ: отдельное поле c.bed; главное в нём — чем близость отличается от обычного поведения
+const bedOf=c=>String((c&&c.bed)||"").trim();
+function bedBlock(cs){const L=(Array.isArray(cs)?cs:[cs]).filter(c=>c&&!isChild(c)&&bedOf(c));if(!L.length)return "";
+  return "В БЛИЗОСТИ — НЕ ТОТ ЖЕ ЧЕЛОВЕК, ЧТО В ЖИЗНИ:\n"+L.map(c=>"• "+c.name+": "+bedOf(c)).join("\n")+"\nЭто про близость и только про неё: в обычных сценах этим не играй, вслух об этом никто не рассуждает и заранее не объявляет. ГЛАВНОЕ ЗДЕСЬ — ОТЛИЧИЕ ОТ ОБЫЧНОГО ПОВЕДЕНИЯ: кто в жизни колючий, громкий и уверенный, в постели может быть тихим и растерянным, а тихий и уступчивый — требовательным; не переноси туда его обычную манеру и не тащи это обратно в обычные сцены. И это описание того, КАКОЙ человек в близости, а не разрешение на сцену: случится она или нет, решают накал, доверие, ступень и согласие, а настоящее «нет» выше всего.";}
 function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   "ТЫ ИГРАЕШЬ ПЕРСОНАЖА: "+c.name+(c.short?" — "+c.short:""),
   "ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ (основа, не меняется):\n"+coreP(c,w),
@@ -953,6 +957,7 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   unknownBlock(c,w),
   c.examples.trim()&&!hasVoice(c)?"ПРИМЕРЫ РЕЧИ (манера, не повторяй дословно):\n"+fill(c.examples,w,c):"",
   wearBlock(c),
+  bedBlock(c),
   guestsBlock(c),
   peopleBlock(c),
   lenRule(),
@@ -1747,6 +1752,7 @@ function sceneStable(x){const w=W(x.worldId);const cs=x.charIds.map(C).filter(c=
   x.main?scenePeople(x):"",
   cs.map(c=>"=== "+c.name+(c.short?" — "+c.short:"")+" ===\nЛИЧНОСТЬ: "+coreP(c,w)+(c.examples.trim()&&!hasVoice(c)?"\nМАНЕРА РЕЧИ: "+fill(c.examples,w,c):"")).join("\n\n"),
   cs.map(wearBlock).filter(Boolean).join("\n\n"),
+  bedBlock(cs),
   x.setup.trim()?"ЗАВЯЗКА СЦЕНЫ:\n"+x.setup.trim():"",
   x.main?spineBlock(w):"",
   cs.map(k=>biasBlock(k,cs.filter(o=>o.id!==k.id))).filter(Boolean).join("\n\n"),
@@ -2727,7 +2733,7 @@ function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x
 // ОБНОВИТЬ УЖЕ СОЗДАННЫЙ МИР ИЗ ПРЕСЕТА (у «Города Х» нет дополнений, а правки канона живут в пресете).
 // Переписываются только ОПРЕДЕЛЕНИЯ: карточки, правила, места, определения сюжета. Игра не трогается:
 // state, facts, чаты, память, день, часть дня, флаги, сработавшие события, деньги, обещания — остаются.
-const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","strong","sens","always","memKeys","knownBy","child","invent","tags"];
+const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","strong","sens","always","bed","memKeys","knownBy","child","invent","tags"];
 async function updateFromPreset(w,say){
   const file=CLEAN_PRESETS[tplOf(w)];
   if(!file){toast("У этого мира нет готового пресета в приложении",true);return;}
@@ -4048,6 +4054,7 @@ function renderCharEdit(){
     g("Когда умер(ла)","Например: три года назад; день 12, ночь","deadWhen");g("Как было на самом деле","Видит только рассказчик","deadHow");g("Что о смерти говорят люди","Это знают персонажи","deadKnown");
     {const kl=el("label");const kc=el("input");kc.type="checkbox";kc.checked=isChild(c);kl.style.display="flex";kl.style.gap="8px";kl.style.alignItems="center";kl.append(kc,document.createTextNode("🧒 Ребёнок — никакой взрослой темы с ним и при нём, сцены при нём сдержанные"));p.append(kl);kc.onchange=()=>{c.child=kc.checked;if(!kc.checked&&Array.isArray(c.tags))c.tags=c.tags.filter(t=>!/^(ребёнок|ребенок|дети|child)$/i.test(String(t).trim()));};}
     {const lb=el("div","lbl");lb.textContent="Главная черта (звучит всегда, не глушится правилом частоты)";const ta=el("textarea");ta.rows=3;ta.value=c.always||"";ta.placeholder="Например: колючая — шпилька или насмешка почти в каждой реплике, тёплое говорит через отрицание";ta.oninput=()=>{c.always=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
+    {const lb=el("div","lbl");lb.textContent="Какая (какой) в близости — и чем это отличается от обычного поведения";const ta=el("textarea");ta.rows=3;ta.value=c.bed||"";ta.placeholder="Например: в жизни колючая и громкая, а в постели тихая, почти молчит, прячет лицо; ни одной шутки";ta.oninput=()=>{c.bed=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
     {const il=el("label");const ic=el("input");ic.type="checkbox";ic.checked=inventOf(c);il.style.display="flex";il.style.gap="8px";il.style.alignItems="center";il.append(ic,document.createTextNode("✨ Свобода в мелочах — чего в карточке нет (еда, дом, школа, привычки), ИИ придумывает сам и дальше этого держится. Крупное прошлое и написанное в карточке не трогает."));p.append(il);ic.onchange=()=>{c.invent=ic.checked;};}
     {const al=el("label");const ac=el("input");ac.type="checkbox";ac.checked=!!c.away;al.style.display="flex";al.style.gap="8px";al.style.alignItems="center";al.append(ac,document.createTextNode("🌫 Фон — его нет на побережье и никогда не будет (только в воспоминаниях)"));p.append(al);const ab=el("label");ab.append(document.createTextNode("Где он(а) (для воспоминаний)"));const ai=el("input");ai.type="text";ai.value=c.awayWhere||"";ai.oninput=()=>{c.awayWhere=ai.value;};ab.append(ai);ab.hidden=!c.away;p.append(ab);ac.onchange=()=>{c.away=ac.checked;ab.hidden=!c.away;};}
     dc.onchange=()=>{c.dead=dc.checked;box.hidden=!c.dead;if(c.dead&&!route.draft)markDead(Object.assign(c,{dead:false}),c.deadWhen);c.dead=dc.checked;};}
