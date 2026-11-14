@@ -596,6 +596,21 @@ function openJournal(w){const st=storyOf(w);if(!st){toast("У этого мир�
       const b2=el("button","btn sm ghost warn","↻ Собрать хронику заново");b2.onclick=async()=>{if(busy)return;if(!confirm("Хроника будет дополнена и перечитана по всей переписке кусками по 40 сообщений (старая хроника остаётся основой, переписка не меняется). Это несколько запросов к дешёвой модели. Продолжить?"))return;b2.disabled=true;toast("Собираю хронику…");try{const seed=ms.summary,seedIdx=ms.sumIdx;ms.sumIdx=0;let ok=true,guard=0;while(ok&&guard++<12){const before=ms.sumIdx;ok=await compressHistory(ms,"Рассказчик",w,true,40);if(!ok||ms.sumIdx<=before)break;toast("Хроника: "+ms.sumIdx+" из "+ms.history.length);if(ms.sumIdx>=ms.history.length-K().keep)break;}if(!ms.summary.trim()){ms.summary=seed;ms.sumIdx=seedIdx;}w.updated=Date.now();ms.updated=Date.now();save();toast("Хроника пересобрана.");}catch(e){toast("Не вышло: "+friendly(e),true);}draw();};
       const b3=el("button","btn sm ghost","＋ Добавить обещания и сделанное");b3.onclick=()=>{const n=chronJournal(ms,w);w.updated=Date.now();ms.updated=Date.now();save();toast(n?"Добавил в хронику ("+n+" знаков).":"В журнале пока нечего добавлять.");draw();};
       row.append(t,b3,b2);box.append(row);}}
+    // v507: время ставится руками — после откатов назад день и часть дня остаются «из будущего»
+    {box.append(el("h3",null,"🕰 Время"));
+      const t=el("span","note");t.style.flex="1 1 200px";
+      const upd=()=>{t.textContent="День "+(+st.day||1)+" · "+(st.part||"утро")+" · ходов в этой части: "+(+st.partMoves||0);};
+      const prow=el("div","row");prow.style.cssText="gap:6px;margin-top:4px;flex-wrap:wrap";
+      function drawParts(){prow.innerHTML="";PARTS.forEach(pt=>{const b2=el("button","btn sm"+(st.part===pt?" primary":" ghost"),pt);
+        b2.onclick=()=>put(()=>{st.part=pt;});prow.append(b2);});}
+      const put=f=>{f();st.day=Math.max(1,Math.round(+st.day||1));if(!PARTS.includes(st.part))st.part="утро";st.partMoves=0;
+        w.updated=Date.now();save();upd();drawParts();toast("Время: день "+st.day+", "+st.part);};
+      upd();
+      const row0=el("div","row");row0.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";
+      const mk=(l,f)=>{const b2=el("button","btn sm ghost",l);b2.onclick=()=>put(f);return b2;};
+      row0.append(t,mk("− день",()=>{st.day=(+st.day||1)-1;}),mk("＋ день",()=>{st.day=(+st.day||1)+1;}));
+      box.append(row0,prow);drawParts();
+      box.append(el("p","note","Ставь, если после откатов назад время убежало вперёд. Рассказчик и хранитель дальше считают от этого; внутри суток хранитель время назад не отматывает."));}
     // самочувствие
     {const row=el("div","row");row.style.cssText="align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap";box.append(el("h3",null,"Самочувствие"));const t=el("span","note","Усталость: "+(+st.tired||0)+"/10 · "+tiredWord(st.tired)+((st.sleepless||0)>0?" · без нормального сна ночей: "+st.sleepless:""));t.style.flex="1 1 200px";
       const mk=(l,f)=>{const b2=el("button","btn sm ghost",l);b2.onclick=()=>{f();w.updated=Date.now();save();draw();};return b2;};
@@ -690,7 +705,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=506;
+const APP_VER=507;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3682,6 +3697,7 @@ function worldRestore(w,x,snap){let s;try{s=JSON.parse(snap);}catch(e){return fa
     if(o.away)c.away=o.away;else delete c.away;if(o.guests!==undefined)c.guests=o.guests;c.updated=Date.now();});
   if(s.x)Object.keys(s.x).forEach(k=>{if(s.x[k]===undefined)delete x[k];else x[k]=s.x[k];});
   x.updated=Date.now();w.updated=Date.now();return true;}
+const storyTime=w=>{const st=storyOf(w)||{};return "день "+(+st.day||1)+", "+(st.part||"утро");};
 function wsKey(x){const l=x.history[x.history.length-1];return l&&l.role==="user"?x.history.length-1:x.history.length;}
 function wsTake(w,x){if(!w||!x)return;try{x.wsnaps=x.wsnaps||{};const k=wsKey(x);if(x.wsnaps[k])return;const snap=worldSnap(w,x);x.wsnaps[k]=snap;
   // v506: якорь на смену дня или части дня — чтобы «вернуться в начало ночи» работало через десятки ходов
@@ -4373,6 +4389,8 @@ function renderScene(){
       const ld=el("button","btn sm","⇣ Загрузить переписку из файла");ld.onclick=()=>pickFile(async f=>{const d=parseChatFile(await f.text(),w);if(!d){alert("Не получилось прочитать переписку. Нужен файл из «Экспорт → Только переписка» (.json) или текстовый (.txt) экспорт разговора.");return;}importChatToMain(w,d);});aside.append(el("div","row"),ld,mv);}
     {const br=el("div","row");const lb=el("button","btn sm","🎧 Слушать");lb.onclick=()=>ttsStart(x.history,0);const bk=el("button","btn sm","📖 Книга");bk.title="Связная проза из этой истории: твои ходы выправлены, ничего не добавлено, чат не трогается";bk.onclick=()=>go({v:"book",id:x.id,sc:1});br.append(lb,bk);aside.append(br);}
     if(devMode()){const se=el("button","btn sm","🎚 Состояние персонажей");se.title="Доверие, симпатия, уважение, обида, ступень — с взаимосвязями";se.onclick=()=>openStateEditor(w,x);aside.append(se);}
+    if(x.main&&storyOf(w)){const tb=el("button","btn sm","🕰 Время: "+storyTime(w));tb.title="Поставить день и часть дня руками";
+      tb.onclick=()=>openJournal(w);aside.append(tb);}
     aside.append(reactRow(x,()=>drawAside()));aside.append(closeRow(x));
     if(devMode()){const pv=el("button","btn sm ghost","🔍 Что видит ИИ");pv.onclick=()=>{const hs=x.history.slice(x.sumIdx).map(m=>(m.role==="user"?"ТЫ: ":"")+m.content).join("\n\n");showPrompt("Что видит ИИ — "+(x.title||"сцена"),[["ПОСТОЯННОЕ (мир, персонажи, правила)",sceneStable(x)],["МЕНЯЮЩЕЕСЯ (состояние, сюжет)",sceneDynamic(x)],["СЖАТАЯ ПАМЯТЬ (хроника)",x.summary],["ПЕРЕПИСКА",hs]]);};aside.append(pv);}
     if(dramaEvery()){const dd=x.drama;aside.append(el("h3",null,"Драматург"));aside.append(el("div","block",dd?"Напряжение "+dd.tension+"/10 · "+dd.beat+(dd.hist&&dd.hist.length?"\nХод: "+dd.hist.join(" → "):""):"Вступит перед следующим ходом."));
