@@ -705,7 +705,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=508;
+const APP_VER=509;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -881,13 +881,13 @@ function closeBlock(w,cs,o){const m=closeMode(o)||"story";if(m==="story")return 
  const A=L.filter(isAdultC);if(!A.length)return "";const nm=A.map(c=>c.name).join(", ");
  if(m==="hot")return "НАКАЛ — БЛИЗОСТЬ ОЧЕНЬ ВЕРОЯТНА (так выбрал автор для этого разговора): жанр здесь — откровенная любовная история про взрослых. Влечение между "+nm+" и "+heroName(w)+" взаимно и лежит на поверхности: замечают телом, ищут повод коснуться, остаются наедине, сами делают шаг и сами предлагают. То, что в обычном ходе истории ждало бы недель доверия, здесь случается скоро. Доверие и ступень близости больше НЕ пропуск к близости — они говорят только о том, насколько при этом спокойно, нежно или наоборот отчаянно, а не о том, случится ли это. Не тормози сцену и не отодвигай её на потом из осторожности: пошёл герой на близость — отвечают, и каждый такой шаг двигает их близость сильно, а не на волосок. Человек остаётся собой: характер, манера речи, стыд и страхи не исчезли — они проступают В близости, а не вместо неё. Настоящее «нет» всё ещё возможно и останавливает всё, но в этом режиме оно редкость и всегда по личной причине, не из приличия.";
  return "НАКАЛ — БЛИЖЕ ОБЫЧНОГО (так выбрал автор для этого разговора): влечение между "+nm+" и "+heroName(w)+" заметно и взаимно, и его не прячут. Шаги навстречу идут сами: взгляд дольше нужного, повод коснуться, встать близко, остаться наедине, прямой вопрос. Близость возможна заметно раньше, чем позволяла бы ступень — ступень говорит, насколько человеку при этом спокойно, а не запрещает. Но это не «сразу»: сначала тянет, потом решаются. Характер и стыд остаются; «нет» по-настоящему останавливает всё.";}
-function closeRow(o,onChange){const l=el("label");l.append(document.createTextNode("Накал: насколько вероятна близость"),el("span","hint","Работает только со взрослыми (18+) и только если в сцене нет детей. Характер, манера и страхи остаются; «Ближе» и «Очень вероятна» снимают порог доверия и ступени — случается то, что иначе ждало бы недель."));
+function closeRow(o,onChange){const l=el("label");l.append(document.createTextNode("Накал — сейчас: "+((CLOSE_MODES.find(m=>m[0]===(closeMode(o)||"story"))||[])[1]||"")),el("span","hint","Не работает, если в сцене есть ребёнок. Характер, манера и страхи остаются; «Ближе» и «Очень вероятна» снимают порог доверия и ступени — случается то, что иначе ждало бы недель."));
  const sel=el("select");CLOSE_MODES.forEach(([v,t])=>{const op=el("option",null,t);op.value=v;sel.append(op);});
  sel.value=closeMode(o)||"story";sel.onchange=()=>{o.close=sel.value;o.updated=Date.now();save();toast("Накал: "+((CLOSE_MODES.find(m=>m[0]===sel.value)||[])[1]||""));if(onChange)onChange();};
  l.append(sel);return l;}
 const reactMode=o=>{const m=o&&(o.react||(o.sb&&o.sb.react));return REACT_K[m]?m:null;};
 const reactOf=c=>{try{return REACT_SCENE||reactMode(c&&(c._sbChat||chatOf(c)))||"inert";}catch(e){return "inert";}};
-function reactRow(o,onChange){const l=el("label");l.append(document.createTextNode("Темп перемен в этом разговоре"),el("span","hint","Как быстро поступки героя двигают доверие, симпатию и обиду. Инерционно — как в жизни. Быстро и Мгновенно удобны для теста: перемена видна сразу, но режиссёр разбирает сцену каждые 4 и каждые 2 сообщения — запросов будет больше."));
+function reactRow(o,onChange){const l=el("label");l.append(document.createTextNode("Темп перемен — сейчас: "+((REACT_MODES.find(m=>m[0]===(reactMode(o)||"inert"))||[])[1]||"")),el("span","hint","Как быстро поступки героя двигают доверие, симпатию и обиду. Инерционно — как в жизни. Быстро и Мгновенно удобны для теста: перемена видна сразу, но режиссёр разбирает сцену каждые 4 и каждые 2 сообщения — запросов будет больше."));
  const sel=el("select");REACT_MODES.forEach(([v,t])=>{const op=el("option",null,t);op.value=v;sel.append(op);});
  sel.value=reactMode(o)||"inert";sel.onchange=()=>{o.react=sel.value;o.updated=Date.now();save();toast("Темп перемен: "+((REACT_MODES.find(m=>m[0]===sel.value)||[])[1]||""));if(onChange)onChange();};
  l.append(sel);return l;}
@@ -1457,7 +1457,7 @@ function skipMenu(w,x,after){const st=storyOf(w);if(!st)return;const lim=skipLim
 function skipOffer(w){const st=storyOf(w),x=mainStoryOf(w);if(!st||!x||st.done||altHero(w))return;if(st.day<8||st.part!=="утро"||(st.partMoves||0)>1||(st.skipOffered&&st.day-st.skipOffered<3))return;
   if(Object.values(st.questState||{}).includes("active"))return;const lim=skipLimit(w);const n=lim.day-st.day;if(n<3)return;st.skipOffered=st.day;
   x.history.push(cutMsg(w,{id:"skip"+st.day,choices:null},"Впереди тихие дни: до следующего важного — "+n+" "+(n%10===1&&n%100!==11?"день":(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?"дня":"дней")+" ("+lim.why+").","main","Тихие дни",[{label:"Пропустить их — до "+lim.day+"-го дня",act:"",cost:"Жизнь пойдёт сама: люди будут жить, как всё было налажено, розыск — тикать.",flags:[],skip:n},{label:"Прожить самому",act:"",cost:"Можно заняться людьми, работой, побочными историями.",flags:[],live:true}]));}
-async function storyTick(w,recent,present,skip){const st=storyOf(w);if(!st||st.done||st.pending)return null;
+async function storyTick(w,recent,present,skip,modes){const st=storyOf(w);if(!st||st.done||st.pending)return null;
   const act=st.acts[st.act-1]||{};
   const prompt=`Ты — хранитель сюжета интерактивной истории «${st.title||""}». Ты не пишешь текст, а ведёшь учёт.
 ${worldBlock(w).slice(0,2500)}
@@ -1533,7 +1533,8 @@ JSON: {"days":0,"goal":"","steps":[],"stage":{},"part":"","where":{},"flags":[],
   {const pm=promApply(w,st,r);if(pm)r._p=pm;}
   try{earsApply(w,st,r);}catch(e){}
   try{(Array.isArray(r.died)?r.died:[]).forEach(nm=>{const n0=String(nm||"").trim().toLowerCase();const c=charsOf(w.id).find(z=>z.name.toLowerCase()===n0);if(c&&c.id!==w.heroId&&markDead(c,"день "+st.day+", "+st.part))toast(c.name+" — умер(ла).");});}catch(e){}
-  try{feelApply(w,st,r,skip);}catch(e){}
+  try{const _rp=REACT_SCENE,_cp=CLOSE_SCENE;if(modes){if(modes.react)REACT_SCENE=modes.react;if(modes.close)CLOSE_SCENE=modes.close;}
+    try{feelApply(w,st,r,skip);}finally{REACT_SCENE=_rp;CLOSE_SCENE=_cp;}}catch(e){}
   try{bodyApply(st,r,d,p0);}catch(e){}
   const na=parseInt(r.act);if(na>st.act&&na<=st.acts.length)st.act=na;
   // по дням акт тоже сдвигается
@@ -1729,9 +1730,13 @@ function sbStatsEditor(c,ch){const real=ch.sb.state=ch.sb.state||{};const KEYS=[
 function newSandbox(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));const n=c.chats.filter(x=>x.sandbox).length+1;const x={id:uid(),title:"🧪 Проба "+n,history:[],summary:"",sumIdx:0,dirIdx:0,dramaIdx:0,guests:[],drama:null,t:now(),sandbox:true,sb:{state:cl(c.state)||{},facts:cl(c.facts)||[],log:[],inertia:cl(c.inertia),setting:""}};c.chats.push(x);c.activeChat=x.id;save();return x;}
 function sbSetting(ch,done){const pick=v=>{ch.sb.setting=v;ch.updated=Date.now();save();toast("🕰 Обстановка: "+(v||"не задана"));if(done)done();};sheet([...SB_SETS.map(v=>[v,()=>pick(v)]),["Своё…",()=>{const v=prompt("Обстановка и время (например: «ночь, мастерская, гроза за окном»):",ch.sb.setting||"");if(v!==null)pick(v.trim());}]]);}
 
+// v509: накал и темп сцены теряются в асинхронном storyTick (REACT_SCENE/CLOSE_SCENE сбрасываются в finally у run()
+// раньше, чем хранитель получит ответ модели) — поэтому режим передаём значением и ставим вокруг применения.
+function sceneModes(w,hist){try{const sc=S.scenes.find(z=>z.worldId===w.id&&z.history===hist);if(!sc)return null;
+  const r=reactMode(sc),c=closeMode(sc);return (r||c)?{react:r||null,close:c||null}:null;}catch(e){return null;}}
 function storyAfter(w,hist,free,skip){try{forkTake(w,hist,free);}catch(e){}{const ms=mainStoryOf(w);const lh=hist[hist.length-1];if(ms&&ms.history===hist&&ms.skipNote&&lh&&lh.role==="assistant")delete ms.skipNote;}{const l=hist[hist.length-1];if(l&&l.role==="assistant")markShown(w,l.content);}if(free)return;const isMain=(()=>{const ms=mainStoryOf(w);return !!ms&&ms.history===hist;})();if(isMain){try{if(cutsceneCheck(w))staleView=true;}catch(e){}try{skipOffer(w);}catch(e){}}const st=storyOf(w);if(!st||st.done||st.pending||storyBusy||!S.api.key)return;st.partMoves=(st.partMoves||0)+1;st.ticks=(st.ticks||0)+1;if(st.ticks%2)return;
   const recent=hist.slice(-6).map(m=>(m.role==="user"?heroName(w)+": ":"")+String(m.content).slice(0,1500)).join("\n\n");
-  storyBusy=true;storyTick(w,recent,earsPresent(w,hist),skip).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
+  storyBusy=true;storyTick(w,recent,earsPresent(w,hist),skip,sceneModes(w,hist)).then(r=>{const nst=storyOf(w);if(nst&&nst.pending)toast("История подошла к финалу. Смотри внизу разговора.");else if(r&&r._q)toast("📜 "+r._q);else if(r&&r._p)toast(r._p);else if(r&&r._m)toast(r._m);else if(r&&parseInt(r.days)>0)toast(storyLabel(w));if(isMain){try{if(cutsceneCheck(w))toast("🎬 Сцена");}catch(e){}}staleView=true;}).catch(e=>{}).finally(()=>{storyBusy=false;});}
 // баннер «История подошла к финалу»
 function storyBanner(w,after){const st=storyOf(w);if(!st||!st.pending||st.done)return null;const e=(st.endings||[]).find(x=>x.key===st.pending.key);if(!e)return null;
   const b=el("div","block");b.style.borderLeft="3px solid var(--accent)";b.style.margin="8px 12px";
@@ -1904,7 +1909,7 @@ function sparkBlock(cs,hist){const turns=(hist||[]).filter(m=>m.role==="user").l
 // Ступени пути: рассказчик видит только текущую ступень героя; будущие скрыты. Двигает хранитель сюжета (или автор в редакторе)
 const stageOf=c=>{const n=(c.stages||[]).length;if(c.stagesAuto&&n){let k=0;for(let i=0;i<n;i++)if(stageCanAdvance(c,i))k=i;return k;}return Math.max(0,Math.min(n-1,parseInt((c.state||{}).stage)||0));};
 function stageBlock(cs){const L=(cs||[]).filter(c=>c&&Array.isArray(c.stages)&&c.stages.length);if(!L.length)return "";
-  return L.map(c=>{const k=stageOf(c),sg=c.stages[k];return (c.stagesAuto?"ОБЩАЯ СТУПЕНЬ БЛИЗОСТИ "+c.name.toUpperCase()+" ("+(k+1)+" из "+c.stages.length+") «"+stgName(c,sg)+"»: "+stgText(c,sg):"ПУТЬ "+c.name.toUpperCase()+" — СТУПЕНЬ СЕЙЧАС ("+(k+1)+" из "+c.stages.length+") «"+stgName(c,sg)+"»: "+stgText(c,sg)+(k<c.stages.length-1?"\nЭТО ПОТОЛОК: пока ступень не сменилась, никаких признаков следующих ступеней — ни взгляда в глаза, ни протеста, ни силы, которых здесь нет. Рост показывай только внутри этой ступени, мелочью.":"")+(c.stageBack?"\nНАЗАД: "+c.stageBack:""));}).join("\n");}
+  return L.map(c=>{const k=stageOf(c),sg=c.stages[k];return (c.stagesAuto?"ОБЩАЯ СТУПЕНЬ БЛИЗОСТИ "+c.name.toUpperCase()+" ("+(k+1)+" из "+c.stages.length+") «"+stgName(c,sg)+"»: "+stgText(c,sg):"ПУТЬ "+c.name.toUpperCase()+" — СТУПЕНЬ СЕЙЧАС ("+(k+1)+" из "+c.stages.length+") «"+stgName(c,sg)+"»: "+stgText(c,sg)+(k<c.stages.length-1?"\nЭТО ПОТОЛОК: пока ступень не сменилась, никаких признаков следующих ступеней — ни взгляда в глаза, ни протеста, ни силы, которых здесь нет. Рост показывай только внутри этой ступени, мелочью.":"")+(c.stageBack?"\nНАЗАД: "+c.stageBack:"")+(k>=c.stages.length-2?"\nСТУПЕНЬ ВАЖНЕЕ СТАРЫХ СТРАХОВ: эта ступень — одна из последних, и всё, что в карточке написано про страх, недоверие, броню, стеснение и привычку прятать чувства, человек УЖЕ прошёл. Это его прошлое и объяснение, откуда он начинал, а не то, как он ведёт себя сейчас. Не играй его холодным, зажатым и настороженным, не возвращай броню и не заставляй заново заслуживать то, что уже заработано; если карточка и ступень расходятся — прав СТУПЕНЬ и итог отношений. Старый страх может мелькнуть один раз на сцену мелкой деталью, и то только если герой сам задел именно это место.":""));}).join("\n");}
 const VOICE_LEN="ДЛИНА РЕПЛИК: обычная живая реплика — 1–3 законченных предложения; о том, что человеку важно, и о том, о чём его спросили по делу, он говорит свободно, сколько нужно. Если в голосе сказано «коротко» или «скупо», это значит без красивостей и лишнего, а не обрывок. Односложно отвечают только в окрике, приказе, испуге или когда человек нарочно отмалчивается.";
 // Кого только что назвали, но его нет в составе сцены: карточки он не получает (scenePeople даёт одну строку),
 // и первые его слова модель писала вслепую. Даём голос заранее — без личности, чтобы не тащить тайны и не навязывать присутствие.
