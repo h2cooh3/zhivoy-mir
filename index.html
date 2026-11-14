@@ -690,7 +690,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=505;
+const APP_VER=506;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -2358,6 +2358,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     let keptLocal=false;
     // фото не теряем: если у более свежей версии персонажа фото нет, а у другой есть — оставляем фото (иначе правка героя в игре затирает фото, добавленное с другого устройства)
     const keepPh=(win,lose)=>{try{const wp=Array.isArray(win.photos)?win.photos:[],lp=Array.isArray(lose.photos)?lose.photos:[];let ch=false;if(!wp.length&&lp.length){win.photos=lp.slice();ch=true;}if(!win.avatar&&lose.avatar){win.avatar=lose.avatar;ch=true;}return ch;}catch(e){return false;}};
+    const keepSnaps=(win,lose)=>{try{let any=false;["wsnaps","wsmarks","wsTag","draft","editUndo"].forEach(k=>{if(win[k]===undefined&&lose[k]!==undefined){win[k]=lose[k];any=true;}});return any;}catch(e){return false;}};
     const keepHelper=(win,lose)=>{try{if((lose.helperT||0)>(win.helperT||0)&&Array.isArray(lose.helper)){["helper","helperArchive","helperMem","helperDec","helperT"].forEach(k=>{if(lose[k]!==undefined)win[k]=lose[k];});return true;}}catch(e){}return false;};
     if(!d.ver||d.ver<APP_VER)toast("Синхронизацию записала старая версия приложения (не v"+APP_VER+"). Скорее всего, это вкладка на компьютере — обнови её, иначе она возвращает удалённое.",true);
     const gone=Object.assign({},d.gone||{});Object.entries(S.gone||{}).forEach(([k,v])=>{if(!(gone[k]>=v))gone[k]=v;});
@@ -2365,7 +2366,7 @@ async function syncPull(force){if(!S.sync.on||!S.sync.token||!S.sync.gistId)retu
     // значит, часы другого устройства не вправе её отменить. Раньше при расхождении часов (телефон и компьютер)
     // свежий ход и ответ исчезали на следующей же сверке: копия из gist побеждала по полю updated.
     const pushed=+(S.sync.pushStamp||0);const freshLocal=o=>pushed&&(o.updated||0)>pushed;
-    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)||freshLocal(o)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!isGone(o,gone));};
+    const mergeList=(loc,rem)=>{const m=new Map();(rem||[]).forEach(o=>m.set(o.id,o));(loc||[]).forEach(o=>{const r=m.get(o.id);if(!r){m.set(o.id,o);keptLocal=true;}else if((o.updated||0)>(r.updated||0)||freshLocal(o)){keepPh(o,r);keepHelper(o,r);m.set(o.id,o);keptLocal=true;}else{if(keepPh(r,o))keptLocal=true;if(keepHelper(r,o))keptLocal=true;if(keepSnaps(r,o))keptLocal=true;}});return [...m.values()].filter(o=>!isGone(o,gone));};
     S.worlds=mergeList(S.worlds,d.worlds);S.chars=mergeList(S.chars,d.chars);S.scenes=mergeList(S.scenes,d.scenes);S.gone=gone;_prevIds=new Set([...S.worlds,...S.chars,...S.scenes].map(o=>o.id));
     if(Array.isArray(d.ai)){if((d.aiUpdated||0)>(S.aiUpdated||0)){S.ai=d.ai;S.aiArchive=d.aiArchive||S.aiArchive;S.aiMem=d.aiMem!=null?d.aiMem:S.aiMem;S.aiUpdated=d.aiUpdated;}else if((S.aiUpdated||0)>(d.aiUpdated||0))keptLocal=true;}
     if(!localChanged){if(d.persona)S.persona=d.persona;if(d.usage)S.usage=d.usage;if(d.theme){S.theme=d.theme;applyTheme();}if(d.apiCfg)applyCfg(Object.assign({},d.apiCfg,{key:undefined}));}
@@ -3664,7 +3665,7 @@ function rewindChat(c,n){const h=c.history;n=Math.max(0,Math.min(n,h.length));le
 // Переписал/стёр с места — мир возвращается к тому моменту: ИИ и режиссёр забывают отменённую ветку.
 // Слепки живут только на этом устройстве (в синхронизацию не идут: syncSkip).
 const STORY_DEF_KEYS=new Set(["id","title","acts","events","endings","flagDefs","quests","tales","patches","opening","openCast","startPart","motifs","spine","money","counterDefs","rules","cutscenes","search","roof"]);
-const MAX_WSNAPS=12;
+const MAX_WSNAPS=120,WSNAP_BYTES=450000,MAX_WSMARKS=8;
 function worldSnap(w,x){const st=w.story||{};const so={};Object.keys(st).forEach(k=>{if(!STORY_DEF_KEYS.has(k))so[k]=st[k];});
   const ev={};(st.events||[]).forEach(e=>{if(e&&e.id&&e.fired)ev[e.id]=e.firedDay||0;});
   const cs=charsOf(w.id).map(c=>{const r=c._sbReal||c;return {id:c.id,state:r.state,facts:r.facts,deeds:c.deeds,dead:c.dead,deadWhen:c.deadWhen,away:c.away,guests:c.guests};});
@@ -3682,13 +3683,26 @@ function worldRestore(w,x,snap){let s;try{s=JSON.parse(snap);}catch(e){return fa
   if(s.x)Object.keys(s.x).forEach(k=>{if(s.x[k]===undefined)delete x[k];else x[k]=s.x[k];});
   x.updated=Date.now();w.updated=Date.now();return true;}
 function wsKey(x){const l=x.history[x.history.length-1];return l&&l.role==="user"?x.history.length-1:x.history.length;}
-function wsTake(w,x){if(!w||!x)return;try{x.wsnaps=x.wsnaps||{};const k=wsKey(x);if(x.wsnaps[k])return;x.wsnaps[k]=worldSnap(w,x);
-  const ks=Object.keys(x.wsnaps).map(Number).sort((a,b)=>b-a);ks.slice(MAX_WSNAPS).forEach(k2=>delete x.wsnaps[k2]);}catch(e){}}
+function wsTake(w,x){if(!w||!x)return;try{x.wsnaps=x.wsnaps||{};const k=wsKey(x);if(x.wsnaps[k])return;const snap=worldSnap(w,x);x.wsnaps[k]=snap;
+  // v506: якорь на смену дня или части дня — чтобы «вернуться в начало ночи» работало через десятки ходов
+  const st0=w.story||{};const tag=(st0.day||0)+"/"+(st0.part||"");
+  if(x.wsTag!==tag){x.wsmarks=x.wsmarks||{};x.wsmarks[k]=snap;x.wsTag=tag;
+    const mk=Object.keys(x.wsmarks).map(Number).sort((a,b)=>b-a);mk.slice(MAX_WSMARKS).forEach(k2=>delete x.wsmarks[k2]);}
+  // держим столько последних снимков, сколько влезает в бюджет по байтам (а не ровно 12)
+  const ks=Object.keys(x.wsnaps).map(Number).sort((a,b)=>b-a);let tot=0;
+  ks.forEach((k2,n)=>{tot+=(x.wsnaps[k2]||"").length;if(n>=2&&(tot>WSNAP_BYTES||n>=MAX_WSNAPS))delete x.wsnaps[k2];});}catch(e){}}
 // вернуть мир к ключу target (точный слепок или ближайший более ранний); слепки после — стереть
-function wsBack(w,x,target){const ks=Object.keys(x.wsnaps||{}).map(Number).filter(k=>k<=target).sort((a,b)=>b-a);let res="none";
-  if(ks.length&&worldRestore(w,x,x.wsnaps[ks[0]]))res=ks[0]===target?"restored":"older";
-  Object.keys(x.wsnaps||{}).map(Number).forEach(k=>{if(k>(res==="none"?target:ks[0]))delete x.wsnaps[k];});return res;}
-const wsNote=r=>r==="restored"?"Мир вернулся к тому моменту: время, сюжет, память и отношения — как были.":r==="older"?"Мир возвращён к ближайшему сохранённому моменту (чуть раньше).":"Сообщения убраны. Для такого старого места мир не сохранён — память и сюжет остались текущими.";
+function wsPick(x,target){const f=o=>Object.keys(o||{}).map(Number).filter(k=>k<=target).sort((a,b)=>b-a);
+  const a1=f(x.wsnaps);if(a1.length)return {k:a1[0],snap:x.wsnaps[a1[0]],mark:false};
+  const a2=f(x.wsmarks);if(a2.length)return {k:a2[0],snap:x.wsmarks[a2[0]],mark:true};return null;}
+const wsHas=(x,target)=>!!wsPick(x,target);
+function wsBack(w,x,target){const pick=wsPick(x,target);let res="none",at=target;
+  if(pick&&worldRestore(w,x,pick.snap)){at=pick.k;res=pick.k===target?"restored":(pick.mark?"mark":"older");}
+  Object.keys(x.wsnaps||{}).map(Number).forEach(k=>{if(k>at)delete x.wsnaps[k];});
+  Object.keys(x.wsmarks||{}).map(Number).forEach(k=>{if(k>at)delete x.wsmarks[k];});
+  if(res!=="none"){const st=w.story||{};x.wsTag=(st.day||0)+"/"+(st.part||"");}
+  return res;}
+const wsNote=r=>r==="restored"?"Мир вернулся к тому моменту: время, сюжет, память и отношения — как были.":r==="mark"?"Мир возвращён к началу той части дня: время, сюжет и память — как были тогда.":r==="older"?"Мир возвращён к ближайшему сохранённому моменту (чуть раньше).":"Сообщения убраны. Для такого старого места мир не сохранён — память и сюжет остались текущими.";
 const rewindNote=r=>r==="restored"?"Персонаж вернулся в состояние того момента.":r==="other"?"Сообщения убраны. Состояние персонажа не откатывал: после этого были другие его разговоры.":"Сообщения убраны (для такого старого места состояние персонажа не сохранено — память и доверие остались текущими).";
 // ============ ЭКСПОРТ: мир / персонаж / разговор ============
 const fnSafe=t=>(t||"файл").replace(/[\\/:*?"<>|]+/g,"").trim().slice(0,60)||"файл";
@@ -4329,10 +4343,13 @@ function renderScene(){
     return box;}
   function msgEl(m,i){if(m.cut)return cutEl(m,i);const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);const after=x.history.length-1-i;
-      if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Мир (время, сюжет, память и отношения людей) вернётся к тому моменту."));}
+      if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;const warn=wsHas(x,i)?"":"\n\nВНИМАНИЕ: мир для этого места не сохранён — время, сюжет и память людей останутся текущими.";
+        if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"+warn))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Мир (время, сюжет, память и отношения людей) вернётся к тому моменту."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();toast("✓ Исправлено: ИИ и режиссёр будут опираться на этот вариант");};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого?"))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;const tgt=m&&m.role==="user"?i:i+1;
+      const warn=wsHas(x,tgt)?"":"\n\nВНИМАНИЕ: мир для этого места не сохранён — время, сюжет и память людей останутся такими, как сейчас. Поправить их можно кнопкой «Состояние персонажей».";
+      if(!confirm("Стереть "+k+" сообщ. после этого?"+warn))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
   const sbar=sentBar(ta,grow,()=>noAns(x.history));comp.insertBefore(sbar.el,comp.firstChild);comp.insertBefore(ebar,comp.firstChild);
   const watch={on:false,left:0,t:null};const wbar=el("div","watchbar");wbar.hidden=true;comp.insertBefore(wbar,comp.firstChild);
