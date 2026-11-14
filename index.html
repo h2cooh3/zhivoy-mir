@@ -363,6 +363,7 @@ details.sp summary{cursor:pointer;color:var(--muted);font-size:13px}
     <label>Режиссёр разбирает сцену каждые N сообщений <input type="number" id="every" min="4" step="2"></label>
     <label>Драматург ведёт сцену каждые N ходов <span class="hint">Ход — твоя реплика и ответ. Скрыто подсказывает рассказчику: напряжение и разрядка, кто входит и уходит, мелкие происшествия. Работает и в сценах, и в разговорах один на один. 0 — выключить.</span>
       <input type="number" id="drama" min="0" step="1"></label>
+    <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="rewrite" style="width:auto"> Переписывать ответ при повторах <span class="hint">— если ответ похож на прошлые, попросить модель написать заново. Выключено: повтор манеры и любимых словечек это узнаваемость персонажа, а переписывание стоит ещё один большой запрос.</span></label>
     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="eco" style="width:auto"> Режим экономии <span class="hint">— короче ответы, меньше памяти в запросе, лёгкий соавтор. Примерно вдвое дешевле.</span></label>
     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="think" style="width:auto"> Размышления Kimi <span class="hint">— рассказчик и персонажи сначала думают, потом пишут: ответы разнообразнее (у Kimi с размышлениями случайность выше), но медленнее и примерно в 1,5–2 раза дороже за сообщение. Только для моделей Kimi.</span></label>
 
@@ -689,7 +690,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=503;
+const APP_VER=504;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1960,6 +1961,8 @@ async function antiLoop(base,text,hist,onText){try{const as=(hist||[]).filter(m=
   const sim=Math.max(...prev.map(q=>loopSim(text,q)));const rec=as.slice(-6);const tr=ticRatio(text,rec);
   const ctr=contrastHit(text)&&as.slice(-60).some(m=>contrastHit(m.content))?contrastHit(text):"";
   const loud=!!(base&&base.loud);const kSim=loud?0.55:0.3,kTic=loud?0.6:0.35;
+  // v504 (решение автора): переписывание ответа из-за повторов выключено по умолчанию — повтор это ещё и узнаваемость, а лишний большой запрос стоит денег. Включается галочкой «Переписывать ответ при повторах».
+  if(!S.api.rewrite)return loud?text:scrubText(text,ticSet(rec,2));
   if(sim<kSim&&tr<kTic&&!ctr)return loud?text:scrubText(text,ticSet(rec,2));
   const lu=[...(base.msgs||[])].reverse().find(m=>m.role==="user");const bad=ticList(text,rec).slice(0,6).map(x=>"• "+x.slice(0,140)).join("\n");
   const loopy=sim>=kSim||tr>=kTic;const cnote=ctr?"ПРИЁМ-ПРОТИВОПОСТАВЛЕНИЕ (важно): в черновике есть оборот «у того так, а у меня нет» («не X, а Y», «не просто X, а Y», «X, а я нет») — такой уже звучал недавно. Перепиши ответ без него: скажи прямо, что есть и чего хочешь. Было: «"+ctr+"»":"";
@@ -4385,7 +4388,7 @@ function renderScene(){
 
 // ============ НАСТРОЙКИ ============
 function applyTheme(){document.documentElement.dataset.theme=S.theme||"dark";try{const bg=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#111316";const m=$("themeColor");if(m)m.setAttribute("content",bg);document.documentElement.style.background=bg;}catch(e){}}
-function fillSettings(){try{drawSpend();}catch(e){}const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("spell").checked=A.spell!==false;$("mind").checked=A.mind!==false;$("think").checked=!!A.think;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("yUrl").value=A.yUrl||"";$("ySecret").value=A.ySecret||"";$("yNarr").value=A.yNarr||"filipp";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
+function fillSettings(){try{drawSpend();}catch(e){}const A=S.api;$("ghTok").value=S.sync.token||"";syncStatus();$("theme").value=S.theme||"dark";setTimeout(()=>keyStatus(),0);$("eco").checked=!!A.eco;$("spell").checked=A.spell!==false;$("mind").checked=A.mind!==false;$("rewrite").checked=!!A.rewrite;$("think").checked=!!A.think;$("pIn").value=A.pIn;$("pCache").value=A.pCache;$("pOut").value=A.pOut;drawUsage();$("provider").value=A.provider;$("base").value=A.base;$("key").value=A.key;$("model").value=A.model;$("cheap").value=A.cheap;$("temp").value=A.temp;$("maxtok").value=A.maxtok;$("budget").value=A.budget;$("every").value=A.every;$("replyLen").value=A.len||"short";$("layout").value=A.layout||"split";$("frank").value=A.frank||"adult";$("yUrl").value=A.yUrl||"";$("ySecret").value=A.ySecret||"";$("yNarr").value=A.yNarr||"filipp";$("heroMode").value=A.hero||"strict";$("drama").value=A.drama==null?2:A.drama;$("pname").value=S.persona.name;
   $("baseWrap").style.display=A.provider==="openai"?"":"none";$("model").placeholder=A.provider==="anthropic"?"claude-sonnet-5-5":"например gpt-4o-mini или модель OpenRouter";$("cheap").placeholder=A.provider==="anthropic"?"claude-haiku-5-5":"например gpt-4o-mini";}
 $("reloadBtn").onclick=async()=>{if(busy&&!confirm("Сейчас идёт ответ модели. Всё равно обновить?"))return;const b=$("reloadBtn");b.disabled=true;b.textContent="…";
   try{clearTimeout(saveT);if(useIdb)await idb.put("kv",plainS(),"state");else localStorage.setItem("zhivoymir:v1",JSON.stringify(S,sbSafe));}catch(e){}
@@ -4426,6 +4429,7 @@ $("yTest").onclick=async()=>{S.api.yUrl=$("yUrl").value.trim();S.api.ySecret=$("
 $("heroMode").addEventListener("change",()=>{S.api.hero=$("heroMode").value;save();});
 $("spell").addEventListener("change",()=>{S.api.spell=$("spell").checked;save();});
 $("mind").addEventListener("change",()=>{S.api.mind=$("mind").checked;save();});
+$("rewrite").addEventListener("change",()=>{S.api.rewrite=$("rewrite").checked;save();});
 $("eco").addEventListener("change",()=>{S.api.eco=$("eco").checked;save();});
 $("think").addEventListener("change",()=>{S.api.think=$("think").checked;save();});
 $("cfgShare").onclick=async()=>{const withKey=!!S.api.key&&confirm("Включить в строку API-ключ?\n\nОК — с ключом (тот, кому отдашь, будет тратить твой баланс).\nОтмена — без ключа (он вставит свой).");
