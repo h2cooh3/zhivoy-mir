@@ -711,7 +711,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=518;
+const APP_VER=519;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1469,13 +1469,16 @@ const heatWord=h=>h<2?"тихо":h<4?"присматриваются":h<6?"ищ�
 function heatBlock(w){const st=storyOf(w);if(!st||!st.search||st.heat==null||st.done)return "";const F=st.flags||{};if((st.search.stopFlags||[]).some(f=>F[f]))return "";const h=+st.heat||0;
   return "РОЗЫСК («"+(st.search.who||"")+"»): "+heatWord(h)+" ("+h+" из 10). "+(h<2?"Пока тихо: признаков розыска не показывай.":"Покажи не больше одного признака за ответ и не в каждом ответе — мелочью мира, без объяснений. "+(st.search.signs||""))+(h>=8?" КОЛЬЦО СЖИМАЕТСЯ: если в «пора случиться» есть событие розыска (облава, Брам у двери, вызов к барону) — дай ему случиться в игре сейчас. За кадром её не забирают.":"");}
 function toneDayBlock(w,cs){const st=storyOf(w);if(!st||!st.tones)return "";const L=(cs||[]).filter(c=>c&&st.tones[c.id]).map(c=>c.name+" — "+st.tones[c.id]);return L.length?"СВОЙ ДЕНЬ У ЛЮДЕЙ (фон настроения, не главное; показывай мелочью, если к месту): "+L.join("; "):"";}
-function skipLimit(w){const st=storyOf(w);const D=st.day,F=st.flags||{};let best={day:999,why:""};const put=(d,why)=>{if(d<best.day)best={day:d,why};};
+function skipLimit(w){const st=storyOf(w);const D=st.day,F=st.flags||{};let best={day:999,why:""};
+  // v519: если впереди нет НИ событий, ни глав, ни сроков — предел не 999-й день, а конец календаря; дальше пропускать нечего
+  const _last=((st.acts||[])[(st.acts||[]).length-1]||{}).days;const _end=Array.isArray(_last)?+_last[1]:0;const put=(d,why)=>{if(d<best.day)best={day:d,why};};
   (st.events||[]).forEach(e=>{if(e.fired||!e.anchor)return;if(!evOk(e,F))return;if(e.day[0]>D)put(e.day[0],"событие");else if(e.day[1]>=D)put(D,"важное событие сейчас");});
   (st.cutscenes||[]).forEach(c=>{if(!c||(st.cutShown||{})[c.id])return;const q=c.when||{};if((q.flags||[]).some(f=>!F[f]))return;if((q.notFlags||[]).some(f=>F[f]))return;if(q.day&&q.day>D)put(q.day,"сцена «"+c.title+"»");});
   if(st.act<st.acts.length){const nd=((st.acts[st.act]||{}).days||[])[0];if(nd>D)put(nd,"новая глава «"+st.acts[st.act].title+"»");}
   Object.entries(st.questState||{}).forEach(([id,v])=>{if(v!=="active")return;const q=(st.quests||[]).find(z=>z.id===id);if(!q)return;if(q.deadline)put(((st.questStart||{})[id]||D)+q.deadline,"срок истории «"+q.title+"»");});
   cutWaiting(st).forEach(o=>{if(!o.v.no)put(o.v.until,"тебя ждут: "+(o.c.call.bar||o.c.title));});
   if((+st.heat||0)>=8)put(D,"розыск: кольцо сжимается");
+  if(best.day>=999){best={day:Math.max(D+1,Math.min(_end>D?_end:D+14,D+14)),why:"",none:true};}
   const x=mainStoryOf(w);const l=x&&x.history[x.history.length-1];if(l&&l.cut&&(l.cut.choices||[]).length&&l.cut.chosen==null)put(D,"выбор не сделан");
   return best;}
 function skipBackground(w,to){const st=storyOf(w),F=st.flags||{},out=[];(st.events||[]).forEach(e=>{if(e.fired||e.anchor||e.noSkip)return;if(!evOk(e,F))return;if(e.day[1]<to&&e.day[1]>=st.day){e.fired=true;e.firedDay=e.day[0];out.push(e.text.slice(0,400));}});return out;}
@@ -1497,10 +1500,11 @@ function skipDays(w,x,n){const st=storyOf(w);if(!st||st.done)return 0;const lim=
   x.history.push({role:"user",content:"*Проходит "+n+" "+dayWord(n)+".*"});x.updated=Date.now();w.updated=Date.now();return n;}
 function skipMenu(w,x,after){const st=storyOf(w);if(!st)return;const lim=skipLimit(w);const left=lim.day-st.day;
   if(left<=0){toast("Пропускать нельзя: "+(lim.why||"впереди важное"));return;}const go2=n=>()=>{if(skipDays(w,x,n))after();};
-  const A=[["⏭ До утра",go2(1)]];if(left>=2)A.push(["⏭ Пару дней",go2(2)]);if(left>=4)A.push(["⏭ Неделю"+(left<7?" (до важного — "+left+")":""),go2(7)]);if(left>2)A.push(["⏭ До следующего важного: "+left+" "+dayWord(left)+(lim.why?" ("+lim.why+")":""),go2(left)]);
+  const A=[["⏭ До утра",go2(1)]];if(left>=2)A.push(["⏭ Пару дней",go2(2)]);if(left>=4)A.push(["⏭ Неделю"+(left<7?" (до важного — "+left+")":""),go2(7)]);if(left>2&&lim.why&&!lim.none)A.push(["⏭ До следующего важного: "+left+" "+dayWord(left)+" ("+lim.why+")",go2(left)]);
+  if(lim.none&&left>=8)A.push(["⏭ Две недели",go2(14)]);
   sheet(A);}
 function skipOffer(w){const st=storyOf(w),x=mainStoryOf(w);if(!st||!x||st.done||altHero(w))return;if(st.day<8||st.part!=="утро"||(st.partMoves||0)>1||(st.skipOffered&&st.day-st.skipOffered<3))return;
-  if(Object.values(st.questState||{}).includes("active"))return;const lim=skipLimit(w);const n=lim.day-st.day;if(n<3)return;st.skipOffered=st.day;
+  if(Object.values(st.questState||{}).includes("active"))return;const lim=skipLimit(w);if(lim.none||!lim.why)return;const n=lim.day-st.day;if(n<3)return;st.skipOffered=st.day;
   x.history.push(cutMsg(w,{id:"skip"+st.day,choices:null},"Впереди тихие дни: до следующего важного — "+n+" "+(n%10===1&&n%100!==11?"день":(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?"дня":"дней")+" ("+lim.why+").","main","Тихие дни",[{label:"Пропустить их — до "+lim.day+"-го дня",act:"",cost:"Жизнь пойдёт сама: люди будут жить, как всё было налажено, розыск — тикать.",flags:[],skip:n},{label:"Прожить самому",act:"",cost:"Можно заняться людьми, работой, побочными историями.",flags:[],live:true}]));}
 async function storyTick(w,recent,present,skip,modes){const st=storyOf(w);if(!st||st.done||st.pending)return null;
   const act=st.acts[st.act-1]||{};
