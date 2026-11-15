@@ -228,6 +228,12 @@ header h1{font-size:17px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow
 .stbox label.fl{display:block;margin:10px 0 3px;color:var(--muted);font-size:13px}
 .stbar{position:sticky;bottom:0;background:var(--panel);display:flex;gap:8px;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);margin-top:12px}
 .stbar button{flex:1}
+.hidbox{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
+.hidh{font-weight:700;margin-bottom:6px}
+.hidst{font-weight:700;margin:2px 0 6px;line-height:1.35}
+.hidst.good{color:#7ee08a}
+.hidst.bad{color:#f0a0a0}
+.hidrow{margin:3px 0;line-height:1.35}
 .stlog{font-size:12px;color:var(--muted);margin:6px 0}
 .compose .editb{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;padding:0;font-size:18px}
 .compose .editb.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -705,7 +711,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=515;
+const APP_VER=516;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1313,6 +1319,45 @@ const FREYA_SENS={"force": 2, "rude": 0.6, "gift": 0.5};
 function stageOpts(c){const out=[];const kid=typeof isChild==="function"&&isChild(c);c.stages.forEach((g,i)=>{if(g.names){Object.entries(g.names).forEach(([k,n])=>{if(kid&&k==="партнёр")return;out.push([i+"|"+k,(i+1)+". "+n]);});}else out.push([String(i),(i+1)+". "+g.name]);});return out;}
 function stageCurVal(c,k,lk){const g=c.stages[k];if(g&&g.names){const ks=Object.keys(g.names).filter(x=>!(x==="партнёр"&&isChild(c)));return k+"|"+(lk&&ks.includes(lk)?lk:ks[0]);}return String(k);}
 // подпись прямо под выбором ступени: что значит ТА, что выбрана сейчас (раньше описание было только в раскрывашке «Что значит каждая ступень»)
+// v516 — «видеть скрытую симпатию»: прогноз поступка считается НА КОПИИ персонажа тем же applyDeeds, что и в игре
+function dryChar(c,vals){const K=["id","name","strong","attract","sens","react","inertia","capDay","child","tags","stages","stagesAuto","stageBack","worldId"];const o={};
+ K.forEach(k=>{if(c&&c[k]!==undefined)o[k]=(c[k]&&typeof c[k]==="object")?JSON.parse(JSON.stringify(c[k])):c[k];});
+ o.state=Object.assign({},(c&&c.state)||{},vals||{});o.state.cap=null;o.state.relLog=[];o.log=[];return o;}
+function predictDeed(w,c,vals,deed,modes){const o=dryChar(c,vals);const _r=REACT_SCENE,_c=CLOSE_SCENE;
+ if(modes){if(modes.react)REACT_SCENE=modes.react;if(modes.close)CLOSE_SCENE=modes.close;}
+ const g=st=>({t:+st.trust||0,l:+st.like||0,r:+st.respect||0,g:+st.grudge||0,w:+st.warm||0});
+ const b=g(o.state);
+ try{applyDeeds(w,o,[deed],"прогноз",true);}catch(e){}finally{REACT_SCENE=_r;CLOSE_SCENE=_c;}
+ const a=g(o.state);
+ return {dt:fix1(a.t-b.t),dl:fix1(a.l-b.l),dr:fix1(a.r-b.r),dg:fix1(a.g-b.g),dw:fix1(a.w-b.w),push:o.state.lastPush,adv:o.state.lastAdvance};}
+const dDesc=p=>{const L=[["доверие",p.dt],["симпатия",p.dl],["уважение",p.dr],["обида",p.dg],["тепло",p.dw]].filter(x=>Math.abs(x[1])>=.05).map(x=>x[0]+" "+(x[1]>0?"+":"")+fix1(x[1]));return L.length?L.join(" · "):"ничего не меняется";};
+// живой блок «скрытая симпатия»: статус, пороги и чем кончатся два поступка при ТЕКУЩИХ числах
+function hiddenBox(w,c,modes){const box=el("div","hidbox");
+ box.set=function(vals){box.innerHTML="";
+  const st=Object.assign({},c.state||{},vals||{});const T=+st.trust||0,L=+st.like||0;
+  const S=strongOf(c);let fem=false;try{fem=ttsGender(c.name)==="f";}catch(e){}
+  const cm=(modes&&modes.close)||closeOf(c)||"story";
+  box.append(el("div","hidh","🔒 Скрытая симпатия — что сейчас читается приятно"));
+  if(S==="never"){box.append(el("div","note","У этого персонажа инициатива героя плюсом не бывает (ребёнок или так задано каноном)."));return;}
+  const ok=strongRead(c,T,L);
+  const t1=el("div","hidst "+(ok?"good":"bad"));
+  t1.textContent=ok?("Твёрдость героя читается ПРИЯТНО — "+String(strongWord(c)).replace("неё(него)",fem?"неё":"него")):("Твёрдость читается как НАГЛОСТЬ — "+strongWhy(c,T,L,fem));
+  box.append(t1);
+  const need=cm==="hot"?0:cm==="warm"?1:2;
+  box.append(el("div","note","Пропуск: симпатия ≥ "+need+" (сейчас "+fix1(L)+") и доверие выше −3 (сейчас "+fix1(T)+"). Ниже — любая инициатива в минус, каким бы характером персонаж ни был."));
+  const pd=predictDeed(w,c,st,{type:"decide",weight:3,good:1,why:"решил за неё, на пользу"},modes);
+  box.append(el("div","hidrow","Решил за неё крупное и на пользу: "+dDesc(pd)));
+  const pb=predictDeed(w,c,st,{type:"decide",weight:3,good:-1,why:"решил за неё, во вред"},modes);
+  box.append(el("div","hidrow","То же, но ей от этого хуже: "+dDesc(pb)));
+  const A=isChild(c)?"never":attrOf(c);
+  const pa=predictDeed(w,c,st,{type:"advance",weight:2,why:"обнял, поцеловал"},modes);
+  const av=pa.adv||{};const how=av.ok?"внутри приятно":av.scare?"ИСПУГ: шаг больше, чем позволяет минута":"настоящее «нет»";
+  box.append(el("div","hidrow","Шаг к ней (обнял, поцеловал): "+how+" → "+dDesc(pa)));
+  if(A&&A!=="never"&&A.t>-50)box.append(el("div","note","Тело принимает с доверия ≥ "+fix1(A.t)+" и симпатии ≥ "+fix1(A.l)+" (сейчас "+fix1(T)+" и "+fix1(L)+")."));
+  {const capL=(CLOSE_K[cm]||CLOSE_K.story).cap;if(L>T+capL-.05)box.append(el("div","note","Симпатия стоит на потолке: выше доверия + "+capL+" она не растёт. Пока не поднимется доверие ("+fix1(T)+"), симпатия с места не двинется — это барьер, и доверие берётся заботой, а не твёрдостью."));}
+  box.append(el("div","note","Снаружи при этом возмущение и «а меня спросить?» — это нормально; приятно ему или нет, видно в мыслях и телом. Поменяй числа выше — строки пересчитаются."));
+ };
+ return box;}
 function stageCap(c){const m=Object.fromEntries(stageOpts(c));const n=el("div","note");n.style.cssText="margin:4px 0 2px;line-height:1.35";n.set=function(v){v=String(v==null?"0":v);const a=v.split("|"),g=c.stages[+a[0]];if(!g){n.textContent="";return;}const tc={stagesAuto:c.stagesAuto,state:{loveKind:a[1]||(c.state||{}).loveKind}};n.textContent=(m[v]||g.name)+(g.minTrust!=null?" · доверие от "+g.minTrust+(g.minLike!=null?", симпатия от "+g.minLike:""):"")+" — "+(stgText(tc,g)||"");};return n;}
 function stageLegend(c){const d=el("details");d.append(el("summary",null,"Что значит каждая ступень"));const kid=typeof isChild==="function"&&isChild(c);stageOpts(c).forEach(([v,t])=>{const [ki,lk]=v.split("|");const g=c.stages[+ki];const tc={stagesAuto:c.stagesAuto,state:{loveKind:lk||(c.state||{}).loveKind}};const p=el("div","note");p.style.margin="4px 0";const b=el("b",null,t+(g.minTrust!=null?" (доверие от "+g.minTrust+(g.minLike!=null?", симпатия от "+g.minLike:"")+")":"")+": ");p.append(b,document.createTextNode(stgText(tc,g)||""));d.append(p);});return d;}
 function stageApplyVals(c,k,st){const g=c.stages[k],last=k===c.stages.length-1;st.trust=g.minTrust!=null?g.minTrust:0;const l=+st.like||0;st.like=g.minLike!=null?Math.max(l,g.minLike):Math.min(l,7);return st;}
@@ -3408,6 +3453,7 @@ function openStateEditor(w,x){
     if(lk)d.loveKind=lk;post();draw();};
    box.append(ss);{const cap=stageCap(cd());cap.set(ss.value);ss.addEventListener("change",()=>cap.set(ss.value));box.append(cap);}box.append(stageLegend(cd()));
   }
+  if(devMode()&&cur.id!==w.heroId){const hb=hiddenBox(w,cur,{react:(typeof reactMode==="function"?reactMode(x):null),close:(typeof closeMode==="function"?closeMode(x):null)});hb.set(d);box.append(hb);}
   if(d.grudge>0||d.grudgeWhy){box.append(el("label","fl","Из-за чего обида"));const t=el("textarea");t.rows=2;t.value=d.grudgeWhy||"";t.oninput=()=>{d.grudgeWhy=t.value;};growTA(t);box.append(t);}
   {box.append(el("label","fl","Чем порадовал (тёплое воспоминание)"));const t=el("textarea");t.rows=2;t.value=d.warmWhy||"";t.placeholder="например: молча накрыл её своим плащом";t.oninput=()=>{d.warmWhy=t.value;const a=ov.querySelector(".stbar .btn");if(a)a.disabled=!dirty();};growTA(t);box.append(t);}
   box.append(el("label","fl","Настроение"));const t1=el("textarea");t1.rows=2;t1.value=d.mood||"";t1.oninput=()=>{d.mood=t1.value;};growTA(t1);box.append(t1);
@@ -4126,6 +4172,7 @@ function renderCharEdit(){
    const hw=el("label");hw.append(document.createTextNode("Чем порадовал (если есть)"));const hwI=el("input");hwI.type="text";hwI.value=c.state.warmWhy||"";hwI.oninput=()=>{c.state.warmWhy=hwI.value;};hw.append(hwI);p.append(hw);}
   {const rl=el("label");rl.append(document.createTextNode("Уважение к герою, от −10 до 10"),el("span","hint",respectWord(c.state.respect)));const rI=el("input");rI.type="number";rI.min=-10;rI.max=10;rI.step=0.5;rI.value=c.state.respect??0;rI.oninput=()=>{c.state.respect=clampN(parseFloat(rI.value)||0,-10,10);rl.querySelector(".hint").textContent=respectWord(c.state.respect);};rl.append(rI);p.append(rl);
    const kl=el("label");kl.append(document.createTextNode("Вид любви (когда симпатия сильная)"));const kS=el("select");[["","не определён"],["человек","как к близкому человеку"],["партнёр","как к партнёру"]].filter(a=>!(a[0]==="партнёр"&&isChild(c))).forEach(([v,t])=>{const o=el("option",null,t);o.value=v;kS.append(o);});kS.value=c.state.loveKind||"";kS.onchange=()=>{c.state.loveKind=kS.value;};kl.append(kS);p.append(kl);}if(devMode())p.append(stHold);
+  if(devMode()&&w&&c.id!==w.heroId&&!route.draft){try{const hb2=hiddenBox(w,c,null);hb2.set(c.state||{});p.append(hb2);}catch(e){}}
   sf("Настроение","mood",true);sf("Каков он сейчас / что изменилось","now",true);sf("История отношений с героем (копится сама)","arc",true);sf("Цели (через точку с запятой)","goals");sf("Отношение к герою","relUser",true);sf("Что скрывает","secrets");
   const others=charsOf(c.worldId).filter(o=>o.id!==c.id);if(others.length){p.append(el("h2",null,"Отношения с другими"));others.forEach(o=>{const l=el("label");l.append(document.createTextNode(o.name));const i=el("input");i.type="text";i.value=relGet(c,o)||"";i.placeholder="Как относится к "+o.name;i.autocomplete="off";i.name="rel-"+o.id;i.oninput=()=>{c.state.relations[o.id]=i.value;if(c.state.relations[o.name]!==undefined)delete c.state.relations[o.name];};l.append(i);p.append(l);});}
   const xr=el("div","row");const xb=el("button","btn sm","Экспорт персонажа");xb.onclick=()=>exportChar(c);xr.append(xb);if(!route.draft)p.append(xr);
