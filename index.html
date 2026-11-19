@@ -712,7 +712,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=530;
+const APP_VER=531;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -3226,7 +3226,8 @@ function splitQ(t){const out=[];let buf="",i=0;const push=(q,x)=>{if(x)out.push(
 let FMT=null; // {main:"Имя главного персонажа", names:[...]} — задаёт экран чата/сцены
 // у каждого персонажа мира свой цвет (по порядку в мире), главный в разговоре — голубой
 const PALETTE=[[28,80],[140,55],[280,60],[48,85],[330,65],[0,70],[95,55],[305,55],[65,70],[15,60],[120,45],[345,55],[160,50],[80,45],[295,40],[40,55],[170,45],[265,50],[110,60],[355,45]]; // без оттенков, похожих на голубой главного (212)
-function nameColor(n){if(!n)return "";const low=n.toLowerCase();if(FMT&&FMT.fixed){const k=Object.keys(FMT.fixed).find(z=>z.toLowerCase()===low);if(k)return FMT.fixed[k];}if(FMT&&FMT.main&&low===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";
+function nameColor(n){if(!n)return "";const low=n.toLowerCase();if(FMT&&FMT.fixed){const k=Object.keys(FMT.fixed).find(z=>z.toLowerCase()===low);if(k)return FMT.fixed[k];}try{const cc=charByName(n);if(cc&&Array.isArray(cc.col)&&cc.col.length===2)return "hsl("+cc.col[0]+" "+cc.col[1]+"% var(--sayL))";}catch(e){}
+  if(FMT&&FMT.main&&low===FMT.main.toLowerCase())return "hsl(212 75% var(--sayL))";
   const list=((FMT&&FMT.names)||[]).filter(x=>!(FMT.main&&x.toLowerCase()===FMT.main.toLowerCase()));let i=list.findIndex(x=>x.toLowerCase()===low);
   if(i<0){let h=0;for(const ch of low)h=(h*31+ch.charCodeAt(0))>>>0;i=h;}const pal=(FMT&&FMT.fixed)?PALETTE.filter(p=>Math.abs(p[0]-46)>22&&Math.abs(p[0]-212)>30):PALETTE;const [hu,sa]=pal[i%pal.length];return "hsl("+hu+" "+sa+"% var(--sayL))";}
 function knownName(raw){const n=raw.replace(/\*+/g,"").trim();if(!n||n.length>28)return null;const list=(FMT&&FMT.names)||[];const low=n.toLowerCase();const hit=list.find(x=>x.toLowerCase()===low)||list.find(x=>low.startsWith(x.toLowerCase())||x.toLowerCase().startsWith(low));return hit||(/^[А-ЯЁA-Z][а-яёa-z\-]+( [А-ЯЁA-Z][а-яёa-z\-]+)?$/.test(n)&&list.length?null:null);}
@@ -4158,6 +4159,12 @@ function renderCharEdit(){
     g("Когда умер(ла)","Например: три года назад; день 12, ночь","deadWhen");g("Как было на самом деле","Видит только рассказчик","deadHow");g("Что о смерти говорят люди","Это знают персонажи","deadKnown");
     {const kl=el("label");const kc=el("input");kc.type="checkbox";kc.checked=isChild(c);kl.style.display="flex";kl.style.gap="8px";kl.style.alignItems="center";kl.append(kc,document.createTextNode("🧒 Ребёнок — никакой взрослой темы с ним и при нём, сцены при нём сдержанные"));p.append(kl);kc.onchange=()=>{c.child=kc.checked;if(!kc.checked&&Array.isArray(c.tags))c.tags=c.tags.filter(t=>!/^(ребёнок|ребенок|дети|child)$/i.test(String(t).trim()));};}
     {const lb=el("div","lbl");lb.textContent="Главная черта (звучит всегда, не глушится правилом частоты)";const ta=el("textarea");ta.rows=3;ta.value=c.always||"";ta.placeholder="Например: колючая — шпилька или насмешка почти в каждой реплике, тёплое говорит через отрицание";ta.oninput=()=>{c.always=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
+    {const lb=el("div","lbl");lb.textContent="Цвет его реплик в чате (пусто — подберётся сам)";const row=el("div");row.style.display="flex";row.style.flexWrap="wrap";row.style.gap="6px";
+     const mk=(hu,sa,txt)=>{const b=el("button");b.type="button";b.style.width=txt?"auto":"28px";b.style.height="28px";b.style.borderRadius="6px";b.style.padding=txt?"0 8px":"0";
+       b.style.border="2px solid transparent";if(txt)b.textContent=txt;else b.style.background="hsl("+hu+" "+sa+"% 45%)";
+       const sel=()=>{const on=txt?!Array.isArray(c.col):(Array.isArray(c.col)&&c.col[0]===hu);b.style.borderColor=on?"var(--fg)":"transparent";};sel();
+       b.onclick=()=>{if(txt)delete c.col;else c.col=[hu,sa];[...row.children].forEach(x=>x._sel&&x._sel());};b._sel=sel;return b;};
+     row.append(mk(0,0,"авто"));PALETTE.forEach(([hu,sa])=>row.append(mk(hu,sa)));row.append(mk(212,75));p.append(lb,row);}
     {const ml=el("label");const mc=el("input");mc.type="checkbox";mc.checked=!!c.mindMust;ml.style.display="flex";ml.style.gap="8px";ml.style.alignItems="center";ml.append(mc,document.createTextNode("💭 Мысли обязательны — в каждом ответе одна мысль в ((скобках)) и видимый телесный отклик"));mc.onchange=()=>{c.mindMust=mc.checked;};p.append(ml);}
     {const lb=el("div","lbl");lb.textContent="Какая (какой) в близости — и чем это отличается от обычного поведения";const ta=el("textarea");ta.rows=3;ta.value=c.bed||"";ta.placeholder="Например: в жизни колючая и громкая, а в постели тихая, почти молчит, прячет лицо; ни одной шутки";ta.oninput=()=>{c.bed=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
     {const il=el("label");const ic=el("input");ic.type="checkbox";ic.checked=inventOf(c);il.style.display="flex";il.style.gap="8px";il.style.alignItems="center";il.append(ic,document.createTextNode("✨ Свобода в мелочах — чего в карточке нет (еда, дом, школа, привычки), ИИ придумывает сам и дальше этого держится. Крупное прошлое и написанное в карточке не трогает."));p.append(il);ic.onchange=()=>{c.invent=ic.checked;};}
@@ -4396,7 +4403,7 @@ function renderSceneEdit(){
 }
 // ---- ГРУППОВАЯ СЦЕНА
 function renderScene(){
-  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),fixed:Object.assign({},heroName(w)?{[heroName(w)]:"hsl(46 85% var(--sayL))"}:{},charsOf(x.worldId).some(c=>c.name==="Фрейя")?{"Фрейя":"hsl(212 75% var(--sayL))"}:{}),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
+  const x=SC(route.id);if(!x){go({v:"home"},true);return;}const w=W(x.worldId);$("hTitle").textContent=x.title||"Сцена";FMT={main:null,hero:heroName(w),fixed:Object.assign({},heroName(w)?{[heroName(w)]:"hsl(46 85% var(--sayL))"}:{},{}),names:[...charsOf(x.worldId).map(c=>c.name),heroName(w)].filter(Boolean),heroText:()=>x.history.filter(m=>m.role==="user").slice(-40).map(m=>m.content).join(" \n ").toLowerCase().replace(/[«»“”„"'.,!?…:;—–\-]/g," ").replace(/\s+/g," ")};S.lastChat={type:"scene",id:x.id};S.lastWorld=x.worldId;
   const wrap=el("div","chat");const main=el("main");const bar=el("div","bar");const who=el("div","who");who.append(el("b",null,x.main?x.title:x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")),el("small",null,x.main?("Рядом: "+(x.charIds.map(id=>(C(id)||{}).name).filter(Boolean).join(", ")||"никого")):(x.setup||"")));const dchip=el("small","daychip",storyLabel(w));if(storyLabel(w))who.append(dchip);const gline=el("small","daychip goalline");const gSet=()=>{const st=storyOf(w);const g=x.main&&st&&!st.done&&st.goalNow;gline.textContent=g?"🎯 "+st.goalNow:"";gline.hidden=!g;};gSet();who.append(gline);
   const eb=el("button","btn ghost sm","Изменить");eb.onclick=()=>go({v:"sceneEdit",id:x.id});const sb=el("button","btn ghost sm","Итоги");sb.id="sideToggle";sb.onclick=()=>aside.classList.add("open");// v483: правка сюжета вернулась — но в шапку, а не в строку ввода (решение автора v391)
   const edb=el("button","btn ghost sm","✍ Правка");edb.title="Режим правки сюжета: что напишешь, уйдёт рассказчику как указание автора, а не как слова героя";edb.hidden=!x.main;
