@@ -712,7 +712,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=533;
+const APP_VER=534;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -993,7 +993,8 @@ function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   c.summary&&c.summary.trim()?"ЧТО БЫЛО РАНЬШЕ В РАЗГОВОРЕ (краткое содержание):\n"+c.summary.trim():""].filter(Boolean);return p.join("\n\n");}
 const guestsOf=c=>(c.guests||[]).map(C).filter(Boolean);
 // В основе персонажа автор описывает и возможные будущие пути («когда узнает о северянке…»). Это не знание: людей, которых он ещё не встречал, он не знает
-function unknownBlock(c,w){if(!w)return "";const core=String(c.core||"");const L=npcsOf(w.id).filter(o=>o.id!==c.id&&!(c.guests||[]).includes(o.id)&&!knowsPerson(c,o)&&nameIn(o.name,core)).map(o=>o.name);
+function unknownBlock(c,w){if(!w)return "";// v534: незнакомцем считается и тот, кого назвали ПРАВИЛА МИРА, — иначе персонаж знает его «из воздуха»
+  let core=String(c.core||"");try{core+="\n"+stripNarr(String(w.rules||""));}catch(e){}const L=npcsOf(w.id).filter(o=>o.id!==c.id&&!(c.guests||[]).includes(o.id)&&!knowsPerson(c,o)&&nameIn(o.name,core)).map(o=>o.name);
   return L.length?"ЧЕГО "+c.name.toUpperCase()+" ЕЩЁ НЕ ЗНАЕТ: в основе описаны и возможные будущие пути («когда узнает…», «если…») — это подсказки на потом, а не то, что уже было. Сейчас "+c.name+" не встречал(а) и ничего не слышал(а) о: "+L.join(", ")+". Не упоминай их, не намекай на них и не веди себя так, будто знаешь о них, пока они не появятся в истории на глазах у "+c.name+" или кто-то о них не расскажет.":"";}
 function peopleBlock(c){const w=W(c.worldId);if(!w)return "";const gs=c.guests||[];const others=npcsOf(w.id).filter(o=>o.id!==c.id&&!gs.includes(o.id)&&knowsPerson(c,o));if(!others.length)return "";
   return "ЛЮДИ МИРА, которых "+c.name+" знает или о ком слышал(а) (не рядом сейчас; могут появиться, только если это естественно; о других людях "+c.name+" ничего не знает):\n"+others.map(o=>{const pl=publicLine(o);return "• "+o.name+(pl?" — "+pl:"")+(isNew(w,o)?" [впервые"+lookShort(o)+"]":"");}).join("\n");}
