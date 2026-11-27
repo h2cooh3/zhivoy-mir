@@ -712,7 +712,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=534;
+const APP_VER=535;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -821,7 +821,12 @@ function rememberSent(t){try{t=String(t||"").trim();if(t.length<2||isWatch(t)||i
 // v493: полоска мозолила глаза — она висела всегда, когда поле пусто. Теперь по умолчанию только
 // маленькая незаметная кнопка «⤵» (тап — вернуть текст), а полная полоска вылезает ТОЛЬКО когда ход
 // остался без ответа (связь оборвалась, ответ исчез) — то есть когда текст правда мог потеряться.
-const noAns=h=>{const a=Array.isArray(h)?h:[];const l=a[a.length-1];return !!(l&&l.role==="user");};
+// v535: признак «ответа нет» был чисто структурным — последнее сообщение от игрока. Но таким
+// остаётся любой брошенный ход (ответ не пришёл, стёрли последний ответ, оборвали генерацию), и
+// полная полоска висела в таком разговоре ВСЕГДА, при каждом открытии — то есть «вернулась как было».
+// Теперь это авария только пока она свежая: ход без ответа моложе LOST_MS. Дальше — мини-кнопка.
+const LOST_MS=180000;
+const noAns=h=>{const a=Array.isArray(h)?h:[];const l=a[a.length-1];return !!(l&&l.role==="user"&&l.at&&Date.now()-l.at<LOST_MS);};
 function sentBar(ta,grow,lostFn){const bar=el("div","sentbar");bar.hidden=true;let i=-1;
   const back=()=>{const L=Array.isArray(S.sent)?S.sent:[];if(!L.length)return;i=(i+1)%L.length;ta.value=L[i].t;grow&&grow();ta.dispatchEvent(new Event("input"));ta.focus();
     if(L.length>1)toast("Текст "+(i+1)+" из "+L.length+". Нажми ещё раз — возьму предыдущий.");};
@@ -2040,7 +2045,10 @@ const contrastHit=t=>{t=String(t||"");for(const p of CTR_PATS){const m=p.exec(t)
 async function antiLoop(base,text,hist,onText){try{const as=(hist||[]).filter(m=>m.role==="assistant");const prev=as.slice(-4).map(m=>m.content);if(!prev.length)return text;
   const sim=Math.max(...prev.map(q=>loopSim(text,q)));const rec=as.slice(-6);const tr=ticRatio(text,rec);
   const ctr=contrastHit(text)&&as.slice(-60).some(m=>contrastHit(m.content))?contrastHit(text):"";
-  const loud=!!(base&&base.loud);const kSim=loud?0.55:0.3,kTic=loud?0.6:0.35;
+  const loud=!!(base&&base.loud);
+  // v535 (решение автора): уже написанный ответ не переписываем из-за частичного сходства. Заменять
+  // можно только настоящий повтор — больше 60% текста совпадает с прошлыми ответами.
+  const kSim=loud?0.7:0.6,kTic=loud?0.7:0.6;
   // v504 (решение автора): переписывание ответа из-за повторов выключено по умолчанию — повтор это ещё и узнаваемость, а лишний большой запрос стоит денег. Включается галочкой «Переписывать ответ при повторах».
   if(!S.api.rewrite)return loud?text:scrubText(text,ticSet(rec,2));
   if(sim<kSim&&tr<kTic&&!ctr)return loud?text:scrubText(text,ticSet(rec,2));
@@ -4035,7 +4043,7 @@ function renderAssist(){
   const touch=()=>{const t=Date.now();if(so){so.updated=t;so.helperT=t;}if(w){w.updated=t;if(!so)w.helperT=t;}else S.aiUpdated=t;};
   const errKey=so?so.id:(w?w.id:"ai");let userStop=false;
   const keepHist=()=>{try{if(so){const cur=SC(so.id)||C(so.id);if(cur&&cur!==so&&cur.helper!==hist){cur.helper=hist;cur.helperT=Date.now();}}else if(w){const cw=W(w.id);if(cw&&cw!==w&&cw.helper!==hist){cw.helper=hist;cw.helperT=Date.now();}}}catch(e){}};
-  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);touch();hist.push({role:"user",content:editMode?"[Внести сразу: "+t+"]":t});if(editMode)eb2.onclick();ta.value="";grow();save();run();};
+  const sendMsg=()=>{if(busy)return;const t=ta.value.trim();if(!t)return;rememberSent(t);touch();hist.push({role:"user",content:editMode?"[Внести сразу: "+t+"]":t,at:Date.now()});if(editMode)eb2.onclick();ta.value="";grow();save();run();};
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{userStop=true;ctl&&ctl.abort();};
   const sbar=sentBar(ta,grow,()=>noAns(hist));comp.insertBefore(sbar.el,comp.firstChild);
   {const vRefresh=voiceSend(send,ta,grow,sendMsg);const _d=draw;draw=function(...a){_d(...a);vRefresh();sbar.refresh();};}
