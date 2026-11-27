@@ -712,7 +712,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=538;
+const APP_VER=539;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -976,11 +976,20 @@ const WEAR_RULE="ОДЕЖДА — ИЗ ЭТОГО НАБОРА. Это весь 
 function wearBlock(c){const t=String((c&&c.wear)||"").trim();return t?"ГАРДЕРОБ — "+((c.name||"").toUpperCase())+":\n"+t+"\n"+WEAR_RULE:"";}
 // v502 — КАКАЯ В ПОСТЕЛИ: отдельное поле c.bed; главное в нём — чем близость отличается от обычного поведения
 const bedOf=c=>String((c&&c.bed)||"").trim();
+const bedFirstOf=c=>String((c&&c.bedFirst)||"").trim();
+const bedDoneOf=c=>!!(c&&c.state&&c.state.bedDone);
+const bedLogOf=c=>((c&&c.state&&c.state.bedLog)||[]).map(x=>String(x||"").trim()).filter(Boolean);
+const BED_EXP_RULE="ОПЫТ НАКАПЛИВАЕТСЯ, КАК У ЖИВОГО ЧЕЛОВЕКА. Первый раз бывает ОДИН раз: дальше человек уже знает, чего ждать, и неопытным больше не бывает — страха и растерянности первого раза заново не играй. Что ему было хорошо, он запоминает и к этому тянется сам: то, в чём ему впервые стало по-настоящему хорошо (поза, прикосновение, то, что делали), становится для него самым желанным — там он расслабляется быстрее всего и может сам к этому повести. Что было неловко, больно или страшно, он помнит тоже и этого избегает. Новое пробует с интересом, но не сразу свободно: сперва напряжение, потом отпускает. От раза к разу смелее, говорит чуть больше и просит чуть легче. Но характер, манера и границы у него прежние, и настоящее «нет» остаётся выше всего: опыт прибавляет смелости, а не снимает согласие.";
 // v525: блок близости подаётся только к месту (накал выбран или недавний текст о том же) и живёт в ДИНАМИЧЕСКОЙ части — иначе рвётся кэш промпта
 const BED_CUE=/(постел|кроват|спальн|поцелу|целова|разде(л|н|ва)|обнаж|нагот|бель[ёе]|прижал|прижим|ласка|бедр|лифчик|легла рядом|л[ёе]г рядом|на колени|близост|интим|секс)/i;
 const bedDue=(o,recent)=>{try{const m=closeMode(o);if(m&&m!=="story")return true;}catch(e){}return BED_CUE.test(String(recent||""));};
-function bedBlock(cs,recent,o){const L=(Array.isArray(cs)?cs:[cs]).filter(c=>c&&!isChild(c)&&bedOf(c));if(!L.length)return "";if(!bedDue(o,recent))return "";
-  return "В БЛИЗОСТИ — НЕ ТОТ ЖЕ ЧЕЛОВЕК, ЧТО В ЖИЗНИ:\n"+L.map(c=>"• "+c.name+": "+bedOf(c)).join("\n")+"\nЭто про близость и только про неё: в обычных сценах этим не играй, вслух об этом никто не рассуждает и заранее не объявляет. ГЛАВНОЕ ЗДЕСЬ — ОТЛИЧИЕ ОТ ОБЫЧНОГО ПОВЕДЕНИЯ: кто в жизни колючий, громкий и уверенный, в постели может быть тихим и растерянным, а тихий и уступчивый — требовательным; не переноси туда его обычную манеру и не тащи это обратно в обычные сцены. И это описание того, КАКОЙ человек в близости, а не разрешение на сцену: случится она или нет, решают накал, доверие, ступень и согласие, а настоящее «нет» выше всего.";}
+function bedBlock(cs,recent,o){const L=(Array.isArray(cs)?cs:[cs]).filter(c=>c&&!isChild(c)&&(bedOf(c)||bedFirstOf(c)));if(!L.length)return "";if(!bedDue(o,recent))return "";
+  const lines=L.map(c=>{let s="• "+c.name+": "+bedOf(c);const fst=bedFirstOf(c);const done=bedDoneOf(c);const lg=bedLogOf(c);
+    if(!done&&fst)s+="\n  ПЕРВЫЙ РАЗ — У НИХ ЭТОГО ЕЩЁ НЕ БЫЛО, играй как первый раз: "+fst;
+    else if(done){s+="\n  ПЕРВЫЙ РАЗ У НИХ УЖЕ БЫЛ"+(c.state&&c.state.bedDay?" (день "+c.state.bedDay+")":"")+" — заново его не играй.";
+      s+=lg.length?" ЧТО У НИХ УЖЕ БЫЛО И ЧТО ЕМУ ПОНРАВИЛОСЬ (его настоящая память, опирайся на это и продолжай с этого): "+lg.join("; ")+".":" Подробности прошлых раз не записаны — не выдумывай их заново, но и первый раз не повторяй.";}
+    return s;});
+  return "В БЛИЗОСТИ — НЕ ТОТ ЖЕ ЧЕЛОВЕК, ЧТО В ЖИЗНИ:\n"+lines.join("\n")+"\nЭто про близость и только про неё: в обычных сценах этим не играй, вслух об этом никто не рассуждает и заранее не объявляет. ГЛАВНОЕ ЗДЕСЬ — ОТЛИЧИЕ ОТ ОБЫЧНОГО ПОВЕДЕНИЯ: кто в жизни колючий, громкий и уверенный, в постели может быть тихим и растерянным, а тихий и уступчивый — требовательным; не переноси туда его обычную манеру и не тащи это обратно в обычные сцены. И это описание того, КАКОЙ человек в близости, а не разрешение на сцену: случится она или нет, решают накал, доверие, ступень и согласие, а настоящее «нет» выше всего.\n"+BED_EXP_RULE;}
 function charStable(c){const w=W(c.worldId);const p=[worldBlock(w,true),
   "ТЫ ИГРАЕШЬ ПЕРСОНАЖА: "+c.name+(c.short?" — "+c.short:""),
   "ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ (основа, не меняется):\n"+coreP(c,w),
@@ -1686,7 +1695,7 @@ function baseFor(c){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v))
   if(b&&b.state)return {state:cl(b.state),facts:Array.isArray(b.facts)?cl(b.facts):[]};
   // снимка нет: обнулять всё нельзя — характер остаётся, гасим только то, что нажито с героем
   const st=cl((c&&c.state)||{})||{};
-  st.relUser="";st.arc="";st.now="";st.trust=0;st.like=0;st.respect=0;st.loveKind="";st.grudge=0;st.grudgeWhy="";st.warm=0;st.warmWhy="";delete st.stale;
+  st.relUser="";st.arc="";st.now="";st.trust=0;st.like=0;st.respect=0;st.loveKind="";st.grudge=0;st.grudgeWhy="";st.warm=0;st.warmWhy="";delete st.stale;delete st.bedDone;delete st.bedDay;delete st.bedLog;
   return {state:st,facts:[],soft:true};}
 function ownFork(c,ch,keepNow){const cl=v=>JSON.parse(JSON.stringify(v===undefined?null:v));
   const b=keepNow?{state:cl(c.state)||{},facts:cl(c.facts)||[]}:baseFor(c);
@@ -2214,6 +2223,8 @@ ${transcript(since,w,c.name)}
  "facts":["новые конкретные факты, которые персонаж теперь помнит: имена, предметы, обещания, что сказал о себе собеседник, важные детали; коротко; только НОВОЕ и только то, что он сам видел и слышал (мысли героя и то, что тот делал вне его глаз, — не факты для него)"],
  "state":{"mood":"настроение сейчас","now":"каков он сейчас и что в нём изменилось с учётом прежнего (1-3 предложения, можно к худшему; если impact мал — повтори прежнее)","goals":["актуальные цели"],"relUser":"отношение к ${heroName(w)} (1-2 предложения)","arc":"накопленная история отношений с ${heroName(w)}: что между вами было важного, по порядку, 2-5 предложений; дополняй прежнюю, не переписывай","relations":{"Имя другого персонажа":"изменившееся отношение — только если фрагмент это задел"},"secrets":"что скрывает"},
  "deeds":[{"type":"тип","weight":1,"why":"3–8 слов","seen":true}] (поступки героя в этом разговоре, см. правило ниже; пусто, если не было),
+ "bedNew":["ЕСЛИ в этом фрагменте была близость с героем: что было и что персонажу понравилось — коротко, 2–8 слов, по одной записи на находку («впервые стало по-настоящему хорошо — сверху», «понравилось, когда держал за руку», «было больно вначале»). Пиши только то, что правда было в тексте; подробностей не выдумывай. Пусто, если близости не было"],
+ "bedDone":false,
  "things":["вещь, которая ПОЯВИЛАСЬ у персонажа насовсем: подарил герой, купил ему, отдали, нашёл. Что это и от кого, 2–6 слов («серое платье — подарок героя»). Только то, что он реально получил в этом фрагменте и оставил себе; не еда, не съеденное, не одолженное на минуту. Пусто, если не было"],
  "factsDrop":["прежние факты, которые отменила правка автора; пусто, если правок нет"],
  "log":["заметные изменения в персонаже, каждое с причиной: «стал меньше доверять герою: тот соврал про деньги». Пусто, если ничего важного"],
@@ -2248,8 +2259,18 @@ function addThings(c,list,w){const L=(Array.isArray(list)?list:[]).map(x=>String
   c.wear=(t.trim()+"\n"+add.join("\n")).trim();c.updated=Date.now();
   try{(c.log=c.log||[]).push({t:Date.now(),text:"появилась вещь: "+add.map(a=>a.replace(/^— /,"")).join("; ")});}catch(e){}
   return add;}
+function applyBed(c,r,w){const st=c&&c.state;if(!st||!r)return [];
+  const L=(Array.isArray(r.bedNew)?r.bedNew:[]).map(x=>String(x||"").trim()).filter(Boolean);
+  const day=(w&&w.story&&w.story.day)||0;const mark=()=>{if(!st.bedDone){st.bedDone=true;st.bedDay=day;c.updated=Date.now();}};
+  if(r.bedDone===true)mark();if(!L.length)return [];mark();
+  const log=Array.isArray(st.bedLog)?st.bedLog:[];const add=[];
+  L.forEach(x=>{const key=x.replace(/\s+/g," ").slice(0,28);if(log.some(s=>String(s).includes(key)))return;add.push(x+(day?" (день "+day+")":""));});
+  if(!add.length)return [];
+  st.bedLog=log.concat(add).slice(-12);c.updated=Date.now();
+  try{(c.log=c.log||[]).push({t:Date.now(),text:"близость: "+add.join("; ")});}catch(e){}
+  return add;}
 function applyCharUpdate(c,r,w,src){
-  if(!r)return;try{const got=addThings(c,r.things,w);if(got.length)try{toast(c.name+": "+got[0].replace(/^— /,""));}catch(e){}}catch(e){}
+  if(!r)return;try{applyBed(c,r,w);}catch(e){}try{const got=addThings(c,r.things,w);if(got.length)try{toast(c.name+": "+got[0].replace(/^— /,""));}catch(e){}}catch(e){}
   if(!r)return;try{normRels(c);}catch(e){}const st=c.state;const impact=Math.max(1,Math.min(10,parseInt(r.impact)||5));const inertia=c.inertia||5;
   if(r.state&&impact<inertia&&!r.force&&!fastRel(c)){const s2=r.state;r.state={mood:s2.mood,goals:s2.goals};r.log=[];}
   if(r.state){delete r.state.trust;delete r.state.like;delete r.state.grudge;delete r.state.grudgeWhy;}
@@ -2280,7 +2301,7 @@ ${REACT_RULE(cs[0]||null)}
 ${shiftDirBlock(cs)}${editsDirBlock(x)}ФРАГМЕНТ СЦЕНЫ (герой пользователя — ${heroName(w)}):
 ${transcript(since,w,"Рассказчик")}
 
-Верни JSON: {"chars":[{"name":"имя персонажа","impact":1,"facts":["новые факты, которые он теперь помнит — только то, что ОН САМ видел и слышал во фрагменте (если его не было рядом в какой-то момент — этого он не знает; мысли героя не знает никто)"],"state":{"mood":"","now":"каков он сейчас, с учётом прежнего","goals":[],"relUser":"отношение к ${heroName(w)}","relations":{"Имя другого":"изменившееся отношение"},"secrets":""},"deeds":[{"type":"тип","weight":1,"why":"3–8 слов","seen":true}],"factsDrop":["прежние факты, которые отменила правка автора"],"things":["вещь, которая появилась у НЕГО насовсем: подарил герой, купил, отдали, нашёл — что это и от кого, 2–6 слов; не еда и не одолженное; пусто, если не было"],"log":["изменения с причиной"]}],
+Верни JSON: {"chars":[{"name":"имя персонажа","impact":1,"facts":["новые факты, которые он теперь помнит — только то, что ОН САМ видел и слышал во фрагменте (если его не было рядом в какой-то момент — этого он не знает; мысли героя не знает никто)"],"state":{"mood":"","now":"каков он сейчас, с учётом прежнего","goals":[],"relUser":"отношение к ${heroName(w)}","relations":{"Имя другого":"изменившееся отношение"},"secrets":""},"deeds":[{"type":"тип","weight":1,"why":"3–8 слов","seen":true}],"factsDrop":["прежние факты, которые отменила правка автора"],"bedNew":["если в фрагменте была близость с героем: что было и что ему понравилось, 2–8 слов на запись; только по тексту, без выдумки; пусто, если не было"],"bedDone":false,"things":["вещь, которая появилась у НЕГО насовсем: подарил герой, купил, отдали, нашёл — что это и от кого, 2–6 слов; не еда и не одолженное; пусто, если не было"],"log":["изменения с причиной"]}],
  "hero":[{"text":"биография героя: что ${heroName(w)} САМ сделал, решил, сказал или пережил в этом фрагменте и что останется в его жизни навсегда; коротко, от третьего лица, в прошедшем времени, без пересказа мыслей","who":["имена тех, кто это видел сам, услышал, или мог бы логически понять или узнать (слух, следы, хроника); если никто — []"]}] (пусто, если ничего важного),
  "events":[{"text":"событие для хроники мира","public":true}]}
 Только для персонажей, которых сцена действительно задела. Люди меняются медленно: для каждого укажи "impact" 1–10 (1 — ничего особенного, 10 — определяет человека навсегда); при impact ниже 5 меняй только mood и facts. ${DEEDS_RULE} Каждого оценивай относительно его собственной основы.${ONLY_THIS} Не выдумывай того, чего не было.`;
@@ -2828,7 +2849,7 @@ function missingAddons(w){return (ADDONS[tplOf(w)]||[]).filter(x=>{const lack=(x
 // ОБНОВИТЬ УЖЕ СОЗДАННЫЙ МИР ИЗ ПРЕСЕТА (у «Города Х» нет дополнений, а правки канона живут в пресете).
 // Переписываются только ОПРЕДЕЛЕНИЯ: карточки, правила, места, определения сюжета. Игра не трогается:
 // state, facts, чаты, память, день, часть дня, флаги, сработавшие события, деньги, обещания — остаются.
-const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","strong","sens","always","mindMust","bed","memKeys","knownBy","child","invent","tags","away","awayWhere"];
+const PRESET_CHAR_DEF=["core","short","seen","pub","voice","examples","look","lookEn","wear","greeting","endings","stages","stagesAuto","stageBack","capDay","attract","react","strong","sens","always","mindMust","bed","bedFirst","memKeys","knownBy","child","invent","tags","away","awayWhere"];
 async function updateFromPreset(w,say){
   const file=CLEAN_PRESETS[tplOf(w)];
   if(!file){toast("У этого мира нет готового пресета в приложении",true);return;}
@@ -4176,6 +4197,7 @@ function renderCharEdit(){
      row.append(mk(0,0,"авто"));PALETTE.forEach(([hu,sa])=>row.append(mk(hu,sa)));row.append(mk(212,75));p.append(lb,row);}
     {const ml=el("label");const mc=el("input");mc.type="checkbox";mc.checked=!!c.mindMust;ml.style.display="flex";ml.style.gap="8px";ml.style.alignItems="center";ml.append(mc,document.createTextNode("💭 Мысли обязательны — в каждом ответе одна мысль в ((скобках)) и видимый телесный отклик"));mc.onchange=()=>{c.mindMust=mc.checked;};p.append(ml);}
     {const lb=el("div","lbl");lb.textContent="Какая (какой) в близости — и чем это отличается от обычного поведения";const ta=el("textarea");ta.rows=3;ta.value=c.bed||"";ta.placeholder="Например: в жизни колючая и громкая, а в постели тихая, почти молчит, прячет лицо; ни одной шутки";ta.oninput=()=>{c.bed=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
+    {const lb=el("div","lbl");lb.textContent="Первый раз (выдаётся ОДИН раз, пока близости ещё не было)";const ta=el("textarea");ta.rows=3;ta.value=c.bedFirst||"";ta.placeholder="Неопытность, страхи первого раза, чем он кончается. После первой близости этот текст модели больше не идёт, а вместо него — что персонажу понравилось (движок дописывает сам)";ta.oninput=()=>{c.bedFirst=ta.value;growTA(ta);};p.append(lb,ta);growTA(ta);}
     {const il=el("label");const ic=el("input");ic.type="checkbox";ic.checked=inventOf(c);il.style.display="flex";il.style.gap="8px";il.style.alignItems="center";il.append(ic,document.createTextNode("✨ Свобода в мелочах — чего в карточке нет (еда, дом, школа, привычки), ИИ придумывает сам и дальше этого держится. Крупное прошлое и написанное в карточке не трогает."));p.append(il);ic.onchange=()=>{c.invent=ic.checked;};}
     {const al=el("label");const ac=el("input");ac.type="checkbox";ac.checked=!!c.away;al.style.display="flex";al.style.gap="8px";al.style.alignItems="center";al.append(ac,document.createTextNode("🌫 Фон — его нет на побережье и никогда не будет (только в воспоминаниях)"));p.append(al);const ab=el("label");ab.append(document.createTextNode("Где он(а) (для воспоминаний)"));const ai=el("input");ai.type="text";ai.value=c.awayWhere||"";ai.oninput=()=>{c.awayWhere=ai.value;};ab.append(ai);ab.hidden=!c.away;p.append(ab);ac.onchange=()=>{c.away=ac.checked;ab.hidden=!c.away;};}
     dc.onchange=()=>{c.dead=dc.checked;box.hidden=!c.dead;if(c.dead&&!route.draft)markDead(Object.assign(c,{dead:false}),c.deadWhen);c.dead=dc.checked;};}
