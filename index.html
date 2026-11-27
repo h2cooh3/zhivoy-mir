@@ -712,7 +712,7 @@ async function load(){
   save();
 }
 let saveT,_prevIds=null;
-const APP_VER=545;
+const APP_VER=546;
 // удалённое не возвращается, даже если старая версия приложения на другом устройстве «освежила» его (поменяла updated); вернуть можно только явно — восстановлением/импортом здесь (revived)
 const isGone=(o,g)=>{const t=(g||S.gone||{})[o.id];return !!t&&!((o.revived||0)>t);};
 function dropGone(){try{const n0=S.worlds.length+S.chars.length+S.scenes.length;S.worlds=S.worlds.filter(o=>!isGone(o));S.chars=S.chars.filter(o=>!isGone(o));S.scenes=S.scenes.filter(o=>!isGone(o));return n0-(S.worlds.length+S.chars.length+S.scenes.length);}catch(e){return 0;}}
@@ -1577,7 +1577,7 @@ ${recent}
 - "promDone": [{"id":"","result":"сделал|не сделал|снято","how":"3–8 слов"}] — записанные обещания, которые в тексте выполнены, сорваны (вышел срок, человек сделал сам или всё пропало) или сняты (человек сам освободил от слова);
 ${st.money?`- "money": {"delta": число (получил +, потратил/отдал −), "debt": изменение долга (только явная ссуда или возврат), "sold": [id проданного имущества], "lost": [id потерянного иначе], "why": 3–8 слов} — ТОЛЬКО то, что прямо случилось в ДВУХ ПОСЛЕДНИХ ответах рассказчика (всё раньше уже учтено). Суммы бери из текста; если названо не числом, оцени по ориентирам, не завышай. Нет денежных событий — delta 0. Еду на двоих не считай — это делается само.\n`:""}${Object.keys(st.counterDefs||{}).length?`- "count": [id счётчиков, которые выросли на 1 из-за событий в ДВУХ ПОСЛЕДНИХ ответах рассказчика; более ранние уже учтены; один и тот же случай дважды не считай];\n`:""}${stageTickInfo(w)?`- "stage": {"Имя": 1 или -1} — только если в ДВУХ ПОСЛЕДНИХ ответах рассказчика явно выполнилось условие перехода на следующую ступень (1) или случилось то, что отбрасывает назад (-1); иначе пусто. Меняется медленно: не больше одного шага за раз.\n`:""}- "why": 3–8 слов, почему.
 JSON: {"days":0,"goal":"","steps":[],"stage":{},"part":"","where":{},"flags":[],"fired":[],"act":${st.act},"qStart":[],"qDone":[],"told":[],"heard":[],"feel":[],"body":{"tired":0,"slept":null,"why":""},"heardAdd":[],"died":[],"promNew":[],"promDone":[],"echoed":[],"money":{"delta":0,"debt":0,"sold":[],"lost":[],"why":""},"count":[],"ending":"","why":""}`;
-  const r=await askJSON(prompt,900,"story");
+  const _g=WORLD_GEN;const r=await askJSON(prompt,900,"story");if(_g!==WORLD_GEN)return null;
   const d0=st.day,p0=st.part;const d=Math.max(0,Math.min(7,parseInt(r.days)||0));if(d){st.day+=d;}
   ensureMoney(st);if(d&&st.money&&st.money.upkeep)addMoney(st,-d*st.money.upkeep,"будни: еда на двоих");
   if(PARTS.includes(r.part)&&(d>0||PARTS.indexOf(r.part)>=PARTS.indexOf(st.part)))st.part=r.part;
@@ -2234,7 +2234,7 @@ ${transcript(since,w,c.name)}
  "others":[{"name":"имя другого персонажа","effect":"что он узнает и от кого — ТОЛЬКО если ему это наверняка расскажут или он увидит сам (назови, кто и как); догадки и «мог бы узнать» не пиши; если никого — пусто"}],
  "guests":[{"name":"имя присутствовавшего","impact":1,"facts":[],"state":{"mood":"","now":"","relUser":"","relations":{}},"deeds":[],"log":[]}]}
 Развитие в любую сторону, не обязательно к лучшему. Не выдумывай того, чего не было во фрагменте. Если изменений нет — верни пустые массивы и прежнее состояние.`;
-  const r=await askJSON(prompt,2500);
+  const _g=WORLD_GEN;const r=await askJSON(prompt,2500);if(_g!==WORLD_GEN)return null;
   // разговор со своей памятью или проба: меняется только копия этого персонажа; биография героя, хроника мира, другие люди и гости из основной игры не трогаются
   // v388: deeds меняют состояние ТОЛЬКО этого персонажа (applyDeeds пишет в c.state) — в своей памяти разговора они и должны работать,
   // иначе отношения в таком разговоре вообще не меняются. Наружу (биография героя, хроника, другие люди, гости) по-прежнему ничего не уходит.
@@ -2306,7 +2306,7 @@ ${transcript(since,w,"Рассказчик")}
  "hero":[{"text":"биография героя: что ${heroName(w)} САМ сделал, решил, сказал или пережил в этом фрагменте и что останется в его жизни навсегда; коротко, от третьего лица, в прошедшем времени, без пересказа мыслей","who":["имена тех, кто это видел сам, услышал, или мог бы логически понять или узнать (слух, следы, хроника); если никто — []"]}] (пусто, если ничего важного),
  "events":[{"text":"событие для хроники мира","public":true}]}
 Только для персонажей, которых сцена действительно задела. Люди меняются медленно: для каждого укажи "impact" 1–10 (1 — ничего особенного, 10 — определяет человека навсегда); при impact ниже 5 меняй только mood и facts. ${DEEDS_RULE} Каждого оценивай относительно его собственной основы.${ONLY_THIS} Не выдумывай того, чего не было.`;
-  const r=await askJSON(prompt,3000);
+  const _g=WORLD_GEN;const r=await askJSON(prompt,3000);if(_g!==WORLD_GEN)return null;
   (r.chars||[]).forEach(u=>{const c=byName(w.id,u.name);if(c){dropFacts(c,u.factsDrop);applyCharUpdate(c,{impact:u.impact,facts:u.facts,state:u.state,log:u.log,deeds:u.deeds},w,"сцена «"+(x.title||"без названия")+"»");}});editsDone(x);
   addHeroFacts(w,r.hero,x.title||"сцена",cs);
   (r.events||[]).forEach(e=>{if(e&&e.text)w.events.push({t:now(),date:w.date,text:String(e.text),public:e.public!==false,who:cs.map(c=>c.name)});});
@@ -2374,7 +2374,7 @@ ${MIND_SECRET} В хронике мысль можно сохранить тол
 ОТНОШЕНИЯ — как поменялось между кем (что сказано, чем обидели или порадовали).
 НЕЗАКРЫТОЕ — что осталось недоговорённым и ждёт ответа.
 Итог — не длиннее 6000 знаков: самое старое сжимай сильнее (одна строка на событие, закрытое и неважное можно выбросить), свежее держи подробно; обещания, долги и «кто что знает» не сжимай до потери смысла. Если новое противоречит старому, оставь новое и пометь, что изменилось. Имена, числа, предметы и сказанные слова важнее описаний погоды и жестов. Пунктами, на языке разговора. Только текст содержания.`;
-  const t=await callModel({msgs:[{role:"user",content:prompt}],maxTokens:4500,cheap:true,signal:ctl&&ctl.signal,purpose:"memory"});
+  const _g=WORLD_GEN;const t=await callModel({msgs:[{role:"user",content:prompt}],maxTokens:4500,cheap:true,signal:ctl&&ctl.signal,purpose:"memory"});if(_g!==WORLD_GEN)return false;
   if(t.trim()){obj.summary=t.trim();obj.sumIdx=end;if(obj.main&&w)chronJournal(obj,w);save();}return true;
 }
 async function writeChapter(w,opts){
@@ -3771,17 +3771,37 @@ ${scene?"Последние сообщения сцены:\n"+last:""}
 function forOtherAI(c){exportChar(c);}
 // ============ ОТКАТ РАЗГОВОРА (правка своего сообщения / соавтор) ============
 // Перед каждым твоим сообщением запоминаем состояние персонажа — чтобы при правке вернуть его «как было до этого момента».
-const MAX_SNAPS=30;
+const MAX_SNAPS=30;const SNAP_STEP=10,MAX_SNAP_ANCHORS=16;
+// v546 — ПОКОЛЕНИЕ МИРА. Откат (переиграть момент) поднимает счётчик; фоновые разборы, которые уже ждут ответа
+// модели, после этого свой результат НЕ применяют — иначе память стёртой ветки дописывается поверх откатa.
+let WORLD_GEN=0;function bumpGen(){WORLD_GEN++;}
+// правки автора описывают стёртый текст («стало … (было: …)») и подаются модели дословно — после откатa их надо убрать
+function editsCut(o,n){if(!o||!Array.isArray(o.authEdits))return;o.authEdits=o.authEdits.filter(e=>e.i<n);}
 function takeSnap(c){const sb=ownOf(c);const o=sb?sb.sb:c;return JSON.stringify({t:Date.now(),sb:!!sb,state:o.state,facts:o.facts,log:o.log,inertia:o.inertia,summary:c.summary,sumIdx:c.sumIdx,dirIdx:c.dirIdx});}
-function pruneSnaps(h){let n=0;for(let i=h.length-1;i>=0;i--)if(h[i].snap&&++n>MAX_SNAPS)delete h[i].snap;}
+// v546: у последних MAX_SNAPS ходов снимок полный; дальше в прошлое остаются ЛЁГКИЕ якоря (состояние и память без хроники),
+// чтобы откат на сотню ходов назад возвращал персонажа хотя бы к ближайшему сохранённому месту, а не оставлял память текущей.
+function pruneSnaps(h){const ord=new Map();let k=0;for(let i=0;i<h.length;i++)if(h[i]&&h[i].role==="user")ord.set(i,k++);
+  const idx=[];for(let i=0;i<h.length;i++)if(h[i]&&h[i].snap)idx.push(i);
+  const full=new Set(idx.slice(-MAX_SNAPS));
+  // шаг якорей считаем от номера хода игрока (он не меняется), иначе при каждом вызове якоря съезжают и не выживают
+  let step=SNAP_STEP;while(Math.floor(k/step)>MAX_SNAP_ANCHORS)step*=2;
+  idx.forEach(i=>{if(full.has(i))return;const o=ord.get(i);
+    if(o===undefined||o%step!==0){delete h[i].snap;return;}
+    try{const sn=JSON.parse(h[i].snap);if(sn.lite)return;
+      h[i].snap=JSON.stringify({t:sn.t,sb:sn.sb,state:sn.state,facts:sn.facts,log:sn.log,inertia:sn.inertia,lite:true});}catch(e){delete h[i].snap;}});}
 // оставить в активном разговоре сообщения [0..n), вернуть персонажа в состояние того момента
-function rewindChat(c,n){const h=c.history;n=Math.max(0,Math.min(n,h.length));let res="cut";
+function rewindChat(c,n){bumpGen();const h=c.history;n=Math.max(0,Math.min(n,h.length));let res="cut";const sum0=c.sumIdx||0;let sumOk=false;
   for(let u=Math.min(n,h.length-1);u>=0;u--){const m=h[u];if(m.role!=="user"||!m.snap)continue;let sn;try{sn=JSON.parse(m.snap);}catch(e){break;}
     const sbc=ownOf(c);const other=!sbc&&c.chats.some(x=>x.id!==c.activeChat&&!x.sb&&(x.updated||0)>sn.t);
-    c.summary=sn.summary;c.sumIdx=sn.sumIdx;c.dirIdx=sn.dirIdx;
-    if(sbc){if(sn.sb){sbc.sb.state=sn.state;sbc.sb.facts=sn.facts;sbc.sb.log=sn.log||[];sbc.sb.inertia=sn.inertia;res="restored";}else res="cut";}
-    else if(!other){c.state=sn.state;c.facts=sn.facts;c.log=sn.log;if(sn.inertia)c.inertia=sn.inertia;res="restored";}else res="other";break;}
-  h.length=n;if(c.sumIdx>n)c.sumIdx=n;if(c.dirIdx>n)c.dirIdx=n;c.updated=Date.now();return res;}
+    if(!sn.lite){c.summary=sn.summary;c.sumIdx=sn.sumIdx;c.dirIdx=sn.dirIdx;sumOk=true;}
+    if(sbc){if(sn.sb){sbc.sb.state=sn.state;sbc.sb.facts=sn.facts;sbc.sb.log=sn.log||[];sbc.sb.inertia=sn.inertia;res=sn.lite?"lite":"restored";}else res="cut";}
+    else if(!other){c.state=sn.state;c.facts=sn.facts;c.log=sn.log;if(sn.inertia)c.inertia=sn.inertia;res=sn.lite?"lite":"restored";}else res="other";break;}
+  h.length=n;
+  // хроника описывала и стёртое: если своей версии хроники на этот момент нет — собрать заново, иначе модель прочтёт стёртое в сжатой памяти
+  if(!sumOk&&sum0>n){c.summary="";c.sumIdx=0;}
+  if(c.sumIdx>n)c.sumIdx=n;if(c.dirIdx>n)c.dirIdx=n;editsCut(chatOf(c),n);c.updated=Date.now();return res;}
+// есть ли куда откатывать память разговора (как wsHas для сцены)
+function rewindHas(c,n){const h=c.history||[];for(let u=Math.min(n,h.length-1);u>=0;u--){const m=h[u];if(m&&m.role==="user"&&m.snap)return true;}return false;}
 // v417 — ОТКАТ МИРА В СЦЕНЕ. Перед каждым ответом рассказчика запоминаем мир (сюжет, время, деньги, флаги, события,
 // память и отношения людей, хронику сцены, драматурга). Ключ — номер первого сообщения, которое ещё НЕ отразилось на мире.
 // Переписал/стёр с места — мир возвращается к тому моменту: ИИ и режиссёр забывают отменённую ветку.
@@ -3819,14 +3839,14 @@ function wsPick(x,target){const f=o=>Object.keys(o||{}).map(Number).filter(k=>k<
   const a1=f(x.wsnaps);if(a1.length)return {k:a1[0],snap:x.wsnaps[a1[0]],mark:false};
   const a2=f(x.wsmarks);if(a2.length)return {k:a2[0],snap:x.wsmarks[a2[0]],mark:true};return null;}
 const wsHas=(x,target)=>!!wsPick(x,target);
-function wsBack(w,x,target){const pick=wsPick(x,target);let res="none",at=target;
+function wsBack(w,x,target){bumpGen();const pick=wsPick(x,target);let res="none",at=target;
   if(pick&&worldRestore(w,x,pick.snap)){at=pick.k;res=pick.k===target?"restored":(pick.mark?"mark":"older");}
   Object.keys(x.wsnaps||{}).map(Number).forEach(k=>{if(k>at)delete x.wsnaps[k];});
   Object.keys(x.wsmarks||{}).map(Number).forEach(k=>{if(k>at)delete x.wsmarks[k];});
   if(res!=="none"){const st=w.story||{};x.wsTag=(st.day||0)+"/"+(st.part||"");}
   return res;}
 const wsNote=r=>r==="restored"?"Мир вернулся к тому моменту: время, сюжет, память и отношения — как были.":r==="mark"?"Мир возвращён к началу той части дня: время, сюжет и память — как были тогда.":r==="older"?"Мир возвращён к ближайшему сохранённому моменту (чуть раньше).":"Сообщения убраны. Для такого старого места мир не сохранён — память и сюжет остались текущими.";
-const rewindNote=r=>r==="restored"?"Персонаж вернулся в состояние того момента.":r==="other"?"Сообщения убраны. Состояние персонажа не откатывал: после этого были другие его разговоры.":"Сообщения убраны (для такого старого места состояние персонажа не сохранено — память и доверие остались текущими).";
+const rewindNote=r=>r==="restored"?"Персонаж вернулся в состояние того момента.":r==="lite"?"Персонаж возвращён к ближайшему сохранённому месту; хроника разговора будет собрана заново.":r==="other"?"Сообщения убраны. Состояние персонажа не откатывал: после этого были другие его разговоры.":"Сообщения убраны (для такого старого места состояние персонажа не сохранено — память и доверие остались текущими).";
 // ============ ЭКСПОРТ: мир / персонаж / разговор ============
 const fnSafe=t=>(t||"файл").replace(/[\\/:*?"<>|]+/g,"").trim().slice(0,60)||"файл";
 function chatText(c,x,limit){const w=W(c.worldId),hn=heroName(w);const h=limit?x.history.slice(-limit):x.history;
@@ -4349,11 +4369,11 @@ function renderChat(){
       const after=c.history.length-1-i;
       if(m.role==="user"){const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");
         const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(chatOf(c),i,m.content,t.value);m.content=t.value;editIdx=-1;c.updated=Date.now();save();drawLog();};
-        rs.onclick=()=>{const v=t.value.trim();if(!v)return;if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, персонаж ответит заново. Продолжить?"))return;const res=rewindChat(c,i);c.history.push({role:"user",content:v,snap:takeSnap(c)});editIdx=-1;lastErr="";save();toast(rewindNote(res));drawAside();run();};
-        r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента."));}
+        rs.onclick=()=>{const v=t.value.trim();if(!v)return;const warn=rewindHas(c,i)?"":"\n\nВНИМАНИЕ: память этого разговора для такого старого места не сохранена — доверие, обида и «что помнит» останутся текущими.";if((after>1||warn)&&!confirm("Исчезнут "+after+" сообщ. после этого, персонаж ответит заново."+warn+"\n\nПродолжить?"))return;const res=rewindChat(c,i);c.history.push({role:"user",content:v,snap:takeSnap(c)});editIdx=-1;lastErr="";save();toast(rewindNote(res));drawAside();run();};
+        r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, персонаж ответит на новый текст и вернётся в состояние того момента: для него это случится ВПЕРВЫЕ. «Только исправить текст» — переписка после остаётся, и ИИ продолжит помнить всё, что было (а старый вариант увидит как твою правку)."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{noteEdit(chatOf(c),i,m.content,t.value);m.content=t.value;editIdx=-1;c.updated=Date.now();save();drawLog();toast("✓ Исправлено: ИИ и режиссёр будут опираться на этот вариант");};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);if(isLast&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contReply]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(c.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;c.history.splice(i,1);editsShift(chatOf(c),i,-1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
+    else{const bb=el("div","b");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");mb.title="Действия";const openActs=()=>{const acts=[];if(isLast)acts.push(["↻ Другой вариант ответа",regen]);if(isLast&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contReply]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<c.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=c.history.length-1-i;if(!confirm("Стереть "+k+" сообщ. после этого? Персонаж вернётся в состояние того момента."))return;const res=rewindChat(c,i+1);save();toast(rewindNote(res));drawLog();drawAside();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(c.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить сообщение?"))return;bumpGen();c.history.splice(i,1);editsShift(chatOf(c),i,-1);if(i<c.sumIdx)c.sumIdx--;if(i<c.dirIdx)c.dirIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(av,col);return wv;
   }
   function drawAside(){
@@ -4426,7 +4446,7 @@ function renderChat(){
       await contNext(tmp,base,t=>liveText(log,t));if(tmp[1])c.history.push(tmp[1]);}
     catch(e){lastErr=friendly(e);}
     finally{busy=false;ctl=null;save();drawLog();toast(usageStr(lastUsage));}}
-  function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;save();run();}}
+  function regen(){if(busy)return;const l=c.history[c.history.length-1];if(l&&l.role==="assistant"&&c.history.length>1){bumpGen();c.history.pop();if(c.dirIdx>c.history.length)c.dirIdx=c.history.length;editsCut(chatOf(c),c.history.length);save();run();}}
   send.onclick=sendMsg;ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMsg();}});stop.onclick=()=>{if(watch.on){watch.on=false;clearTimeout(watch.t);drawWatch();}ctl&&ctl.abort();setTimeout(()=>{const h=c.history,l=h[h.length-1];if(!busy&&l&&l.role==="user"&&isWatch(l.content)){h.pop();save();drawLog();}},400);};
   const vRefresh=voiceSend(send,ta,grow,sendMsg);const _dl=drawLog;drawLog=function(...a){_dl(...a);vRefresh();sbar.refresh();};
   drawLog();drawAside();setTimeout(()=>ta.focus(),0);
@@ -4478,10 +4498,10 @@ function renderScene(){
   function msgEl(m,i){if(m.cut)return cutEl(m,i);const wv=el("div","msg "+(m.role==="user"?"user":"ai")+(i>=0&&i<x.sumIdx?" old":""));if(i>=0)wv.dataset.mi=i;const col=el("div","col");
     if(i>=0&&i===editIdx){const t=el("textarea");t.value=m.content;t.rows=Math.min(10,Math.max(3,Math.ceil(m.content.length/60)));const r=el("div","row");const no=el("button","btn sm","Отмена");no.onclick=()=>{editIdx=-1;drawLog();};r.append(no);const after=x.history.length-1-i;
       if(m.role==="user"){const ok=el("button","btn sm","Только исправить текст");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();};const rs=el("button","btn primary sm",after>0?"Отправить заново":"Отправить");rs.onclick=()=>{const v=t.value.trim();if(!v)return;const warn=wsHas(x,i)?"":"\n\nВНИМАНИЕ: мир для этого места не сохранён — время, сюжет и память людей останутся текущими.";
-        if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"+warn))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Мир (время, сюжет, память и отношения людей) вернётся к тому моменту."));}
+        if(after>1&&!confirm("Исчезнут "+after+" сообщ. после этого, рассказчик ответит заново. Продолжить?"+warn))return;cutAfter(i);m.content=v;editIdx=-1;lastErr="";save();run();};r.append(ok,rs);if(after>0)col.append(el("div","note","«Отправить заново» — всё, что после, исчезнет, и сцена продолжится с этого места. Мир (время, сюжет, память и отношения людей) вернётся к тому моменту: для них это случится ВПЕРВЫЕ. «Только исправить текст» — всё, что после, остаётся, и мир не откатывается."));}
       else{const ok=el("button","btn primary sm","Сохранить");ok.onclick=()=>{noteEdit(x,i,m.content,t.value);m.content=t.value;editIdx=-1;x.updated=Date.now();save();drawLog();toast("✓ Исправлено: ИИ и режиссёр будут опираться на этот вариант");};r.append(ok);}
       col.append(t,r);setTimeout(()=>t.focus(),0);}
-    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;const tgt=m&&m.role==="user"?i:i+1;
+    else{const bb=el("div","b");if(m.role==="user"&&/^\[Правка автора:/.test(m.content))bb.classList.add("authnote");fmt(bb,m.content,{user:m.role==="user"});col.append(bb);{const mc=mapCard(w,m.content);if(mc)col.append(mc);}if(i>=0&&!busy){const mb=el("button","more","⋯");const openActs=()=>{const acts=[];if(i===x.history.length-1&&m.role==="assistant")acts.push(["▶ Дописать следующим сообщением",contScene]);if(i===x.history.length-1&&m.role==="assistant")acts.push(["↻ Другой вариант",()=>{x.history.pop();editsCut(x,x.history.length);{const r=wsBack(w,x,wsKey(x));if(r==="older")toast(wsNote(r));}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;save();run();}]);acts.push(["Изменить",()=>{editIdx=i;drawLog();}]);if(i<x.history.length-1)acts.push(["Стереть всё после этого",()=>{const k=x.history.length-1-i;const tgt=m&&m.role==="user"?i:i+1;
       const warn=wsHas(x,tgt)?"":"\n\nВНИМАНИЕ: мир для этого места не сохранён — время, сюжет и память людей останутся такими, как сейчас. Поправить их можно кнопкой «Состояние персонажей».";
       if(!confirm("Стереть "+k+" сообщ. после этого?"+warn))return;cutAfter(i);save();drawLog();},true]);acts.push(["🎧 Слушать отсюда",()=>ttsStart(x.history,i)]);acts.push(["Копировать",async()=>{try{await navigator.clipboard.writeText(m.content);toast("Скопировано.");}catch(e){}}]);acts.push(["Удалить сообщение",()=>{if(!confirm("Удалить?"))return;x.history.splice(i,1);editsShift(x,i,-1);if(i<x.sumIdx)x.sumIdx--;if(i<x.dirIdx)x.dirIdx--;if(i<x.dramaIdx)x.dramaIdx--;save();drawLog();},true]);sheet(acts);};mb.onclick=openActs;bb.style.cursor="pointer";bb.onclick=e=>{if(e.target.closest("a"))return;if(String(window.getSelection&&window.getSelection()).length)return;openActs();};col.append(mb);}}
     wv.append(el("div","av"),col);return wv;}
@@ -4500,7 +4520,9 @@ function renderScene(){
       const tmp=[{role:"assistant",content:merged}];await contNext(tmp,base,t=>liveText(log,t));if(tmp[1])x.history.push(tmp[1]);}
     catch(e){lastErr=friendly(e);}
     finally{busy=false;ctl=null;save();drawLog();}}
-  function cutAfter(i,noWorld){if(!noWorld){const m=x.history[i];const r=wsBack(w,x,m&&m.role==="user"?i:i+1);if(r!=="none")toast(wsNote(r));}x.history.length=i+1;if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
+  function cutAfter(i,noWorld){const sum0=x.sumIdx||0;let r="none";if(!noWorld){const m=x.history[i];r=wsBack(w,x,m&&m.role==="user"?i:i+1);toast(wsNote(r));}else bumpGen();x.history.length=i+1;
+    // v546: своей версии хроники на этот момент нет — собрать заново, иначе в сжатой памяти останется стёртое
+    if(r==="none"&&sum0>x.history.length){x.summary="";x.sumIdx=0;}editsCut(x,x.history.length);if(x.sumIdx>x.history.length){x.sumIdx=x.history.length;}if(x.dirIdx>x.history.length)x.dirIdx=x.history.length;if(x.dramaIdx>x.history.length)x.dramaIdx=x.history.length;}
   function drawAside(){aside.innerHTML="";const hd=el("div","row between");hd.append(el("h3",null,"Сцена"));const cl=el("button","btn ghost sm","✕");cl.onclick=()=>aside.classList.remove("open");hd.append(cl);aside.append(hd);
     aside.append(el("p","note","После сцены режиссёр обновит каждого участника: что он узнал, как изменился, как теперь относится к другим."));
     if(x.main){const mv=el("button","btn sm ghost","⇢ Перенести сюда разговор…");mv.onclick=()=>{const cs=npcsOf(w.id).filter(c=>c.history.length>1).sort((a,b)=>b.history.length-a.history.length);if(!cs.length){toast("Нет разговоров, которые можно перенести.");return;}sheet(cs.map(c=>[c.name+" — "+c.history.length+" сообщ.",()=>moveChatToMain(w,c)]));};
